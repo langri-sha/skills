@@ -1,0 +1,6 @@
+# trace.py needs: pillow, numpy, scikit-image
+# score.py additionally needs: cairosvg
+pillow>=10
+numpy>=1.24
+scikit-image>=0.22
+cairosvg>=2.7
