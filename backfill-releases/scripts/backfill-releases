@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -euo pipefail
+export MISE_QUIET=1
+
+usage() {
+  cat << 'EOF'
+Usage: backfill-releases [--apply] [--branch BRANCH] [--template TEMPLATE]
+
+Plans a tag and a GitHub release for every version in the repository's
+beachball CHANGELOG.json files, and creates the missing ones with --apply.
+Run it from a checkout of the repository.
+
+  --apply              Create the tags and releases instead of listing them.
+  --branch BRANCH      Branch beachball publishes from (default: the default branch).
+  --template TEMPLATE  Tag name, with {name} and {version} placeholders
+                       (default: v{version} for one package, {name}_v{version} for more).
+EOF
+}
+
+apply=false
+branch=
+template=
+
+while (($#)); do
+  case $1 in
+    --apply) apply=true ;;
+    --branch) branch=$2 && shift ;;
+    --template) template=$2 && shift ;;
+    -h | --help) usage && exit 0 ;;
+    *) usage >&2 && exit 2 ;;
+  esac
+  shift
+done
+
+repo=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+branch=${branch:-$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)}
+ref=origin/$branch
+git fetch --quiet origin "$branch"
+
+mapfile -t changelogs < <(git ls-tree -r --name-only "$ref" | grep -E '(^|/)CHANGELOG\.json$' | grep -v node_modules || true)
+
+if ((${#changelogs[@]} == 0)); then
+  echo "No CHANGELOG.json on $ref." >&2
+  exit 1
+fi
+
+if [[ -z $template ]]; then
+  template=$( ((${#changelogs[@]} == 1)) && echo 'v{version}' || echo '{name}_v{version}')
+fi
+
+declare -A remote
+while read -r sha name; do
+  name=${name#refs/tags/}
+  if [[ $name == *'^{}' ]]; then
+    remote[${name%'^{}'}]=$sha
+  else
+    remote[$name]=${remote[$name]:-$sha}
+  fi
+done < <(git ls-remote --tags origin)
+
+released=$(gh release list --repo "$repo" --limit 1000 --json tagName --jq '.[].tagName')
+plan=$(mktemp)
+trap 'rm -f "$plan"' EXIT
+
+for changelog in "${changelogs[@]}"; do
+  dir=$(dirname "$changelog")
+  dir=${dir#.}
+  dir=${dir:+$dir/}
+  name=$(git show "$ref:${dir}package.json" | jq -r .name)
+  previous=
+
+  while IFS=$'\t' read -r version date; do
+    pattern=${version//./\\.}
+    pattern=${pattern//+/\\+}
+    commit=$(git log --reverse --format=%H --pickaxe-regex -S"\"version\":[[:space:]]*\"$pattern\"" "$ref" -- "${dir}package.json")
+    commit=${commit%%$'\n'*}
+
+    if [[ -z $commit || $(git show "$commit:${dir}package.json" | jq -r .version) != "$version" ]]; then
+      echo "warning: no commit on $ref sets $name to $version, skipping it" >&2
+      continue
+    fi
+
+    tag=${template//\{name\}/$name}
+    tag=${tag//\{version\}/$version}
+    printf '%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\x1f%s\n' \
+      "$(date -d "$date" +%s)" "$name" "$version" "$commit" "$tag" "$previous" "$dir" "$date" >> "$plan"
+    previous=$tag
+  done < <(git show "$ref:$changelog" | jq -r '.entries | reverse[] | [.version, .date] | @tsv')
+done
+
+sort -n -o "$plan" "$plan"
+names=$(cut -d $'\x1f' -f2 "$plan" | sort -u)
+
+stray=$(comm -23 <(printf '%s\n' "${!remote[@]}" | sort) <(cut -d $'\x1f' -f5 "$plan" | sort))
+if [[ -n $stray ]]; then
+  echo "warning: tags that match no published version: $(tr '\n' ' ' <<< "$stray")" >&2
+fi
+
+while read -r file; do
+  for package in $(git show "$ref:$file" | jq -r '.packageName // (.changes[]?.packageName)'); do
+    grep -qxF "$package" <<< "$names" ||
+      echo "warning: $file names $package, which is not a package here" >&2
+  done
+done < <(git ls-tree --name-only "$ref" change/ 2> /dev/null | grep '\.json$' || true)
+
+echo "Repository $repo, $ref, tags $template"
+echo
+
+while IFS=$'\x1f' read -r _ name version commit tag previous dir date; do
+  if [[ -n ${remote[$tag]:-} ]]; then
+    if [[ ${remote[$tag]} != "$commit" ]]; then
+      action="skip: $tag is on another commit"
+    elif grep -qxF "$tag" <<< "$released"; then
+      action=released
+    else
+      action=release
+    fi
+  else
+    action="tag + release"
+  fi
+
+  printf '%s\t%s\t%s\t%s\t%s\n' "$name" "$version" "$tag" "${commit:0:8}" "$action"
+
+  [[ $apply == true && $action != released && $action != skip* ]] || continue
+
+  section=$(git show "$ref:${dir}CHANGELOG.md" 2> /dev/null |
+    awk -v heading="## $version" '/^## / { found = $0 == heading; body = 0; next } found && /^### / { body = 1 } found && body')
+
+  if [[ $action == "tag + release" ]]; then
+    GIT_COMMITTER_DATE=$date git tag -a --cleanup=whitespace -m "${section:-$tag}" "$tag" "$commit"
+    git push --quiet origin "refs/tags/$tag"
+  fi
+
+  notes=$(gh api "repos/$repo/releases/generate-notes" -f tag_name="$tag" \
+    ${previous:+-f previous_tag_name="$previous"} --jq .body)
+
+  if [[ $notes != *"## What's Changed"* && -n $section ]]; then
+    notes=$(printf '%s\n\n%s' "$section" "$notes")
+  fi
+
+  gh release create "$tag" --repo "$repo" --verify-tag --title "$tag" --latest=false \
+    --notes-file - <<< "$notes" > /dev/null
+done < "$plan" | column -t -s $'\t' -N PACKAGE,VERSION,TAG,COMMIT,ACTION
+
+[[ $apply == true ]] || echo $'\nDry run. Pass --apply to create the tags and releases.'
