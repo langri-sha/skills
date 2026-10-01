@@ -68,8 +68,18 @@ for changelog in "${changelogs[@]}"; do
   dir=${dir:+$dir/}
   name=$(git show "$ref:${dir}package.json" | jq -r .name)
   previous=
+  unset planned
+  declare -A planned
 
   while IFS=$'\t' read -r version date; do
+    # Beachball files a release of `none` changes under the version it didn't
+    # bump, so a version can appear twice. Its first entry is the publish.
+    if [[ -n ${planned[$version]:-} ]]; then
+      echo "warning: $changelog lists $name $version more than once, keeping its first entry" >&2
+      continue
+    fi
+    planned[$version]=1
+
     pattern=${version//./\\.}
     pattern=${pattern//+/\\+}
     commit=$(git log --reverse --format=%H --pickaxe-regex -S"\"version\":[[:space:]]*\"$pattern\"" "$ref" -- "${dir}package.json")

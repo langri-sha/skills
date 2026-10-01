@@ -45,6 +45,9 @@ With `--apply` it creates what is missing, oldest version first:
    - _`skip: … is on another commit`_: the tag is left alone, and the next
      version's notes start from it.
    - _No commit sets a version_: that version is left out.
+   - _A version listed more than once_: beachball files a release of `none`
+     changes under the version it didn't bump. The first entry is the publish,
+     so the rest are left out; nothing to fix.
    - _A change file names a package that is not here_: usually a rename.
      Beachball skips such files and leaves them behind, so fix their
      `packageName`.
