@@ -23,7 +23,10 @@ template plus a GitHub release. Without `--apply` it only prints the plan.
 With `--apply` it creates what is missing, oldest version first:
 
 - An annotated tag on the publish commit. Its message is the version's
-  `CHANGELOG.md` section, and its date is the changelog's publish date.
+  `CHANGELOG.md` section, and its date is the changelog's publish date. GitHub
+  sometimes rejects the push as `reference already exists` after storing the
+  tag; when the remote tag is the one just created, the script warns and goes
+  on.
 - A release with GitHub's generated notes, starting at the same package's
   previous tag. When those notes list no pull requests, as for versions built
   before the repository took pull requests, the changelog section comes first.

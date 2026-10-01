@@ -157,7 +157,14 @@ while IFS=$'\x1f' read -r _ name version commit tag previous dir date; do
 
   if [[ $action == "tag + release" ]]; then
     GIT_COMMITTER_DATE=$date git tag -a --cleanup=whitespace -m "${section:-$tag}" "$tag" "$commit"
-    git push --quiet origin "refs/tags/$tag"
+
+    # GitHub can reject a tag push as "reference already exists" after storing
+    # the tag. A remote tag that is this very tag object is the push landing.
+    if ! git push --quiet origin "refs/tags/$tag"; then
+      git ls-remote origin "refs/tags/$tag" |
+        grep -qxF "$(git rev-parse "refs/tags/$tag")"$'\t'"refs/tags/$tag" || exit 1
+      echo "warning: origin rejected $tag but already holds this tag, carrying on" >&2
+    fi
   fi
 
   notes=$(gh api "repos/$repo/releases/generate-notes" -f tag_name="$tag" \
