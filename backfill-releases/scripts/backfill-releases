@@ -4,7 +4,7 @@ export MISE_QUIET=1
 
 usage() {
   cat << 'EOF'
-Usage: backfill-releases [--apply] [--branch BRANCH] [--template TEMPLATE]
+Usage: backfill-releases [--apply] [--branch BRANCH] [--package NAME] [--template TEMPLATE]
 
 Plans a tag and a GitHub release for every version in the repository's
 beachball CHANGELOG.json files, and creates the missing ones with --apply.
@@ -12,6 +12,7 @@ Run it from a checkout of the repository.
 
   --apply              Create the tags and releases instead of listing them.
   --branch BRANCH      Branch beachball publishes from (default: the default branch).
+  --package NAME       Plan only this package (default: every package with a CHANGELOG.json).
   --template TEMPLATE  Tag name, with {name} and {version} placeholders
                        (default: v{version} for one package, {name}_v{version} for more).
 EOF
@@ -19,12 +20,14 @@ EOF
 
 apply=false
 branch=
+only=
 template=
 
 while (($#)); do
   case $1 in
     --apply) apply=true ;;
     --branch) branch=$2 && shift ;;
+    --package) only=$2 && shift ;;
     --template) template=$2 && shift ;;
     -h | --help) usage && exit 0 ;;
     *) usage >&2 && exit 2 ;;
@@ -61,12 +64,15 @@ done < <(git ls-remote --tags origin)
 released=$(gh release list --repo "$repo" --limit 1000 --json tagName --jq '.[].tagName')
 plan=$(mktemp)
 trap 'rm -f "$plan"' EXIT
+names=()
 
 for changelog in "${changelogs[@]}"; do
   dir=$(dirname "$changelog")
   dir=${dir#.}
   dir=${dir:+$dir/}
   name=$(git show "$ref:${dir}package.json" | jq -r .name)
+  names+=("$name")
+  [[ -z $only || $name == "$only" ]] || continue
   previous=
   unset planned
   declare -A planned
@@ -99,9 +105,22 @@ for changelog in "${changelogs[@]}"; do
 done
 
 sort -n -o "$plan" "$plan"
-names=$(cut -d $'\x1f' -f2 "$plan" | sort -u)
+names=$(printf '%s\n' "${names[@]}" | sort -u)
 
-stray=$(comm -23 <(printf '%s\n' "${!remote[@]}" | sort) <(cut -d $'\x1f' -f5 "$plan" | sort))
+if [[ -n $only ]] && ! grep -qxF "$only" <<< "$names"; then
+  echo "No CHANGELOG.json for $only on $ref." >&2
+  exit 1
+fi
+
+# With --package, the other packages' tags are expected; only tags shaped like
+# this package's can be stray.
+shape='*'
+if [[ -n $only ]]; then
+  shape=${template//\{name\}/$only}
+  shape=${shape//\{version\}/*}
+fi
+
+stray=$(comm -23 <(for tag in "${!remote[@]}"; do [[ $tag == $shape ]] && echo "$tag"; done | sort) <(cut -d $'\x1f' -f5 "$plan" | sort))
 if [[ -n $stray ]]; then
   echo "warning: tags that match no published version: $(tr '\n' ' ' <<< "$stray")" >&2
 fi

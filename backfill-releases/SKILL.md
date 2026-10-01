@@ -54,7 +54,9 @@ With `--apply` it creates what is missing, oldest version first:
 
 3. Use the template the Release workflow will tag with from now on. The default
    is `v{version}` for one package and `{name}_v{version}` for a workspace; pass
-   `--template` for anything else.
+   `--template` for anything else. A workspace that publishes one package, its
+   others private, can tag it `v{version}` too: pass `--package` with its name,
+   since the other packages' versions would claim the same tags.
 
 4. Run it again with `--apply`. Every release notifies the repository's
    watchers, and a large workspace takes a while: langri-sha/projen plans about
