@@ -4,7 +4,7 @@
 # space by removing the ones whose branch has confidently landed on the
 # primary remote branch.
 #
-# Expected layout (see share/skills/create-worktree/SKILL.md):
+# Expected layout (see the create-worktree skill):
 #
 #   <garden>/.bare/     bare repository — all objects and refs
 #   <garden>/.git       file: "gitdir: ./.bare"

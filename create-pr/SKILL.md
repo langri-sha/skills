@@ -26,7 +26,7 @@ current branch is part of a native GitHub stack; exit 2 means it is not. Never
 create a standalone PR for a native stack branch — not even when the user
 supplies a base branch; surface the conflict instead. Publish the stack's PRs
 with `gh stack submit --auto` (creates drafts), then apply the generated title
-and body with `gh pr edit`. See `share/skills/split-pr-stack` for building such
+and body with `gh pr edit`. See the `split-pr-stack` skill for building such
 stacks and the official `gh-stack` skill for command semantics.
 
 Otherwise, in priority order:

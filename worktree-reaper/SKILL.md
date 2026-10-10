@@ -52,10 +52,11 @@ gitdir pointer to it. Anything else is refused outright rather than guessed at.
 
 ### 1. Run the Dry Report
 
-From anywhere inside the garden:
+From anywhere inside the garden, with the script resolved relative to this
+skill's base directory:
 
 ```bash
-share/skills/worktree-reaper/scripts/reap.sh --fetch
+<skill-base-dir>/scripts/reap.sh --fetch
 ```
 
 `--fetch` refreshes `origin/main` first, which is the only thing the dry run
@@ -93,7 +94,7 @@ along with the dominant skip reasons — that is a useful answer, not a failure.
 ### 3. Apply, If Asked
 
 ```bash
-share/skills/worktree-reaper/scripts/reap.sh --fetch --apply
+<skill-base-dir>/scripts/reap.sh --fetch --apply
 ```
 
 Apply re-runs the dry report, then prompts:
@@ -239,7 +240,7 @@ The dry report is cheap — about 4 seconds over 65 worktrees, plus `du` on the
 candidates — and mutates nothing, so it is safe to run on a schedule:
 
 ```
-/loop 1d share/skills/worktree-reaper/scripts/reap.sh --fetch
+/loop 1d <skill-base-dir>/scripts/reap.sh --fetch
 ```
 
 Wire nothing up automatically. Removal stays a human decision each time.
@@ -266,7 +267,7 @@ retrigger commit, unmerged, dirty, untracked, ignored-only, detached, locked,
 in-use, nested, out-of-garden, stale, and the protected trio:
 
 ```bash
-share/skills/worktree-reaper/tests/run-tests.sh
+<skill-base-dir>/tests/run-tests.sh
 ```
 
 It asserts that dry runs change nothing, that apply removes only the landed and
