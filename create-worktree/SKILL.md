@@ -33,22 +33,27 @@ worktree. No branch is special.
 
 ### 1. Detect Source Repository
 
-Use `git worktree list` to find the main worktree (always first entry):
+Use `git worktree list` to find the repo root. The first entry is the bare
+repository (`.bare/`); the repo root is its parent, and `main/` lives as a
+sibling worktree:
 
 ```bash
-# Get the main worktree path (works from any worktree)
-MAIN_PATH=$(git worktree list | head -1 | awk '{print $1}')
-REPO_ROOT=$(dirname "$MAIN_PATH")
+# First entry is .bare in this layout; its parent is the repo root.
+BARE_PATH=$(git worktree list | head -1 | awk '{print $1}')
+REPO_ROOT=$(dirname "$BARE_PATH")
+MAIN_PATH="$REPO_ROOT/main"
 
+echo "Repo root:     $REPO_ROOT"
+echo "Bare repo:     $BARE_PATH"
 echo "Main worktree: $MAIN_PATH"
-echo "Repo root: $REPO_ROOT"
 ```
 
 Example:
 
 - Running from: `~/workspace/my-app/add-login/`
-- Detects main: `~/workspace/my-app/main/`
 - Repo root: `~/workspace/my-app/`
+- Bare repo: `~/workspace/my-app/.bare/`
+- Main worktree: `~/workspace/my-app/main/`
 
 ### 2. If Argument Provided - Check for Existing Worktree
 

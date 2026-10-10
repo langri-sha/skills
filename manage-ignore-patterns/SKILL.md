@@ -108,9 +108,9 @@ After updating:
 
 1. Verify files are syntactically correct (text files can be checked visually;
    JS files should be validated with linters)
-2. Commit changes with a descriptive message:
-   `chore: add <pattern> to ignore patterns`
-3. Push to the remote repository
+2. Commit via `/create-commit` — plain imperative subject, e.g.
+   `Ignore playwright-report across lint configs`
+3. Do not push; pushing is a separate decision the user makes
 
 ## Common Patterns to Ignore
 

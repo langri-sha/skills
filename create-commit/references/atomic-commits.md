@@ -7,8 +7,8 @@ An atomic commit is a self-contained unit of work that:
 - Accomplishes a single, well-defined goal
 - Can stand alone and make sense to someone reviewing it
 - Leaves the codebase in a valid, working state
-- Is neither too large (unrelated changes bundled together) nor too small
-  (arbitrary splits of a single feature)
+- Holds one decision a reviewer weighs on its own. It is too small only when it
+  fails its checks alone, or separates a change from the tests that cover it
 
 ## Core Principles
 
@@ -49,10 +49,10 @@ Changes:
   - Update validation rules in config
 ```
 
-### 3. Related File Changes Stay Together
+### 3. A Step's Files Stay Together
 
-Files that work together to accomplish the same goal should be committed
-together. For example:
+Files that work together to accomplish one step should be committed together.
+Separate steps don't, however related they are. For example:
 
 - Component file + CSS/styling file
 - Database migration + model update
@@ -179,30 +179,43 @@ Is one part a fix/correction to another part?
 ├─ YES → Consider FIXUP instead of new commit
 └─ NO → Continue to next question
 
-Do they all relate to the same files/component?
-├─ YES → Probably one commit ✓
-└─ NO → Continue to next question
+Could a reviewer accept one part and question another?
+├─ YES → Continue to next question
+└─ NO → One commit ✓
 
-Is the commit size reasonable (under ~400 lines changed)?
-├─ YES → One commit ✓
-└─ NO → Consider splitting by logical subsystem
+Would splitting leave a commit failing its checks, or separate a change from
+the tests that cover it?
+├─ YES → Keep those parts in one commit ✓
+└─ NO → SPLIT into separate commits
 ```
+
+Size and touching the same files or component are never reasons to combine.
 
 ## Examples of Good Atomic Commits
 
 ### Example 1: Feature Implementation
 
+A feature is a sequence of steps, and each step is a commit the reviewer can
+accept or question on its own:
+
 ```
-Commit: Implement user email verification
+Commit 1: Track email verification on users
+  - Add verification status to the user model (models/user.py)
+  - Add tests (tests/models/test_user.py)
 
-Changes:
-  - Add email verification token generation (auth/tokens.py)
-  - Create email sending service (services/email.py)
-  - Add verification endpoint (routes/verify_email.py)
-  - Update user model to track verification status (models/user.py)
-  - Add tests for all new functionality (tests/auth/, tests/services/)
+Commit 2: Generate email verification tokens
+  - Add token generation (auth/tokens.py)
+  - Add tests (tests/auth/test_tokens.py)
 
-Accomplishes: User can now verify their email address
+Commit 3: Send the verification email
+  - Create the email sending service (services/email.py)
+  - Add tests (tests/services/test_email.py)
+
+Commit 4: Verify email addresses from the emailed link
+  - Add the verification endpoint (routes/verify_email.py)
+  - Add tests (tests/routes/test_verify_email.py)
+
+Accomplishes: Users can verify their email address, built up one step at a time
 ```
 
 ### Example 2: Bug Fix
@@ -238,6 +251,25 @@ Changes:
 
 Accomplishes: Code is refactored for testability, then new feature is added cleanly
 ```
+
+### Example 4: Infrastructure Change
+
+Bringing an existing PostHog project under Terraform takes seven decisions, so
+seven commits:
+
+```
+Commit 1: Pin the PostHog Terraform provider
+Commit 2: Keep the PostHog API key and organization ID in Secret Manager
+Commit 3: Configure the PostHog provider from Secret Manager
+Commit 4: Import the PostHog project
+Commit 5: Take the PostHog project ID and token for GitHub from the project
+Commit 6: Publish npm downloads with the token from the PostHog project
+Commit 7: Drop the hand-maintained PostHog project token secret
+```
+
+A reviewer can accept the provider and question where its secrets live, or
+accept the import and question dropping the old secret, so none of these share a
+commit.
 
 ## Red Flags for Non-Atomic Commits
 

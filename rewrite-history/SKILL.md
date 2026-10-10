@@ -22,8 +22,12 @@ Invoke this skill when the user:
 
 - Has a lot of uncommitted work and wants to "save it" cleanly.
 - Asks to "clean up my history" or "organize these changes".
-- Wants to split a massive PR into logical steps.
+- Wants a messy branch to read as a sequence of logical steps.
 - Says "make this look like a story".
+
+To split a large change or PR into a stack of separate, independently reviewable
+PRs, use `split-pr-stack` instead — this skill rewrites the local commit story
+on a single branch and never creates PRs.
 
 ## Core Workflow
 
@@ -68,14 +72,15 @@ Invoke this skill when the user:
       - **Tests:** Unit/Integration tests.
       - **Documentation:** README, comments.
 
-2.  **Draft the Storyboard:** The agent proposes a sequence of commits.
+2.  **Draft the Storyboard:** The agent proposes a sequence of commits. Subjects
+    follow the `/create-commit` conventions — plain imperative mood, no
+    conventional-commit prefixes.
 
     _Example Plan:_
-    1.  `chore(deps): add doctron dependencies` (package.json, pnpm-lock.yaml)
-    2.  `feat(core): implement basic agent architecture` (src/agent.ts,
-        src/types.ts)
-    3.  `feat(prompts): add system prompts for code review` (src/prompts/\*.md)
-    4.  `test: add initial agent tests` (tests/agent.test.ts)
+    1.  `Add doctron dependencies` (package.json, pnpm-lock.yaml)
+    2.  `Implement basic agent architecture` (src/agent.ts, src/types.ts)
+    3.  `Add system prompts for code review` (src/prompts/\*.md)
+    4.  `Add initial agent tests` (tests/agent.test.ts)
 
 3.  **Identify Orthogonal Chunks (Parallel Merge Opportunities):**
     - Check if the changes contain independent groups of commits (orthogonal
@@ -113,9 +118,16 @@ For each step in the approved plan:
     - Can you describe the commit in one clear sentence?
     - Does it accomplish a complete logical unit?
     - Are tests and implementation together (if applicable)?
-3.  **Commit:**
+3.  **Commit** following the `/create-commit` message conventions (imperative
+    subject, body explains what and why, refs in the body):
+
     ```bash
-    git commit -m "<type>(<scope>): <description>" -m "<body>"
+    git commit -m "$(cat <<'EOF'
+    Subject line in imperative mood
+
+    Body explaining what changed and why.
+    EOF
+    )"
     ```
 
 ### Step 5: Final Verification
@@ -133,13 +145,14 @@ For each step in the approved plan:
 
 ### Step 6: Delivery
 
-**Goal:** Apply the new history to the user's workspace.
+**Goal:** Apply the new history to the user's workspace — locally. Do not push
+anywhere unless the user explicitly asks.
 
-1.  **Push/Fetch:**
+1.  **Create a local branch on the crafted history:**
 
     ```bash
-    # Push the new history to a temp branch on origin
-    git push origin HEAD:refs/heads/<type>/<branch-name>
+    # From inside the sandbox, name the result so it survives worktree removal
+    git branch crafted-history HEAD
     ```
 
 2.  **Cleanup:**
@@ -151,8 +164,11 @@ For each step in the approved plan:
     ```
 
 3.  **User Action:**
-    - Offer to `git reset --hard agent/crafted-history` (if safe).
-    - Or simply leave the branch for the user to inspect.
+    - Offer to `git reset --hard crafted-history` on the original branch (only
+      after the Step 5 verification diff came back empty).
+    - Or leave `crafted-history` for the user to inspect and adopt themselves.
+    - Pushing (and any `--force-with-lease` update of a remote branch) happens
+      only on the user's explicit say-so.
 
 ## Best Practices for "Storytelling"
 

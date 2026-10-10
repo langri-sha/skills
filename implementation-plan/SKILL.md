@@ -1,72 +1,81 @@
 ---
 name: implementation-plan
 description:
-  Resolve plan/memory paths and decide whether to continue an existing plan or
-  generate a new one. Use for lightweight plan entrypoints. Triggers on
-  "implementation plan", "create a plan", "plan this feature", or
-  "/implementation-plan".
+  Resolve the current worktree's plan and either continue it or generate a new
+  one, then conduct task-by-task execution. Use for lightweight plan
+  entrypoints. Triggers on "implementation plan", "create a plan", "plan this
+  feature", or "/implementation-plan".
 metadata:
   author: langri-sha
-  version: '1.0.0'
+  version: '2.0.0'
 ---
 
-# Implementation Plan (Lightweight)
+# Implementation Plan
 
-This skill resolves the plan/memory location, checks for an existing plan, and
-decides whether to continue or generate a new plan. For plan generation, call
-`/implementation-plan-generate`.
+Conduct plan-driven work in the current worktree: locate the plan, generate one
+if missing (via `/implementation-plan-generate`), then execute tasks one at a
+time with progress tracked in the plan.
+
+The plan lives with the work, inside the worktree:
+
+- **Plan**: `.claude/PLAN.md`
+- **Memory**: `.claude/memory.md`
+
+Both are worktree-local (the repo gitignores `.claude/*` beyond the tracked
+skills) and survive agent restarts — `/create-worktree` and `/orchestrate-epic`
+resume from exactly these files. Never delete, truncate, or "clean up" either
+file; archive instead (see below).
 
 Note: the command is `/implementation-plan` (not `/implement-plan`).
 
-## Phase 0: Resolve Plan/Memory Path
+## Phase 1: Resolve the Plan
 
-Resolve the plan/memory location before anything else.
+Work from the worktree the plan belongs to:
 
-**Default path rule (current worktree):**
-
-- If current path matches `~/workspace/<repo>.worktree/<worktree>/...`, then:
-  - `<repo>` = part before `.worktree`
-  - `<worktree>` = next path segment after `<repo>.worktree`
-  - Plan path: `~/agents/<repo>/<worktree>/PLAN.md`
-  - Memory upath: `~/agents/<repo>/<worktree>/MEMORY.md`
-
-If the user started in a directory that is not the worktree source, recommend
-they exit and `cd` into the worktree before proceeding.
-
-**If user provides a `<worktree>` slug instead of a path:**
-
-- Search `~/agents/*/<worktree>/` and use the match.
-- If multiple matches exist, ask the user to pick one.
-
-If neither rule can resolve a path, ask the user for the full
-`~/agents/<repo>/<worktree>/` path.
-
-## Phase 1: Check for Existing Plan
-
-Check if `PLAN.md` already exists in the resolved location.
-
-- Ensure the directory exists first:
-  - Create `~/agents/<repo>/<worktree>/` if missing.
-- Ensure the memory file exists:
-  - Create `MEMORY.md` if missing.
-
-- If a plan exists:
-  - Offer to continue with the existing plan.
-  - If they want a fresh start, archive `PLAN.md` to `PLAN.md.bak` with a
-    timestamp in the same folder, then proceed to plan generation.
-- If no plan exists:
-  - Proceed to plan generation.
-
-## Phase 2: Generate Plan
-
-When a new plan is needed, invoke `/implementation-plan-generate`.
-
-Then, call /worktree-generate to create the new worktree and recommend the user
-to exit and change directory to it:
-
+```bash
+TOPLEVEL=$(git rev-parse --show-toplevel)
 ```
-Please use /exit, then ru n:
 
-cd ~/workspace/<repo>.worktree/<worktree>
-claude --resume <session id>
-```
+- If the user is targeting a different worktree, recommend they switch there
+  first — the plan must live in the worktree it drives.
+- If `$TOPLEVEL/.claude/PLAN.md` exists, summarize its progress (tasks done /
+  total) and offer to continue. If the user wants a fresh start instead, archive
+  the old plan to `.claude/PLAN-<UTC-timestamp>.md.bak` before generating a new
+  one.
+- If there is no plan, proceed to Phase 2.
+- Legacy location: older plans lived at `~/agents/<repo>/<worktree>/PLAN.md`. If
+  no worktree plan exists but a legacy one does, offer to copy it into
+  `.claude/` and continue from there.
+
+## Phase 2: Generate the Plan
+
+Invoke `/implementation-plan-generate`. It gathers requirements and writes
+`.claude/PLAN.md` (and creates `.claude/memory.md` if missing).
+
+## Phase 3: Conduct Execution
+
+Act as the conductor: delegate tasks to sub-agents and track progress.
+
+1. **Identify the next task** — the first unchecked `[ ]` item in PLAN.md. Read
+   its description and requirements, and read `.claude/memory.md` for decisions
+   and discoveries from earlier tasks.
+
+2. **Delegate to a sub-agent** — brief it with the specific task, the plan's
+   architecture section, the hand-off protocol, and any relevant memory notes.
+   Use a design-oriented agent for design tasks and a general-purpose agent for
+   implementation.
+
+3. **Hand-off protocol (the sub-agent must complete all of these):**
+   - Append decisions, discoveries, and notes for the next agent to
+     `.claude/memory.md`
+   - Commit the completed task with `/create-commit`
+   - Review the diff (e.g. `/code-review`) and address findings
+   - Mark the task `[x]` in PLAN.md
+   - Report results back
+
+4. **Review the hand-off** — verify the protocol was followed: memory updated,
+   commit created, task checked off. Surface the result to the user and ask
+   whether to continue.
+
+**Only the user approves moving to the next task.** Do not loop autonomously
+unless the user has explicitly said to run through multiple tasks.

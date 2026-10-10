@@ -91,10 +91,11 @@ Migration plan:
 
 ### 3. Run Migration Script
 
-Execute the migration script bundled with this skill:
+Execute the migration script bundled with this skill (`scripts/migrate.sh`,
+resolved relative to this skill's base directory):
 
 ```bash
-bash "$(dirname "$0")/../share/skills/migrate-git-worktree/scripts/migrate.sh" "$SOURCE_PATH"
+bash <skill-base-dir>/scripts/migrate.sh "$SOURCE_PATH"
 ```
 
 Or run the steps manually if the script is not available — see the script source

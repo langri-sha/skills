@@ -20,6 +20,12 @@ import subprocess
 import sys
 from collections import Counter
 
+CONVENTIONAL_COMMIT_PREFIX = re.compile(
+    r"^(feat|fix|chore|docs|style|refactor|perf|test|build|ci|revert)"
+    r"(\([^)]*\))?!?:\s*",
+    re.IGNORECASE,
+)
+
 
 def run_command(cmd: str) -> str:
     """Run a command and return stdout."""
@@ -156,19 +162,7 @@ def generate_branch_name(base_branch: str | None = None) -> str:
         return f"feature-{timestamp}"
 
     # Try to use the most recent commit subject if it's descriptive enough
-    first_subject = subjects[0]
-    # Remove common prefixes
-    for prefix in [
-        "feat:",
-        "fix:",
-        "chore:",
-        "docs:",
-        "style:",
-        "refactor:",
-        "test:",
-    ]:
-        if first_subject.lower().startswith(prefix):
-            first_subject = first_subject[len(prefix) :].strip()
+    first_subject = CONVENTIONAL_COMMIT_PREFIX.sub("", subjects[0]).strip()
 
     dasherized_subject = dasherize(first_subject)
 

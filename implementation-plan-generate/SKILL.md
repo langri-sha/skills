@@ -12,16 +12,18 @@ metadata:
 
 # Implementation Plan Generator
 
-Create a comprehensive `~/agents/<repo>/<worktree>/PLAN.md` document through
-guided questions. The skill actively helps break down requirements into
-hierarchical tasks with checkpoints after each major section.
+Create a comprehensive `.claude/PLAN.md` in the current worktree through guided
+questions. The skill actively helps break down requirements into hierarchical
+tasks with checkpoints after each major section.
 
-Before writing the plan, ensure `~/agents/<repo>/<worktree>/` exists and create
-`MEMORY.md` if it does not exist yet. Never delete, truncate, or "clean up"
-`PLAN.md` or `MEMORY.md`; these files are append-only for harvesting.
+Both files live in the worktree the plan drives:
 
-Repo naming: derive `<repo>` via `basename -s .git $(git remote get-url origin)`
-when a Git remote is available.
+- **Plan**: `<worktree>/.claude/PLAN.md`
+- **Memory**: `<worktree>/.claude/memory.md`
+
+Before writing the plan, ensure the worktree's `.claude/` directory exists and
+create `memory.md` if it does not exist yet. Never delete, truncate, or "clean
+up" `PLAN.md` or `memory.md`; these files are append-only for harvesting.
 
 ## Workflow
 
@@ -48,7 +50,7 @@ Use AskUserQuestion to collect:
 
 5. **Agent Hand-off Customization** (optional)
    - "Any project-specific notes for the hand-off protocol?"
-   - Default memory location: `~/agents/<repo>/<worktree>/MEMORY.md`
+   - Default memory location: `.claude/memory.md` in the worktree
 
 ### Phase 2: Generate Plan
 
@@ -57,7 +59,7 @@ using the structure below.
 
 ### Phase 3: Write Plan
 
-Write the plan to `~/agents/<repo>/<worktree>/PLAN.md` with this structure. If
+Write the plan to `.claude/PLAN.md` in the worktree with this structure. If
 `PLAN.md` already exists, then stop and ask the user if they actually want to
 continue. If they do, then just append to `PLAN.md` the new plan with a clear
 separator.
@@ -71,14 +73,14 @@ separator.
 
 Each task is executed by a sub-agent. Before completing, agents MUST:
 
-1. **Update memory** - Record context in `~/agents/<repo>/<worktree>/MEMORY.md`
+1. **Update memory** - Record context in `.claude/memory.md`
 2. **Create atomic commit** - Run `/create-commit` for completed work
-3. **Review changes** - Run `/review` to verify code quality
+3. **Review changes** - Run `/code-review` to verify code quality
 4. **Mark task complete** - Check off the task in this plan
 5. **Wait for user** - Consult user if they want to make changes before
    continuing
 
-**Memory location:** `~/agents/<repo>/<worktree>/MEMORY.md`
+**Memory location:** `.claude/memory.md` in this worktree
 
 **What to record:**
 
@@ -106,7 +108,6 @@ Each task is executed by a sub-agent. Before completing, agents MUST:
 
 - [Anything the next agent should know]
 ```
-````
 
 **Commit protocol:**
 
@@ -117,7 +118,7 @@ Each task is executed by a sub-agent. Before completing, agents MUST:
 
 **Review protocol:**
 
-- Run `/review` before marking task complete
+- Run `/code-review` before marking task complete
 - Address any issues found before hand-off
 - Note unresolved issues in memory for next agent
 
@@ -162,8 +163,7 @@ Each task is executed by a sub-agent. Before completing, agents MUST:
 
 - [ ] [Future enhancement]
 - [ ] [Nice-to-have out of scope]
-
-```
+````
 
 ## Task Numbering Convention
 
@@ -175,6 +175,7 @@ Each task is executed by a sub-agent. Before completing, agents MUST:
 ## Checkpoint Pattern
 
 Insert checkpoints after each major functional section:
+
 - After setup/dependencies
 - After API/backend layer
 - After UI components
@@ -182,6 +183,7 @@ Insert checkpoints after each major functional section:
 - Final end-to-end verification
 
 Each checkpoint should:
+
 - Verify the section's deliverables work
 - List specific test steps
 - Include "Ask user if questions arise"
@@ -193,4 +195,3 @@ Each checkpoint should:
 - Reference requirements for traceability
 - Checkpoints prevent drift on long implementations
 - Follow-up section captures scope creep productively
-```

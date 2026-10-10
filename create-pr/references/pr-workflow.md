@@ -3,153 +3,6 @@
 This document provides detailed guidance on creating pull requests using the
 pr-creator skill.
 
-## Container-Use Environments
-
-### Overview
-
-Container-use environments are isolated development environments that store
-changes in special git remote refs (e.g., `container-use/well-raptor`). These
-environments keep changes separate from the local working directory.
-
-### Why Special Handling is Needed
-
-**Problem:** Container-use environments maintain their state in remote refs, not
-in the local working directory. Checking out these refs would:
-
-- Overwrite the user's current working directory
-- Potentially lose uncommitted local changes
-- Disrupt ongoing work in the current branch
-
-**Solution:** Work with the remote refs directly without checking them out
-locally.
-
-### Detection
-
-Check if you're working with a container-use environment:
-
-```bash
-# List all container-use branches
-git branch -a | grep "remotes/container-use/"
-
-# Example output:
-# remotes/container-use/well-raptor
-# remotes/container-use/humorous-falcon
-```
-
-**Indicators:**
-
-- User mentions an environment by name (e.g., "create PR from well-raptor")
-- Recent conversation involved container-use operations
-- Remote refs matching `container-use/*` pattern exist
-
-### Workflow for Container-Use Environments
-
-**Step 1: Identify the environment ref**
-
-```bash
-# Find the specific environment
-git branch -a | grep "container-use/<env-name>"
-```
-
-**Step 2: Determine base branch**
-
-- Ask user or infer from context
-- Often the branch that was active when environment was created
-- Check git status or recent conversation history
-
-**Step 3: Analyze changes without checkout**
-
-```bash
-# View commits
-git log <base-branch>..container-use/<env-id> --pretty=format:"%h %s%n%b"
-
-# View file changes
-git diff --name-status <base-branch>...container-use/<env-id>
-
-# View full diff
-git diff <base-branch>...container-use/<env-id>
-```
-
-**Step 4: Generate proper branch name**
-
-- Analyze the changes to determine appropriate name
-- Follow conventions: `feature/`, `fix/`, `chore/`, `refactor/`
-- Examples:
-  - Removing test files: `chore/remove-test-scripts`
-  - Adding authentication: `feature/user-authentication`
-  - Fixing bug: `fix/login-validation`
-
-**Step 5: Push to new branch without checkout**
-
-```bash
-# Push the container-use ref directly to a new branch on origin
-git push origin container-use/<env-id>:refs/heads/<proper-branch-name>
-
-# Example:
-git push origin container-use/well-raptor:refs/heads/chore/remove-test-scripts
-```
-
-**Step 6: Create PR from the new branch**
-
-```bash
-gh pr create --base <base-branch> --head <proper-branch-name> --title "<title>" --body "<body>"
-```
-
-### Important Rules
-
-1. **NEVER use `git checkout` with container-use refs**
-   - ❌ `git checkout container-use/well-raptor`
-   - ❌ `git checkout -b new-branch container-use/well-raptor`
-   - ✅ `git push origin container-use/well-raptor:refs/heads/new-branch`
-
-2. **Always analyze changes using remote ref syntax**
-   - Use `container-use/<env-id>` in git commands
-   - No need to be on the branch locally
-
-3. **Preserve user's working directory**
-   - User may have uncommitted changes
-   - Current branch state should remain unchanged
-
-### Example: Complete Container-Use PR Creation
-
-```bash
-# 1. Detect container-use environment
-git branch -a | grep "container-use/well-raptor"
-# Output: remotes/container-use/well-raptor
-
-# 2. Determine base branch (from context: epic-2.2-ai-editor-features)
-
-# 3. Analyze changes
-git log epic-2.2-ai-editor-features..container-use/well-raptor --pretty=format:"%h %s"
-# Output:
-# f7ac077 Restoring package.json test scripts
-# 3c2becd Deleting test-pr-deployments.sh
-# 1c447bb Deleting test-portainer-simple.sh
-# ...
-
-git diff --name-status epic-2.2-ai-editor-features...container-use/well-raptor
-# Output:
-# D    test-branch-deployment.sh
-# D    test-portainer-api.sh
-# ...
-
-# 4. Generate branch name: chore/remove-test-scripts
-
-# 5. Push without checkout
-git push origin container-use/well-raptor:refs/heads/chore/remove-test-scripts
-
-# 6. Create PR
-gh pr create \
-  --base epic-2.2-ai-editor-features \
-  --head chore/remove-test-scripts \
-  --title "Remove test shell scripts" \
-  --body "$(cat <<'EOF'
-## Summary
-Removes obsolete test shell scripts...
-EOF
-)"
-```
-
 ## Core Workflow
 
 ### 1. Determine Base Branch
@@ -191,8 +44,8 @@ correct base branch is critical:
 **Named Branch:**
 
 - If on a named branch, use it as-is for the branch name
-- Dasherize the branch name for the PR title
-- Example: `feature/user-auth` → title: "Feature User Auth"
+- Treat the branch name as a hint for the PR title, not the title itself
+- Example: `feature/user-auth` → title: "Add user authentication"
 
 **Detached HEAD:**
 
@@ -202,12 +55,19 @@ correct base branch is critical:
 - The script analyzes commits and changes to suggest a name
 - Always create the branch with: `git checkout -b <generated-name>`
 
-**Branch Name to Title Conversion:**
+**Deriving the PR Title:**
 
-- Remove common prefixes: `feature/`, `fix/`, `bugfix/`, `hotfix/`
-- Replace dashes and underscores with spaces
-- Capitalize words
-- Example: `fix/authentication-bug` → "Authentication Bug"
+- Describe the change in plain language; the branch name and commit subjects are
+  input, not the output
+- When the PR resolves a specific issue, mirror the issue title where it already
+  reads as a plain description
+- Strip conventional-commit type prefixes (`feat:`, `fix:`, `chore:`, `docs:`,
+  `refactor:`, etc., including scoped forms like `feat(api):`) and branch
+  prefixes (`feature/`, `fix/`, `bugfix/`, `hotfix/`)
+- Drop jargon and markers such as `{ check }` or `[WIP]`
+- Use sentence case with a leading imperative verb; keep acronyms uppercase
+- Example: `fix/authentication-bug` → "Fix authentication bug"
+- Example: `feat: add pdf export` → "Add PDF export"
 
 ### 3. Analyze Changes
 
@@ -403,9 +263,10 @@ Git Town is a Git extension that helps manage stacked branches:
 When creating a PR for a stacked branch:
 
 1. **Base Branch:** Use the parent branch, not main
-2. **Title:** Should indicate it's part of a series
-3. **Description:** Mention the dependency
-   - Example: "This PR builds on #123 and adds..."
+2. **Title:** Describe this layer only — no series markers ("part 2/3")
+3. **Description:** Describe this layer only. GitHub renders the stack natively,
+   so never add a stack section, PR list, position marker, or "builds on #123"
+   dependency note — a hand-kept copy only goes stale
 4. **Review:** Stack order matters - review parent PRs first
 
 ### Detection Logic
@@ -427,6 +288,11 @@ else:
 - Keep it concise (50-70 characters)
 - Start with a verb when possible
 - Be descriptive but not overly detailed
+- Use plain language: no conventional-commit prefixes (`feat:`, `fix:`,
+  `chore:`) and no code markers like `{ check }` — commits may keep the
+  convention, the title must not
+- A backticked `name` (package, tool, or symbol) is acceptable only when it
+  genuinely aids clarity
 - Example: "Add user authentication with JWT"
 
 ### PR Description
