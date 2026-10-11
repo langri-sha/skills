@@ -14,14 +14,14 @@ metadata:
 # Subdivide
 
 Orchestrate branching off new work mid-conversation by chaining `/create-issue`,
-`/create-worktree`, and `/tmux-session` into a single flow.
+`/create-worktree`, and `/create-session` into a single flow.
 
 ## Arguments
 
 | Argument | Required | Description                                            |
 | -------- | -------- | ------------------------------------------------------ |
 | `prompt` | yes      | Freeform description of the work to branch off         |
-| `lane`   | no       | Session lane for the tmux window (see `/tmux-session`) |
+| `lane`   | no       | Session lane for the tmux window (see `/create-session`) |
 
 ## Workflow
 
@@ -88,11 +88,11 @@ Implement issue #<ISSUE_NUMBER>. Read it with: gh issue view <ISSUE_NUMBER>.
 <original user prompt>
 ```
 
-Invoke `/tmux-session` with:
+Invoke `/create-session` with:
 
 - **lane**: the lane the user asked for; `proposals` when the branched-off work
   is clearly proposal or design-doc work; otherwise `dev`. Always pass the lane
-  explicitly — never rely on `/tmux-session` inheriting whatever lane this
+  explicitly — never rely on `/create-session` inheriting whatever lane this
   conversation happens to run in.
 - **assistant**: `claude`
 - **prompt**: the constructed prompt above
@@ -129,7 +129,7 @@ Run /create-worktree <slug> when you're ready to start.
 
 ### No tmux Session Running
 
-`/tmux-session` creates the target lane (and the tmux server) on demand, so this
+`/create-session` creates the target lane (and the tmux server) on demand, so this
 only fails when tmux itself is unavailable. If it does fail, report the error —
 the issue and worktree are still created successfully.
 
