@@ -2,8 +2,8 @@
 name: subdivide
 description: >-
   Branch off new work mid-conversation. Takes a freeform prompt, creates a
-  GitHub issue from it, optionally sets up a worktree and tmux session with a
-  new agent fully briefed on the task. Use when new ideas or subtasks emerge
+  GitHub issue from it, optionally sets up a worktree and development session
+  with a new agent fully briefed on the task. Use when new ideas or subtasks emerge
   during a session and you want to spin them off without losing your place.
 metadata:
   author: langri-sha
@@ -21,7 +21,7 @@ Orchestrate branching off new work mid-conversation by chaining `/create-issue`,
 | Argument | Required | Description                                            |
 | -------- | -------- | ------------------------------------------------------ |
 | `prompt` | yes      | Freeform description of the work to branch off         |
-| `lane`   | no       | Session lane for the tmux window (see `/create-session`) |
+| `lane`   | no       | tmux session lane (see `/create-session`)                |
 
 ## Workflow
 
@@ -56,7 +56,7 @@ Use AskUserQuestion to ask:
 
 > Issue created: **<REPO>#<NUMBER>**
 >
-> Start working on it now? (creates worktree + tmux session with a new agent)
+> Start working on it now? (creates worktree + development session with a new agent)
 
 If the user says **no**, skip to step 6 and return just the issue URL.
 
@@ -78,7 +78,7 @@ copying, dependency installation, and directory switching.
 
 Capture the resulting worktree path (`WORKTREE_PATH`).
 
-### 5. Launch tmux Session
+### 5. Launch the Development Session
 
 Build a prompt for the new agent that includes full context:
 
@@ -90,15 +90,19 @@ Implement issue #<ISSUE_NUMBER>. Read it with: gh issue view <ISSUE_NUMBER>.
 
 Invoke `/create-session` with:
 
-- **lane**: the lane the user asked for; `proposals` when the branched-off work
-  is clearly proposal or design-doc work; otherwise `dev`. Always pass the lane
-  explicitly — never rely on `/create-session` inheriting whatever lane this
-  conversation happens to run in.
+- **backend**: use the caller context, or the backend the user explicitly
+  requested. Resolve ambiguous context through `/create-session`.
+- **tmux lane**: for tmux, pass the lane the user asked for; `proposals` for
+  proposal or design-doc work; otherwise `dev`. Pass it explicitly rather than
+  inheriting the current conversation's lane. For Herdr, omit the lane and use
+  the new worktree's native workspace; forward an explicit workspace request.
+  If the user supplied a lane with Herdr, clarify the destination before launch.
 - **assistant**: `claude`
 - **prompt**: the constructed prompt above
 
-This creates a new tmux window in the chosen lane with Claude on the left pane
-(fully briefed) and critique on the right.
+This creates a tmux window in the chosen lane or opens the worktree's Herdr
+workspace, with Claude on the left pane (fully briefed) and critique on the
+right.
 
 ### 6. Output Summary
 
@@ -110,7 +114,7 @@ Subdivided!
   Issue:    <REPO>#<NUMBER> — <TITLE>
   Worktree: ~/workspace/<repo>/<slug>
   Branch:   <slug>
-  tmux:     window "<slug>" in lane "<lane>" with claude + critique
+  Session:  <backend> window/tab "<slug>" in <lane-or-workspace> with claude + critique
 
 You can continue working here. The new agent is running next door.
 ```
@@ -127,11 +131,13 @@ Run /create-worktree <slug> when you're ready to start.
 
 ## Edge Cases
 
-### No tmux Session Running
+### Session Creation Fails
 
-`/create-session` creates the target lane (and the tmux server) on demand, so this
-only fails when tmux itself is unavailable. If it does fail, report the error —
-the issue and worktree are still created successfully.
+`/create-session` creates missing tmux lanes or opens the Herdr worktree
+workspace on demand. tmux can start detached when explicitly selected; Herdr
+requires a validated managed caller pane. If session creation fails, report the
+error and any partially created session IDs — the issue and worktree are still
+created successfully.
 
 ### Issue Creation Fails
 
