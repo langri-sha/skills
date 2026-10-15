@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: Babysit a GitHub pull request after creation by continuously polling review comments, CI checks/workflow runs, and mergeability state until the PR is merged/closed or user help is required. Diagnose failures, retry likely flaky failures up to 3 times, auto-fix/push branch-related issues when appropriate, and keep watching open PRs so fresh review feedback is surfaced promptly. Use when the user asks Codex to monitor a PR, watch CI, handle review comments, or keep an eye on failures and feedback on an open PR.
+description: Babysit a GitHub pull request after creation by continuously polling review comments, CI checks/workflow runs, and mergeability state until the PR is merged/closed or user help is required. Diagnose failures, retry likely flaky failures up to 3 times, auto-fix/push branch-related issues when appropriate, and keep watching open PRs so fresh review feedback is surfaced promptly. Use when the user asks to monitor a PR, watch CI, handle review comments, or keep an eye on failures and feedback on an open PR.
 license: Apache-2.0. Complete terms in LICENSE.txt
 metadata:
   upstream: https://github.com/openai/codex/tree/5e96aabd68dc6194f5ad928cb7f5d0bc71b72df9/.codex/skills/babysit-pr
@@ -138,14 +138,14 @@ output.
 
 Unless explicitly asked, do not:
 
-* comment on other humans' review threads, communicate with the user in chat instead
+* comment on other humans' review threads; report to the user instead
 * resolve review threads from humans other than the user
 * interact with humans other than the user
 * mark PRs as drafts or ready for review
 * close or reopen PRs
 
 In general, never act on GitHub in ways that would make it hard to tell whether you or the user did
-something visible to other humans. When in doubt, ask the user for clarification in chat.
+something visible to other humans. When in doubt, ask the user for clarification.
 
 ## Git Safety Rules
 
@@ -164,7 +164,7 @@ Commit message defaults:
 - `codex: address PR review feedback (#<n>)`
 
 ## Monitoring Loop Pattern
-Use this loop in a live Codex session:
+Use this loop in a live session:
 
 1. Run `--once`.
 2. Read `actions`.
@@ -198,7 +198,7 @@ Keep review polling aggressive and continue monitoring even after CI turns green
 Stop only when one of the following is true:
 
 - PR merged or closed (stop as soon as a poll/snapshot confirms this).
-- User intervention is required and Codex cannot safely proceed alone.
+- User intervention is required and you cannot safely proceed alone.
 
 Keep polling when:
 
