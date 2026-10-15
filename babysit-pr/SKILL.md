@@ -50,6 +50,10 @@ Accept any of the following:
 from inside the PR's checkout so `gh` and `--pr auto` resolve the right
 repository and branch.
 
+The watcher calls `gh`, which needs network access and GitHub credentials. If
+the harness sandbox or approval policy blocks it, request approval through the
+harness or stop and report; never route around the policy.
+
 ### One-shot snapshot
 
 ```bash
