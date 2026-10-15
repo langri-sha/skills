@@ -71,7 +71,7 @@ One line per worktree, `reap` first and sorted by size:
 Worktree reaper — /home/user/workspace/my-app
   primary      origin/main @ b17c2b19 (2026-07-27 02:47, 1d old)
   worktrees    65
-  pr evidence  gh pr list on acme/my-app
+  pr evidence  gh pr list on owner/my-app
   in-use scan  25 tmux window(s), process cwds
   mode         dry run
 
