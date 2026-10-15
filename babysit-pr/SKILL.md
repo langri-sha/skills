@@ -45,28 +45,33 @@ Accept any of the following:
 
 ## Commands
 
+`<skill-dir>` is the absolute path of the directory containing this file; the
+`scripts/` and `references/` paths below are relative to it. Run the watcher
+from inside the PR's checkout so `gh` and `--pr auto` resolve the right
+repository and branch.
+
 ### One-shot snapshot
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --once
+python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --once
 ```
 
 ### Continuous watch (JSONL)
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --watch
+python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --watch
 ```
 
 ### Trigger flaky retry cycle (only when watcher indicates)
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr auto --retry-failed-now
+python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --retry-failed-now
 ```
 
 ### Explicit PR target
 
 ```bash
-python3 .codex/skills/babysit-pr/scripts/gh_pr_watch.py --pr <number-or-url> --once
+python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr <number-or-url> --once
 ```
 
 ## CI Failure Classification
@@ -87,7 +92,7 @@ Do not attempt to fix flaky/unrelated failures by changing tests, build scripts,
 
 If classification is ambiguous, perform one manual diagnosis attempt before choosing rerun.
 
-Read `.codex/skills/babysit-pr/references/heuristics.md` for a concise checklist.
+Read `references/heuristics.md` for a concise checklist.
 
 ## Review Comment Handling
 The watcher surfaces review items from:
@@ -223,5 +228,5 @@ Provide concise progress updates while monitoring and a final summary that inclu
 
 ## References
 
-- Heuristics and decision tree: `.codex/skills/babysit-pr/references/heuristics.md`
-- GitHub CLI/API details used by the watcher: `.codex/skills/babysit-pr/references/github-api-notes.md`
+- Heuristics and decision tree: `references/heuristics.md`
+- GitHub CLI/API details used by the watcher: `references/github-api-notes.md`
