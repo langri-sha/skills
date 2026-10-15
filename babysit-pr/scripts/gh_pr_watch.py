@@ -28,9 +28,6 @@ PENDING_CHECK_STATES = {
     "WAITING",
     "REQUESTED",
 }
-REVIEW_BOT_LOGIN_KEYWORDS = {
-    "codex",
-}
 TRUSTED_AUTHOR_ASSOCIATIONS = {
     "OWNER",
     "MEMBER",
@@ -78,6 +75,14 @@ def parse_args():
         "--watch", action="store_true", help="Continuously emit JSONL snapshots"
     )
     parser.add_argument(
+        "--review-bot",
+        action="append",
+        default=[],
+        metavar="LOGIN",
+        help="Surface review feedback from this bot login, e.g. "
+        "chatgpt-codex-connector[bot]; repeatable",
+    )
+    parser.add_argument(
         "--changes-only",
         action="store_true",
         help="With --watch, emit a snapshot only when PR/CI/review state changes",
@@ -104,6 +109,11 @@ def parse_args():
         parser.error("--poll-seconds must be > 0")
     if args.max_flaky_retries < 0:
         parser.error("--max-flaky-retries must be >= 0")
+    for login in args.review_bot:
+        if not is_bot_login(login):
+            parser.error(
+                f"--review-bot expects a bot login ending in [bot], got {login!r}"
+            )
     if args.heartbeat_polls <= 0:
         parser.error("--heartbeat-polls must be > 0")
     if args.changes_only and not args.watch:
@@ -561,11 +571,11 @@ def is_bot_login(login):
     return bool(login) and login.endswith("[bot]")
 
 
-def is_actionable_review_bot_login(login):
+def is_actionable_review_bot_login(login, trusted_review_bots):
     if not is_bot_login(login):
         return False
     lower_login = login.lower()
-    return any(keyword in lower_login for keyword in REVIEW_BOT_LOGIN_KEYWORDS)
+    return any(lower_login == bot.lower() for bot in trusted_review_bots)
 
 
 def is_trusted_human_review_author(item, authenticated_login):
@@ -578,7 +588,9 @@ def is_trusted_human_review_author(item, authenticated_login):
     return association in TRUSTED_AUTHOR_ASSOCIATIONS
 
 
-def fetch_new_review_items(pr, state, fresh_state, authenticated_login=None):
+def fetch_new_review_items(
+    pr, state, fresh_state, authenticated_login=None, trusted_review_bots=()
+):
     repo = pr["repo"]
     pr_number = pr["number"]
     endpoints = comment_endpoints(repo, pr_number)
@@ -632,7 +644,7 @@ def fetch_new_review_items(pr, state, fresh_state, authenticated_login=None):
         if not author:
             continue
         if is_bot_login(author):
-            if not is_actionable_review_bot_login(author):
+            if not is_actionable_review_bot_login(author, trusted_review_bots):
                 continue
         elif not is_trusted_human_review_author(item, authenticated_login):
             continue
@@ -768,6 +780,7 @@ def collect_snapshot(args):
         state,
         fresh_state=fresh_state,
         authenticated_login=authenticated_login,
+        trusted_review_bots=args.review_bot,
     )
     # Surface review feedback before drilling into CI and mergeability details.
     # That keeps the babysitter responsive to new comments even when other

@@ -93,6 +93,7 @@ def test_collect_snapshot_fetches_review_items_before_ci(monkeypatch, tmp_path):
         repo=None,
         state_file=str(tmp_path / "watcher-state.json"),
         max_flaky_retries=3,
+        review_bot=[],
     )
 
     gh_pr_watch.collect_snapshot(args)
@@ -193,6 +194,75 @@ def test_pending_review_feedback_surfaces_only_after_publication(monkeypatch):
     }
     assert state["seen_review_comment_ids"] == ["20"]
     assert state["seen_review_ids"] == ["10"]
+
+
+def bot_issue_comment(comment_id, login):
+    return {
+        "id": comment_id,
+        "user": {"login": login},
+        "author_association": "NONE",
+        "body": "Consider handling the empty case.",
+        "created_at": "2026-06-08T10:00:00Z",
+        "html_url": f"https://github.com/openai/codex/pull/123#issuecomment-{comment_id}",
+    }
+
+
+def fetch_items_from_bots(monkeypatch, logins, trusted_review_bots):
+    comments = [
+        bot_issue_comment(index + 1, login) for index, login in enumerate(logins)
+    ]
+
+    def fake_list(endpoint, **kwargs):
+        if endpoint.endswith("/issues/123/comments"):
+            return comments
+        return []
+
+    monkeypatch.setattr(gh_pr_watch, "gh_api_list_paginated", fake_list)
+    state = {}
+    return gh_pr_watch.fetch_new_review_items(
+        sample_pr(),
+        state,
+        fresh_state=True,
+        authenticated_login="octocat",
+        trusted_review_bots=trusted_review_bots,
+    )
+
+
+def test_bot_feedback_is_ignored_unless_the_bot_is_trusted(monkeypatch):
+    items = fetch_items_from_bots(
+        monkeypatch, ["chatgpt-codex-connector[bot]", "renovate[bot]"], []
+    )
+
+    assert items == []
+
+
+def test_trusted_review_bot_feedback_surfaces_by_exact_login(monkeypatch):
+    items = fetch_items_from_bots(
+        monkeypatch,
+        [
+            "chatgpt-codex-connector[bot]",
+            "codex-impostor[bot]",
+            "Claude[bot]",
+        ],
+        ["chatgpt-codex-connector[bot]", "claude[bot]"],
+    )
+
+    assert [item["author"] for item in items] == [
+        "chatgpt-codex-connector[bot]",
+        "Claude[bot]",
+    ]
+
+
+def test_review_bot_without_bot_suffix_is_rejected(monkeypatch, capsys):
+    monkeypatch.setattr(
+        gh_pr_watch.sys, "argv", ["gh_pr_watch.py", "--review-bot", "coderabbitai"]
+    )
+
+    with pytest.raises(SystemExit) as exit_info:
+        gh_pr_watch.parse_args()
+
+    assert exit_info.value.code == 2
+    assert "ending in [bot]" in capsys.readouterr().err
 
 
 def test_run_watch_keeps_polling_open_ready_to_merge_pr(monkeypatch):
