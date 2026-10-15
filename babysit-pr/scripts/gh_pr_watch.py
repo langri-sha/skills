@@ -454,7 +454,13 @@ def failed_jobs_from_workflow_runs(repo, runs, head_sha):
 
 
 def get_authenticated_login():
-    data = gh_json(["api", "user"])
+    try:
+        data = gh_json(["api", "user"])
+    except GhCommandError as err:
+        # GitHub App installation tokens get 403 on /user; run without an operator.
+        if "HTTP 403" in str(err):
+            return None
+        raise
     if not isinstance(data, dict) or not data.get("login"):
         raise GhCommandError(
             "Unable to determine authenticated GitHub login from `gh api user`"
@@ -813,6 +819,7 @@ def collect_snapshot(args):
 
     snapshot = {
         "pr": pr,
+        "authenticated_login": authenticated_login,
         "checks": checks_summary,
         "failed_runs": failed_runs,
         "failed_jobs": failed_jobs,

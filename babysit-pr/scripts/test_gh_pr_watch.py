@@ -96,8 +96,9 @@ def test_collect_snapshot_fetches_review_items_before_ci(monkeypatch, tmp_path):
         review_bot=[],
     )
 
-    gh_pr_watch.collect_snapshot(args)
+    snapshot, _ = gh_pr_watch.collect_snapshot(args)
 
+    assert snapshot["authenticated_login"] == "octocat"
     assert call_order.index("review") < call_order.index("checks")
     assert call_order.index("review") < call_order.index("workflow")
 
@@ -108,6 +109,32 @@ def test_default_state_file_lives_in_the_system_temp_directory(monkeypatch, tmp_
     assert gh_pr_watch.default_state_file_for(sample_pr()) == (
         tmp_path / "babysit-pr-openai-codex-pr123.json"
     )
+
+
+def failing_gh_json(message):
+    def fake_gh_json(args, repo=None):
+        raise gh_pr_watch.GhCommandError(message)
+
+    return fake_gh_json
+
+
+def test_authenticated_login_is_unknown_under_an_installation_token(monkeypatch):
+    monkeypatch.setattr(
+        gh_pr_watch,
+        "gh_json",
+        failing_gh_json("stderr: HTTP 403: Resource not accessible by integration"),
+    )
+
+    assert gh_pr_watch.get_authenticated_login() is None
+
+
+def test_authenticated_login_failures_other_than_forbidden_propagate(monkeypatch):
+    monkeypatch.setattr(
+        gh_pr_watch, "gh_json", failing_gh_json("stderr: HTTP 401: Bad credentials")
+    )
+
+    with pytest.raises(gh_pr_watch.GhCommandError):
+        gh_pr_watch.get_authenticated_login()
 
 
 def test_recommend_actions_prioritizes_review_comments():

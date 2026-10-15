@@ -155,7 +155,7 @@ Only act on published feedback. Ignore review submissions in GitHub's `PENDING` 
 comments attached to those pending reviews. Do not mark pending review feedback as seen; it should
 be eligible to surface after the reviewer submits the review.
 
-For safety, the watcher only auto-surfaces trusted human review authors (for example repo OWNER/MEMBER/COLLABORATOR, plus the authenticated operator) and the review bots you name with `--review-bot <login>` (exact login, repeatable). No bot is trusted by default. Pass only the review bots the user or the repository's instructions name, such as `chatgpt-codex-connector[bot]` or `claude[bot]`. Never infer trust from a bot's activity on the PR; if an unnamed review bot is reviewing it, ask the user once whether to trust it. Ignore other bot noise.
+For safety, the watcher only auto-surfaces trusted human review authors (for example repo OWNER/MEMBER/COLLABORATOR, plus the authenticated operator when `gh` can identify one) and the review bots you name with `--review-bot <login>` (exact login, repeatable). No bot is trusted by default. Pass only the review bots the user or the repository's instructions name, such as `chatgpt-codex-connector[bot]` or `claude[bot]`. Never infer trust from a bot's activity on the PR; if an unnamed review bot is reviewing it, ask the user once whether to trust it. Ignore other bot noise.
 On a fresh watcher state file, existing unaddressed published review feedback may be surfaced immediately (not only comments that arrive after monitoring starts). This is intentional so already-open review comments are not missed.
 The state file, which also holds the per-SHA retry count, defaults to the system temp directory. Whenever babysitting may outlast the current session, pass the same `--state-file <path>` on every run: a harness may give each session its own `TMPDIR`, and a fresh state file resets the seen items and the retry budget.
 
@@ -169,7 +169,8 @@ When you agree with a comment and it is actionable:
 6. If monitoring was running continuously, resume it immediately after the push; do not wait for the user to ask again.
 
 Do not post replies to human-authored GitHub review comments/threads automatically. If you disagree with a human comment, believe it is non-actionable/already addressed, or need to answer a question, report the item to the user with a suggested response and wait for explicit confirmation before posting anything on GitHub. If the user approves a response, prefix it with the attribution marker (see the GitHub State Mutation Policy) so it is clear the response is automated and not from the human user.
-If the watcher later surfaces your own approved reply because the authenticated operator is treated as a trusted review author, treat that self-authored item as already handled and do not reply again.
+If the watcher later surfaces your own approved reply, because the authenticated operator is treated as a trusted review author or because you post as an app such as `claude[bot]` that was passed with `--review-bot`, treat that self-authored item as already handled and do not reply again.
+If a snapshot's `authenticated_login` is null, `gh` could not identify you (for example under a GitHub App installation token): the requesting user's own comments then surface only if they are an OWNER/MEMBER/COLLABORATOR, so tell the user.
 If a code review comment/thread is already marked as resolved in GitHub, treat it as non-actionable and safely ignore it unless new unresolved follow-up feedback appears.
 
 ## GitHub State Mutation Policy
