@@ -101,6 +101,14 @@ def test_collect_snapshot_fetches_review_items_before_ci(monkeypatch, tmp_path):
     assert call_order.index("review") < call_order.index("workflow")
 
 
+def test_default_state_file_lives_in_the_system_temp_directory(monkeypatch, tmp_path):
+    monkeypatch.setattr(gh_pr_watch.tempfile, "gettempdir", lambda: str(tmp_path))
+
+    assert gh_pr_watch.default_state_file_for(sample_pr()) == (
+        tmp_path / "babysit-pr-openai-codex-pr123.json"
+    )
+
+
 def test_recommend_actions_prioritizes_review_comments():
     actions = gh_pr_watch.recommend_actions(
         sample_pr(),

@@ -108,6 +108,7 @@ be eligible to surface after the reviewer submits the review.
 It intentionally surfaces Codex reviewer bot feedback (for example comments/reviews from `chatgpt-codex-connector[bot]`) in addition to human reviewer feedback. Most unrelated bot noise should still be ignored.
 For safety, the watcher only auto-surfaces trusted human review authors (for example repo OWNER/MEMBER/COLLABORATOR, plus the authenticated operator) and approved review bots such as Codex.
 On a fresh watcher state file, existing unaddressed published review feedback may be surfaced immediately (not only comments that arrive after monitoring starts). This is intentional so already-open review comments are not missed.
+The state file, which also holds the per-SHA retry count, defaults to the system temp directory. Whenever babysitting may outlast the current session, pass the same `--state-file <path>` on every run: a harness may give each session its own `TMPDIR`, and a fresh state file resets the seen items and the retry budget.
 
 When you agree with a comment and it is actionable:
 
