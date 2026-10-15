@@ -78,6 +78,17 @@ def parse_args():
         "--watch", action="store_true", help="Continuously emit JSONL snapshots"
     )
     parser.add_argument(
+        "--changes-only",
+        action="store_true",
+        help="With --watch, emit a snapshot only when PR/CI/review state changes",
+    )
+    parser.add_argument(
+        "--heartbeat-polls",
+        type=int,
+        default=10,
+        help="With --changes-only, emit a heartbeat after this many unchanged polls",
+    )
+    parser.add_argument(
         "--retry-failed-now",
         action="store_true",
         help="Rerun failed jobs for current failed workflow runs when policy allows",
@@ -93,6 +104,10 @@ def parse_args():
         parser.error("--poll-seconds must be > 0")
     if args.max_flaky_retries < 0:
         parser.error("--max-flaky-retries must be >= 0")
+    if args.heartbeat_polls <= 0:
+        parser.error("--heartbeat-polls must be > 0")
+    if args.changes_only and not args.watch:
+        parser.error("--changes-only requires --watch")
     if args.watch and args.retry_failed_now:
         parser.error("--watch cannot be combined with --retry-failed-now")
     if not args.once and not args.watch and not args.retry_failed_now:
@@ -890,31 +905,56 @@ def snapshot_change_key(snapshot):
             if isinstance(item, dict)
         ),
         tuple(snapshot.get("actions") or []),
+        tuple(
+            sorted(
+                str(job.get("job_id") or "")
+                for job in snapshot.get("failed_jobs") or []
+                if isinstance(job, dict)
+            )
+        ),
     )
 
 
 def run_watch(args):
     poll_seconds = args.poll_seconds
     last_change_key = None
+    unchanged_polls = 0
     while True:
         snapshot, state_path = collect_snapshot(args)
-        print_event(
-            "snapshot",
-            {
-                "snapshot": snapshot,
-                "state_file": str(state_path),
-                "next_poll_seconds": poll_seconds,
-            },
-        )
         actions = set(snapshot.get("actions") or [])
-        if "stop_pr_closed" in actions or "stop_exhausted_retries" in actions:
+        stopping = "stop_pr_closed" in actions or "stop_exhausted_retries" in actions
+        current_change_key = snapshot_change_key(snapshot)
+        changed = current_change_key != last_change_key
+        if not args.changes_only or changed or stopping:
+            unchanged_polls = 0
+            print_event(
+                "snapshot",
+                {
+                    "snapshot": snapshot,
+                    "state_file": str(state_path),
+                    "next_poll_seconds": poll_seconds,
+                },
+            )
+        else:
+            unchanged_polls += 1
+            if unchanged_polls >= args.heartbeat_polls:
+                unchanged_polls = 0
+                pr = snapshot.get("pr") or {}
+                print_event(
+                    "heartbeat",
+                    {
+                        "pr": pr.get("number"),
+                        "head_sha": pr.get("head_sha"),
+                        "actions": snapshot.get("actions"),
+                        "next_poll_seconds": poll_seconds,
+                    },
+                )
+        if stopping:
             print_event(
                 "stop", {"actions": snapshot.get("actions"), "pr": snapshot.get("pr")}
             )
             return 0
 
-        current_change_key = snapshot_change_key(snapshot)
-        changed = current_change_key != last_change_key
         green = is_ci_green(snapshot)
         pr = snapshot.get("pr") or {}
         pr_open = not bool(pr.get("closed")) and not bool(pr.get("merged"))

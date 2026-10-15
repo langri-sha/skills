@@ -233,10 +233,151 @@ def test_run_watch_keeps_polling_open_ready_to_merge_pr(monkeypatch):
     monkeypatch.setattr(gh_pr_watch.time, "sleep", fake_sleep)
 
     with pytest.raises(StopWatch):
-        gh_pr_watch.run_watch(argparse.Namespace(poll_seconds=30))
+        gh_pr_watch.run_watch(
+            argparse.Namespace(poll_seconds=30, changes_only=False, heartbeat_polls=10)
+        )
 
     assert sleeps == [30, 30]
     assert [event for event, _ in events] == ["snapshot", "snapshot"]
+
+
+def watch_snapshot(
+    actions=("idle",),
+    head_sha="abc123",
+    failed_job_ids=(),
+    review_item_ids=(),
+    **pr_overrides,
+):
+    pr = sample_pr()
+    pr.update(head_sha=head_sha, **pr_overrides)
+    return {
+        "pr": pr,
+        "checks": sample_checks(pending_count=1, all_terminal=False),
+        "failed_runs": [],
+        "failed_jobs": [{"job_id": job_id} for job_id in failed_job_ids],
+        "new_review_items": [
+            {"kind": "review_comment", "id": item_id} for item_id in review_item_ids
+        ],
+        "actions": list(actions),
+        "retry_state": {"current_sha_retries_used": 0, "max_flaky_retries": 3},
+    }
+
+
+class WatchStopped(Exception):
+    pass
+
+
+def run_changes_only_watch(monkeypatch, snapshots, polls, heartbeat_polls=2):
+    events = []
+    feed = iter(snapshots)
+    sleeps = []
+
+    monkeypatch.setattr(
+        gh_pr_watch,
+        "collect_snapshot",
+        lambda args: (next(feed), Path("/tmp/babysit-pr-state.json")),
+    )
+    monkeypatch.setattr(
+        gh_pr_watch,
+        "print_event",
+        lambda event, payload: events.append((event, payload)),
+    )
+
+    def fake_sleep(seconds):
+        sleeps.append(seconds)
+        if len(sleeps) >= polls:
+            raise WatchStopped
+
+    monkeypatch.setattr(gh_pr_watch.time, "sleep", fake_sleep)
+    args = argparse.Namespace(
+        poll_seconds=30, changes_only=True, heartbeat_polls=heartbeat_polls
+    )
+    try:
+        result = gh_pr_watch.run_watch(args)
+    except WatchStopped:
+        result = None
+    return result, events
+
+
+def test_changes_only_watch_replaces_unchanged_snapshots_with_heartbeats(
+    monkeypatch,
+):
+    _, events = run_changes_only_watch(
+        monkeypatch, [watch_snapshot() for _ in range(5)], polls=5
+    )
+
+    assert [event for event, _ in events] == ["snapshot", "heartbeat", "heartbeat"]
+    assert events[1][1] == {
+        "pr": 123,
+        "head_sha": "abc123",
+        "actions": ["idle"],
+        "next_poll_seconds": 30,
+    }
+
+
+def test_changes_only_watch_emits_snapshot_when_state_changes(monkeypatch):
+    _, events = run_changes_only_watch(
+        monkeypatch,
+        [
+            watch_snapshot(),
+            watch_snapshot(),
+            watch_snapshot(head_sha="def456"),
+            watch_snapshot(actions=("process_review_comment",), head_sha="def456"),
+        ],
+        polls=4,
+        heartbeat_polls=10,
+    )
+
+    assert [event for event, _ in events] == ["snapshot", "snapshot", "snapshot"]
+    assert [payload["snapshot"]["pr"]["head_sha"] for _, payload in events] == [
+        "abc123",
+        "def456",
+        "def456",
+    ]
+
+
+def test_changes_only_watch_emits_each_batch_of_new_review_items(monkeypatch):
+    reviewing = ("process_review_comment",)
+    _, events = run_changes_only_watch(
+        monkeypatch,
+        [
+            watch_snapshot(actions=reviewing, review_item_ids=("1",)),
+            watch_snapshot(actions=reviewing, review_item_ids=("2",)),
+        ],
+        polls=2,
+        heartbeat_polls=10,
+    )
+
+    assert [
+        [item["id"] for item in payload["snapshot"]["new_review_items"]]
+        for _, payload in events
+    ] == [["1"], ["2"]]
+
+
+def test_changes_only_watch_emits_snapshot_when_another_job_fails(monkeypatch):
+    failing = ("diagnose_ci_failure",)
+    _, events = run_changes_only_watch(
+        monkeypatch,
+        [
+            watch_snapshot(actions=failing, failed_job_ids=(555,)),
+            watch_snapshot(actions=failing, failed_job_ids=(555, 556)),
+        ],
+        polls=2,
+        heartbeat_polls=10,
+    )
+
+    assert [event for event, _ in events] == ["snapshot", "snapshot"]
+
+
+def test_changes_only_watch_stops_with_final_snapshot_when_pr_closes(monkeypatch):
+    closed = watch_snapshot(actions=("stop_pr_closed",), closed=True, state="CLOSED")
+    result, events = run_changes_only_watch(
+        monkeypatch, [watch_snapshot(), watch_snapshot(), closed], polls=5
+    )
+
+    assert result == 0
+    assert [event for event, _ in events] == ["snapshot", "snapshot", "stop"]
+    assert events[1][1]["snapshot"]["actions"] == ["stop_pr_closed"]
 
 
 def test_failed_jobs_include_direct_logs_endpoint(monkeypatch):

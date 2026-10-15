@@ -66,6 +66,8 @@ python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --once
 python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --watch
 ```
 
+Add `--changes-only` to emit only changed snapshots and periodic heartbeats.
+
 ### Trigger flaky retry cycle (only when watcher indicates)
 
 ```bash
@@ -86,7 +88,10 @@ Pick the mode from how your harness delivers a running process's output:
   while it runs, either because the harness wakes you per line (a line
   monitor) or because you can read the running process's output whenever you
   choose (an attachable exec session). Run `--watch` in the background and act
-  on each JSONL snapshot.
+  on each JSONL snapshot. If every output line wakes you or lands in your
+  context, add `--changes-only`: the watcher then emits a snapshot only when PR,
+  CI, review or action state changes, plus a small `heartbeat` event after
+  `--heartbeat-polls` unchanged polls (default 10).
 - **Polling loop**: everything else, including commands that block until they
   exit or are killed after a timeout, and background jobs that only report when
   they exit. `--watch` exits only on a stop condition, so with those you would
