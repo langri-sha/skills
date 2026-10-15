@@ -26,10 +26,10 @@ Used to discover failed workflow runs and rerunnable run IDs.
 
 - `gh run view <run-id> --json jobs,name,workflowName,conclusion,status,url,headSha`
 - `gh api repos/{owner}/{repo}/actions/runs/{run_id}/jobs -X GET -f per_page=100`
-- `gh api repos/{owner}/{repo}/actions/jobs/{job_id}/logs > /tmp/codex-gh-job-{job_id}-logs.zip`
+- `gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/{job_id}/logs > "${TMPDIR:-/tmp}/gh-job-{job_id}.log"`
 - `gh run view <run-id> --log-failed`
 
-Used to classify branch-related vs flaky/unrelated failures. Prefer the direct job log endpoint as soon as a job has failed because `gh run view --log-failed` may not produce failed-job logs until the overall workflow run completes.
+Used to classify branch-related vs flaky/unrelated failures. Prefer the direct job log endpoint as soon as a job has failed because `gh run view --log-failed` may not produce failed-job logs until the overall workflow run completes. The job log endpoint returns plain text (run-level logs are a zip); without `--allow-escape-sequences`, `gh` 2.102 exits 1 with empty output on logs containing ANSI colour codes.
 
 ### Retry failed jobs only
 

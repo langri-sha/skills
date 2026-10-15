@@ -79,10 +79,10 @@ Use `gh` commands to inspect failed runs before deciding to rerun.
 
 - `gh run view <run-id> --json jobs,name,workflowName,conclusion,status,url,headSha`
 - `gh api repos/<owner>/<repo>/actions/runs/<run-id>/jobs -X GET -f per_page=100`
-- `gh api repos/<owner>/<repo>/actions/jobs/<job-id>/logs > /tmp/codex-gh-job-<job-id>-logs.zip`
+- `gh api --allow-escape-sequences repos/<owner>/<repo>/actions/jobs/<job-id>/logs > "${TMPDIR:-/tmp}/gh-job-<job-id>.log"`
 - `gh run view <run-id> --log-failed` as a fallback after the overall workflow run is complete
 
-`gh run view --log-failed` is workflow-run scoped and may not expose failed-job logs until the overall run finishes. For faster diagnosis, poll the run's jobs first and, as soon as a specific job has failed, fetch that job's logs directly from the Actions job logs endpoint. The watcher includes a `failed_jobs` list with each failed job's `job_id` and `logs_endpoint` when GitHub exposes one.
+`gh run view --log-failed` is workflow-run scoped and may not expose failed-job logs until the overall run finishes. For faster diagnosis, poll the run's jobs first and, as soon as a specific job has failed, fetch that job's logs directly from the Actions job logs endpoint. It returns plain text; current `gh` refuses to print logs containing terminal escape sequences unless given `--allow-escape-sequences`, so drop that flag only on a `gh` too old to know it. The watcher includes a `failed_jobs` list with each failed job's `job_id` and `logs_endpoint` when GitHub exposes one.
 
 Prefer treating failures as branch-related when failed-job logs point to changed code (compile/test/lint/typecheck/snapshots/static analysis in touched areas).
 
