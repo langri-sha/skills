@@ -1,0 +1,7 @@
+OpenAI Codex
+Copyright 2025 OpenAI
+
+This skill is derived from .codex/skills/babysit-pr in
+https://github.com/openai/codex at commit
+5e96aabd68dc6194f5ad928cb7f5d0bc71b72df9, licensed under the Apache
+License, Version 2.0 (see LICENSE.txt).
