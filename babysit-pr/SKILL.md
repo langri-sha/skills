@@ -76,6 +76,12 @@ surface (see Review Comment Handling).
 python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --retry-failed-now
 ```
 
+Stop a running `--watch` first, after handling any output it printed that you
+haven't read yet, and start it again afterwards: both update the
+same state file, and a watcher saving at the same moment can drop the retry
+count. The retry takes its own snapshot and marks any new review items as seen,
+so handle its `snapshot.new_review_items` exactly like a watcher snapshot's.
+
 ### Explicit PR target
 
 ```bash
