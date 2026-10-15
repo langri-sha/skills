@@ -113,7 +113,7 @@ The state file, which also holds the per-SHA retry count, defaults to the system
 When you agree with a comment and it is actionable:
 
 1. Patch code locally.
-2. Commit with `codex: address PR review feedback (#<n>)`.
+2. Commit following the commit message conventions below.
 3. Push to the PR head branch.
 4. After the push succeeds, resolve the associated GitHub review thread only when allowed by the GitHub state mutation policy below.
 5. Resume watching on the new SHA immediately (do not stop after reporting the push).
@@ -159,10 +159,9 @@ something visible to other humans. When in doubt, ask the user for clarification
 - Do not run multiple concurrent `--watch` processes for the same PR/state file; keep one watcher session active and reuse it until it stops or you intentionally restart it.
 - A push is not a terminal outcome; continue the monitoring loop unless a strict stop condition is met.
 
-Commit message defaults:
-
-- `codex: fix CI failure on PR #<n>`
-- `codex: address PR review feedback (#<n>)`
+Commit messages follow the repository's conventions and any commit rules the
+user or project instructions set. Describe the fix itself, not the fact that it
+answers CI or review.
 
 ## Monitoring Loop Pattern
 Use this loop in a live session:
