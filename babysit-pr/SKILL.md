@@ -1,6 +1,10 @@
 ---
 name: babysit-pr
 description: Babysit a GitHub pull request after creation by continuously polling review comments, CI checks/workflow runs, and mergeability state until the PR is merged/closed or user help is required. Diagnose failures, retry likely flaky failures up to 3 times, auto-fix/push branch-related issues when appropriate, and keep watching open PRs so fresh review feedback is surfaced promptly. Use when the user asks Codex to monitor a PR, watch CI, handle review comments, or keep an eye on failures and feedback on an open PR.
+license: Apache-2.0. Complete terms in LICENSE.txt
+metadata:
+  upstream: https://github.com/openai/codex/tree/5e96aabd68dc6194f5ad928cb7f5d0bc71b72df9/.codex/skills/babysit-pr
+  modified: Changed from upstream by langri-sha; see NOTICE
 ---
 
 # PR Babysitter

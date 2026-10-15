@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Modified from openai/codex .codex/skills/babysit-pr at 5e96aabd68dc; see NOTICE.
 """Watch GitHub PR CI and review activity for Codex PR babysitting workflows."""
 
 import argparse

@@ -1,3 +1,5 @@
+<!-- Modified from openai/codex .codex/skills/babysit-pr at 5e96aabd68dc; see NOTICE. -->
+
 # CI / Review Heuristics
 
 ## CI classification checklist

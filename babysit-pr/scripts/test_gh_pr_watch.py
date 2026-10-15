@@ -1,3 +1,4 @@
+# Modified from openai/codex .codex/skills/babysit-pr at 5e96aabd68dc; see NOTICE.
 import argparse
 import importlib.util
 from pathlib import Path
