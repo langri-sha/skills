@@ -64,6 +64,11 @@ harness or stop and report; never route around the policy.
 python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr auto --once
 ```
 
+A snapshot saves its state file and marks the review items it surfaces as seen.
+While a monitor is running, take a one-shot diagnostic with `gh` directly or
+with a throwaway `--state-file`, never with the monitor's: that would take
+review items away from the monitor and race its writes.
+
 ### Continuous watch (JSONL)
 
 ```bash
