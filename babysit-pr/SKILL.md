@@ -1,6 +1,6 @@
 ---
 name: babysit-pr
-description: Babysit a GitHub pull request after creation by continuously polling review comments, CI checks/workflow runs, and mergeability state until the PR is merged/closed or user help is required. Diagnose failures, retry likely flaky failures up to 3 times, auto-fix/push branch-related issues when appropriate, and keep watching open PRs so fresh review feedback is surfaced promptly. Use when the user asks to monitor a PR, watch CI, handle review comments, or keep an eye on failures and feedback on an open PR.
+description: Babysit a GitHub pull request after creation from a background monitor that keeps polling review comments, CI checks/workflow runs, and mergeability state until the PR is merged/closed or user help is required, while the conversation stays free for other work. Diagnose failures, retry likely flaky failures up to 3 times, auto-fix/push branch-related issues when appropriate, and keep watching open PRs so fresh review feedback is surfaced promptly. Use when the user asks to monitor a PR, watch CI, handle review comments, or keep an eye on failures and feedback on an open PR.
 license: Apache-2.0. Complete terms in LICENSE.txt
 metadata:
   upstream: https://github.com/openai/codex/tree/5e96aabd68dc6194f5ad928cb7f5d0bc71b72df9/.codex/skills/babysit-pr
@@ -18,6 +18,10 @@ Babysit a PR persistently until one of these terminal outcomes occurs:
 
 Do not stop merely because a single snapshot returns `idle` while checks are still pending.
 
+Babysitting runs in the background. The foreground conversation sets up a monitor, says what it
+watches and hands the conversation back to the user; the monitor keeps polling and reports events
+as they arrive.
+
 ## Inputs
 Accept any of the following:
 
@@ -27,8 +31,8 @@ Accept any of the following:
 
 ## Core Workflow
 
-1. When the user asks to "monitor"/"watch"/"babysit" a PR, start continuous monitoring in the watch mode your harness supports (see Watch Modes) unless you are intentionally doing a one-shot diagnostic snapshot.
-2. Run the watcher script to snapshot PR/review/CI state (or consume each streamed snapshot from `--watch`).
+1. When the user asks to "monitor"/"watch"/"babysit" a PR, start a background monitor (see Background Monitoring), report what it watches and hand the conversation back to the user. Take a one-shot diagnostic snapshot instead only when that is what the user asked for.
+2. The monitor snapshots PR/review/CI state with the watcher script (or streams snapshots from `--watch`), and each snapshot is handled with the steps below by whoever owns the event: this conversation when the harness delivers the event to it, or the background agent that owns the monitor.
 3. Inspect the `actions` list in the JSON response.
 4. If `diagnose_ci_failure` is present, inspect failed run logs and classify the failure.
 5. If the failure is likely caused by the current branch, patch code locally, commit, and push. Do not patch random flaky tests, CI infrastructure, dependency outages, runner issues, or other failures that are unrelated to the branch.
@@ -37,11 +41,11 @@ Accept any of the following:
 8. Do not post replies to human-authored review comments/threads unless the user explicitly confirms the exact response. If a human review item is non-actionable, already addressed, or not valid, surface the item and recommended response to the user instead of replying on GitHub.
 9. If the failure is likely flaky/unrelated and `retry_failed_checks` is present, rerun failed jobs with `--retry-failed-now`.
 10. If both actionable review feedback and `retry_failed_checks` are present, prioritize review feedback first; a new commit will retrigger CI, so avoid rerunning flaky checks on the old SHA unless you intentionally defer the review change.
-11. On every loop, look for newly surfaced review feedback before acting on CI failures or mergeability state, then verify mergeability / merge-conflict status (for example via `gh pr view`) alongside CI.
-12. After any push or rerun action, immediately return to step 1 and continue polling on the updated SHA/state.
-13. If you paused continuous monitoring to patch/commit/push, resume it yourself immediately after the push (do not wait for the user to re-invoke the skill).
-14. Repeat polling until `stop_pr_closed` appears or a user-help-required blocker is reached. A green + review-clean + mergeable PR is a progress milestone, not a reason to stop the watcher while the PR is still open.
-15. Own the monitoring until it ends: while babysitting is active, keep consuming watcher output; never leave a background `--watch` process running while reporting monitoring as complete.
+11. On every snapshot, look for newly surfaced review feedback before acting on CI failures or mergeability state, then verify mergeability / merge-conflict status (for example via `gh pr view`) alongside CI.
+12. After any push or rerun action, keep the monitor polling on the updated SHA/state.
+13. If you paused the monitor to patch/commit/push, restart it yourself immediately after the push (do not wait for the user to re-invoke the skill).
+14. Keep monitoring until `stop_pr_closed` appears or a user-help-required blocker is reached. A green + review-clean + mergeable PR is a progress milestone, not a reason to stop the watcher while the PR is still open.
+15. Own the monitor until it ends: keep its handle, stop it when babysitting stops, and never report babysitting as complete while it is still running. Between events the conversation belongs to the user; never hold it with a foreground wait on the monitor.
 
 ## Commands
 
@@ -88,41 +92,91 @@ so handle its `snapshot.new_review_items` exactly like a watcher snapshot's.
 python3 "<skill-dir>/scripts/gh_pr_watch.py" --pr <number-or-url> --once
 ```
 
-## Watch Modes
+## Background Monitoring
 
-Pick the mode from how your harness delivers a running process's output:
+### Setup
 
-- **Streamed watch**: you see each line of a long-running background process
-  while it runs, either because the harness wakes you per line (a line
-  monitor) or because you can read the running process's output whenever you
-  choose (an attachable exec session). Run `--watch` in the background and act
-  on each JSONL snapshot. If every output line wakes you or lands in your
-  context, add `--changes-only`: the watcher then emits a snapshot only when PR,
-  CI, review or action state changes, plus a small `heartbeat` event after
-  `--heartbeat-polls` unchanged polls (default 10).
-- **Polling loop**: everything else, including commands that block until they
-  exit or are killed after a timeout, and background jobs that only report when
-  they exit. `--watch` exits only on a stop condition, so with those you would
-  miss everything until the PR closes. Run `--once`, wait out the polling
-  cadence below with the harness's wait or scheduling mechanism (or `sleep`
-  where the shell allows it), and repeat. Stop on `stop_pr_closed` or
-  `stop_exhausted_retries`, as `--watch` does.
+Keep the foreground part short:
 
-Reading output on demand counts as a streamed watch only while you actually read
-it at the polling cadence, prompted by the same wait mechanism the loop uses; a
-background job whose output nothing prompts you to read belongs in the polling
-loop. Both modes read and write the same state file for a PR, so review items and
-retry counts carry over between them. A command killed by a timeout is neither
-a snapshot nor a stop condition. A watcher that exits nonzero hit a `gh` or
-GitHub error: read its stderr and restart after a short wait when the error
-looks transient; auth or permission errors are a stop-and-ask blocker. Waiting
-between polls, including a scheduled wake-up that resumes the loop, is part of
-babysitting, not a hand-off to the user.
+1. Resolve the PR and confirm `gh` access with a read such as
+   `gh pr view <pr> --json number,url,headRefOid,state`. Leave the first
+   watcher snapshot to the monitor, so feedback already on the PR arrives as
+   its first event.
+2. Choose the monitor's state file and pass it as `--state-file <path>` on
+   every watcher run it makes (see Review Comment Handling).
+3. If you already own a monitor for this PR, keep it instead of starting
+   another.
+4. Start the monitor with the first mechanism below that your harness supports.
+5. Tell the user the PR, its head SHA, the mechanism and its handle (task ID,
+   agent name or schedule), the state file, the trusted review bots and how to
+   stop it. Say monitoring has started, not that the PR is done, and hand the
+   conversation back without waiting for the first snapshot.
 
-Keep exactly one watcher per PR. A streamed watcher that is still running
-follows a new head SHA on its own, so a push needs no restart. Whenever you
-stop babysitting, for a stop condition, a blocker or a user interrupt, stop your
-background watcher too.
+### Mechanisms
+
+Harnesses differ, so the examples below describe capabilities, not tool names.
+
+- **PR events**: the harness subscribes to the PR and delivers checks, reviews,
+  comments and merge-state changes as notifications. On each one, take a
+  `--once` snapshot with the monitor's state file and handle it.
+- **Line monitor**: the harness runs a command in the background and delivers
+  each output line to this conversation as a notification between user turns.
+  Run `--watch --changes-only --state-file <path>` under it. Each snapshot is a
+  short turn of its own: handle it and end the turn.
+- **Background agent**: the harness runs a delegated agent or job alongside
+  this conversation and lets it notify this conversation. Brief it with this
+  skill, the PR, the state file, the trusted review bots, the remediation the
+  user's request permits (fixes and pushes, reruns, thread resolution) and what
+  to report. It owns the watcher: a streamed `--watch` when it can read output
+  as it arrives, otherwise `--once` with the polling cadence's waits in between.
+  Those waits are fine there, because they don't hold the conversation.
+- **Scheduled wake-ups**: the harness re-invokes this conversation on a
+  schedule while it is idle. Each wake-up takes one `--once` snapshot with the
+  monitor's state file, handles it and ends. Cancel the schedule when
+  babysitting stops.
+
+These are not background monitoring, so don't use them for it:
+
+- a foreground loop of `--once` snapshots with sleeps or waits between them;
+- blocking on a background process's output, or reading it only when the user
+  next writes;
+- `--watch` under a background job that reports only when it exits: it would
+  report nothing until the PR closes.
+
+If none of the mechanisms is available, say so and ask the user how to proceed,
+for example with one-shot snapshots on request. Don't block the conversation
+instead.
+
+### Running the monitor
+
+Keep exactly one monitor per PR and state file. A streamed watcher that is
+still running follows a new head SHA on its own, so a push needs no restart.
+A monitor built on `--once` stops on `stop_pr_closed` or
+`stop_exhausted_retries`, as `--watch` does. A
+watcher that exits nonzero hit a `gh` or GitHub error: read its stderr and
+restart it after a short wait when the error looks transient; auth or
+permission errors are a stop-and-ask blocker. A watcher killed by a timeout,
+or a monitor the harness expired, is neither a snapshot nor a stop condition:
+confirm the old process has exited, then start it again with the same state
+file.
+
+Only the monitor's owner runs `--retry-failed-now` (see Commands); with a
+background agent, that is the agent. The monitor carries out only remediation
+the user's request permits, under the Git Safety Rules: the user may be working
+in the same checkout, so a monitor that finds changes it didn't make notifies
+and waits instead of editing. At a blocker, or anything that needs the user's
+confirmation, it notifies and stops acting; a background agent gets the user's
+answer relayed by this conversation (see the GitHub State Mutation Policy).
+
+Report through the harness's notifications or agent messages. Never type into
+the user's terminal pane or composer, never wait for it to go idle to inject
+text, and never submit a draft the user hasn't sent. Report changes, not
+polls: heartbeats only show the watcher is alive, so don't relay them, and
+raise `--heartbeat-polls` when each heartbeat costs a turn.
+
+Whenever babysitting stops, for a stop condition, a blocker or the user asking,
+stop the monitor too (end the job, cancel the schedule or tell the agent to
+stop) and confirm it has stopped.
 
 ## CI Failure Classification
 Use `gh` commands to inspect failed runs before deciding to rerun.
@@ -223,10 +277,10 @@ Commit messages follow the repository's conventions and any commit rules the
 user or project instructions set. Describe the fix itself, not the fact that it
 answers CI or review.
 
-## Monitoring Loop Pattern
-Use this loop in a live session:
+## Handling a Snapshot
+The monitor's owner handles each snapshot like this:
 
-1. Run `--once`.
+1. Take a `--once` snapshot, or read the one the watcher streamed.
 2. Read `actions`.
 3. First check whether the PR is now merged or otherwise closed; if so, report that terminal state and stop polling immediately.
 4. Check CI summary, new review items, and mergeability/conflict status.
@@ -234,21 +288,21 @@ Use this loop in a live session:
 6. For each surfaced review item from another author, patch/commit/push if it is actionable, then resolve it only when allowed by the GitHub state mutation policy above. If it is non-actionable, already addressed, or requires a written answer, surface it to the user with a suggested response instead of posting automatically. If a later snapshot surfaces your own approved reply, treat it as informational and continue without responding again.
 7. Process actionable review comments before flaky reruns when both are present; if a review fix requires a commit, push it and skip rerunning failed checks on the old SHA.
 8. Retry failed checks only when `retry_failed_checks` is present and you are not about to replace the current SHA with a review/CI fix commit. Do not make code changes for unrelated flakes or infrastructure failures just to get CI green.
-9. If you pushed a commit, resolved an eligible review thread, or triggered a rerun, report the action briefly and continue polling (do not stop). If a human review comment needs a written GitHub response, stop and ask for confirmation before posting.
-10. After a review-fix push, keep monitoring without being asked: resume the polling loop, or restart `--watch` if it is no longer running, unless a strict stop condition has already been reached.
+9. If you pushed a commit, resolved an eligible review thread, or triggered a rerun, report the action briefly and keep monitoring (do not stop). If a human review comment needs a written GitHub response, stop and ask for confirmation before posting.
+10. After a review-fix push, keep monitoring without being asked: restart the monitor if it is no longer running, unless a strict stop condition has already been reached.
 11. If everything is passing, mergeable, not blocked on required review approval, and there are no unaddressed review items, report that the PR is currently ready to merge but keep the watcher running so new review comments are surfaced quickly while the PR remains open.
 12. If blocked on a user-help-required issue (infra outage, exhausted flaky retries, unclear reviewer request, permissions), report the blocker and stop.
-13. Otherwise wait according to the polling cadence below and repeat.
+13. Otherwise leave the next snapshot to the monitor, which polls at the cadence below.
 
-When the user explicitly asks to monitor/watch/babysit a PR, prefer a streamed `--watch` when the harness supports it, so polling continues autonomously in one command; otherwise run the polling loop. Beyond that loop, use `--once` only for debugging, local testing, or when the user explicitly asks for a one-shot check.
-Do not stop to ask the user whether to continue polling; continue autonomously until a strict stop condition is met or the user explicitly interrupts.
-Do not hand control back to the user after a review-fix push just because a new SHA was created; restarting the watcher and re-entering the poll loop is part of the same babysitting task.
-If the watcher is still running, or the polling loop has not reached a strict stop condition, the babysitting task is still in progress; keep consuming watcher output instead of handing control back to the user.
+When the user explicitly asks to monitor/watch/babysit a PR, run a background monitor. Use a foreground `--once` only for debugging, local testing, or when the user explicitly asks for a one-shot check.
+Do not stop to ask the user whether to continue polling; the monitor continues autonomously until a strict stop condition is met or the user stops it.
+A review-fix push does not end babysitting just because a new SHA was created; keep or restart the monitor on the new SHA.
+While the monitor runs, babysitting is still in progress even though the conversation is back with the user: answer their other requests as usual and handle monitor events as they arrive.
 
 ## Polling Cadence
 Keep review polling aggressive and continue monitoring even after CI turns green:
 
-- While CI is not green (pending/running/queued or failing): poll every 1 minute.
+- While CI is not green (pending/running/queued or failing): poll every 1 minute. Never poll faster than the watcher's default `--poll-seconds` of 30; each poll makes several GitHub API calls.
 - After CI turns green: keep polling at the base cadence while the PR remains open so newly posted review comments are surfaced promptly instead of waiting on a long green-state backoff.
 - Reset the cadence immediately whenever anything changes (new commit/SHA, check status changes, new review comments, mergeability changes, review decision changes).
 - If CI stops being green again (new commit, rerun, or regression): stay on the base polling cadence.
@@ -270,14 +324,14 @@ Keep polling when:
 - The PR is green but blocked on review approval (`REVIEW_REQUIRED` / similar); continue polling at the base cadence and surface any new review comments without asking for confirmation to keep watching.
 
 ## Output Expectations
-Provide concise progress updates while monitoring and a final summary that includes:
+Provide concise progress updates through the monitor's notifications and a final summary that includes:
 
 - During long unchanged monitoring periods, avoid emitting a full update on every poll; summarize only status changes plus occasional heartbeat updates.
 - Treat push confirmations, intermediate CI snapshots, ready-to-merge snapshots, and review-action updates as progress updates only; do not emit the final summary or end the babysitting session unless a strict stop condition is met.
-- A user request to "monitor" is not satisfied by a couple of sample polls; remain in the loop until a strict stop condition or an explicit user interruption.
+- A user request to "monitor" is not satisfied by a couple of sample polls; keep the monitor running until a strict stop condition or an explicit user interruption.
 - A review-fix commit + push is not a completion event; immediately resume continuous monitoring and continue reporting progress updates.
 - When CI first transitions to all green for the current SHA, emit a one-time celebratory progress update (do not repeat it on every green poll). Preferred style: `🚀 CI is all green! 33/33 passed. Still on watch for review approval.`
-- Do not send the final summary while a watcher process is still running unless the watcher has emitted/confirmed a strict stop condition; otherwise continue with progress updates.
+- Do not send the final summary while the monitor is still running unless the watcher has emitted/confirmed a strict stop condition; otherwise continue with progress updates.
 
 - Final PR SHA
 - CI status summary
