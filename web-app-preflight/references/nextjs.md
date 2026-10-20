@@ -14,7 +14,7 @@ skill, `metadata.md` and `file-conventions.md` in particular.
 - `NEXT_PUBLIC_*` values are inlined at build time. The variable the app reads
   and the one the build workflow sets must have the same name, and a local
   build without it must still work. Search the client chunks for `phx_` and
-  any other administrative credential.
+  any other secret or privileged credential.
 
 ## Where each check lives
 

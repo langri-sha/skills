@@ -80,10 +80,14 @@ device".
   answered by a redirect to sign-in, 401 or 403 on each surface; a repo that
   shows nothing exposed leaves it UNVERIFIED.
 - Previews are behind authentication or answer `X-Robots-Tag: noindex`.
-- The client bundle carries no administrative credentials: no PostHog personal
-  API key (`phx_…`), organization ID, service-account key or provider token.
-  Search the built output. A PostHog project token (`phc_…`) is public by
-  design and is not a finding.
+- The client bundle carries no secret or privileged credentials, such as a
+  PostHog personal API key (`phx_…`), a Supabase secret or `service_role` key,
+  a service-account key, or a private API key or password. Search the built
+  output. Tokens a provider documents as public client tokens are not findings:
+  a PostHog project token (`phc_…`), a Supabase publishable or anon key. They
+  are only as safe as the server-side rules behind them, such as Supabase's
+  row-level security. Identifiers such as project or organization IDs aren't
+  credentials either.
 
 ### Not found (always)
 
