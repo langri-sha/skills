@@ -163,7 +163,10 @@ restart it after a short wait when the error looks transient; auth or
 permission errors are a stop-and-ask blocker. A watcher killed by a timeout,
 or a monitor the harness expired, is neither a snapshot nor a stop condition:
 confirm the old process has exited, then start it again with the same state
-file.
+file. Give the monitor the longest lifetime the harness allows. A restarted
+watcher's first snapshot is a baseline: report it only where it differs from
+the last state you reported. The state file has already carried its review
+items over.
 
 Only the monitor's owner runs `--retry-failed-now` (see Commands); with a
 background agent, that is the agent. The monitor carries out only remediation
