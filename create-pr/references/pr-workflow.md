@@ -123,32 +123,23 @@ directory.
 
 **Filling the Template:**
 
+Keep the whole body under 150 words, whatever the template asks for.
+
 1. **Summary Section:**
-   - High-level overview of what changed (1-3 sentences)
-   - Focus on the "what" and "why"
-   - Example: "This PR adds user authentication using JWT tokens to secure API
-     endpoints."
+   - Why the change exists, plus what the diff can't show: manual steps,
+     risk, rollout (1-3 sentences)
+   - Example: "API endpoints were open to anyone. Requests now need a JWT;
+     existing clients must log in once after deploy."
 
 2. **Changes/Details Section:**
-   - Bullet points of specific changes
-   - Derived from commit messages and diff analysis
-   - Be specific but concise
-   - Example:
-     ```
-     - Added JWT middleware for authentication
-     - Created login endpoint
-     - Updated user model with password hashing
-     ```
+   - Never list the changes; the diff and the commits already do
+   - Skip the section, or use one sentence for a decision a reviewer would
+     miss
 
 3. **Test Plan Section:**
-   - How to verify the changes work
-   - Manual testing steps or automated tests added
-   - Example:
-     ```
-     - Run `npm test` to verify all tests pass
-     - Test login flow at `/api/login`
-     - Verify protected routes reject unauthenticated requests
-     ```
+   - One line naming what ran, e.g. "`npm test`, and a manual login at
+     `/api/login`"
+   - No checklists
 
 4. **Checkboxes:**
    - Leave unchecked if the template has checkboxes
@@ -297,17 +288,15 @@ else:
 
 ### PR Description
 
-- Follow the template structure
-- Be clear and specific
-- Include context for reviewers
+- Under 150 words; skip template sections with nothing to say
+- Say why, not what; the diff shows what
 - Link related issues
-- Don't assume reviewer knowledge
+- Assume the reviewer knows the codebase
 
 ### Commit Messages
 
-- Good commit messages make PR descriptions easier
-- Extract key information from commit subjects and bodies
-- Combine similar changes into single bullet points
+- Good commit messages make PR descriptions shorter
+- Pull the why from commit bodies; don't repeat the subjects
 
 ### Branch Naming
 
