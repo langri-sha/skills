@@ -79,38 +79,18 @@ Emit after phase 4, before Gate C:
 ## Draft PR body template
 
 GitHub renders the native stack map itself — do not duplicate a stale copy of
-it. Each draft body covers intent, review focus, and validation. In fallback
-mode (no native stack map), also state the layer's position and review order
-explicitly.
+it. Each draft body stays under 150 words and follows `/create-pr`: why the
+layer exists, where to start reviewing when that isn't obvious, and one line
+naming what ran. In fallback mode (no native stack map), also state the
+layer's position and review order in one line.
 
 ```markdown
-## Layer intent
+Adds the session schema and types that the auth service in the next layer
+builds on. Start at `src/schema/session.ts`.
 
-One sentence describing this layer.
+Split from #1234, which stays open until this stack is accepted.
 
-## Scope
-
-- Included change
-- Included test/compatibility work
-
-## Out of scope
-
-- Work intentionally deferred to upper layers
-
-## Review guide
-
-1. Start at `path/to/contract`
-2. Then `path/to/implementation`
-3. Validate with `<command>`
-
-## Validation
-
-- [ ] Required check/result
-
-## Replacement context
-
-Split from #1234. The original PR remains unchanged until this stack is
-accepted.
+Validated with `pnpm dagger:check`.
 ```
 
 Titles follow `/create-pr` conventions: plain, descriptive sentences, no
