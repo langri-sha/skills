@@ -106,6 +106,8 @@ whole body under 150 words, whatever the template asks for:
 - **Test plan** — one line naming what ran. No checklists.
 - Skip sections with nothing to say instead of writing N/A, and add no
   sections of your own. Leave all checkboxes unchecked.
+- Write as the author, in the first person or with no attribution. Never
+  name the author or refer to them in the third person.
 - Include `Closes #123` / `Fixes #123` when the branch resolves an issue.
 
 If no template exists, write a short paragraph and a one-line test plan,

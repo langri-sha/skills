@@ -128,6 +128,7 @@ Keep the whole body under 150 words, whatever the template asks for.
 1. **Summary Section:**
    - Why the change exists, plus what the diff can't show: manual steps,
      risk, rollout (1-3 sentences)
+   - Written as the author, with no attribution or in the first person
    - Example: "API endpoints were open to anyone. Requests now need a JWT;
      existing clients must log in once after deploy."
 
