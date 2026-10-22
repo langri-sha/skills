@@ -30,8 +30,8 @@ Orchestrate branching off new work mid-conversation by chaining `/create-issue`,
 From the user's freeform prompt, infer:
 
 - **Issue title**: a concise summary (under 70 characters)
-- **Issue body**: structured using the appropriate template from `/create-issue`
-  (enhancement, bug, or maintenance)
+- **Issue body**: under 100 words, without headings: the problem, why it
+  matters, and when it's done
 - **Labels**: infer from context (`enhancement`, `bug`, etc.)
 
 If the prompt is too vague to infer a clear title or body, ask the user to
