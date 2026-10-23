@@ -17,8 +17,8 @@ anything. Fix a gap only when the task that invoked the preflight asks for
 fixes, and then as separate work after the report.
 
 The checks are outcomes, not a stack: no framework, styling library, theme,
-WebGL, service worker or visual style is required. Langri-Sha's site is where
-many of them came from, and its choices are not mandates for other apps.
+WebGL, service worker or visual style is required. Many of them came from
+langri-sha.com, whose choices are not mandates for other apps.
 
 ## 1. File the flight plan
 
