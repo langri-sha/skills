@@ -1,6 +1,6 @@
 ---
 name: backfill-releases
-description:
+description: >-
   Create the missing git tags and GitHub releases for every version a
   beachball-published repository has already shipped, from its CHANGELOG.json
   files. Use when moving a repository onto GitHub releases (the langri-sha/github
