@@ -1,6 +1,6 @@
 ---
 name: trace-image-to-svg
-description:
+description: >-
   Use this skill to produce a pixel-faithful SVG vector recreation of a raster
   image (logo, wordmark, icon, glyph art) — real smooth Bezier paths, transparent
   background, no embedded raster, no font dependency. Use it whenever a redraw
