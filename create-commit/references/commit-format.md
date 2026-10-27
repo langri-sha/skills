@@ -2,55 +2,10 @@
 
 ## Overview
 
-Commit message format depends on the repository ownership and whether the branch
-contains a Jira project ID.
+A commit has a plain imperative subject, an optional body, and its issue and PR
+references at the end of the body.
 
 ## Format Rules
-
-### For `letsdeel` Organization Repositories
-
-If the current branch contains a Jira project ID (format:
-`PROJECT-###-description`), the commit subject **must** start with the Jira
-project ID:
-
-```
-PROJECT-### Description of changes
-```
-
-**Examples:**
-
-```
-GHOST-200 Add two-factor authentication
-GHOST-201 Fix login validation error
-DEV-45 Implement user search feature
-BACKEND-123 Optimize database query performance
-```
-
-**Guidelines:**
-
-- Project ID comes first, separated by space from description
-- Description uses imperative mood ("Add", "Fix", "Implement", not "Added",
-  "Fixed")
-- Maximum 50 characters including the project ID
-- No period at the end
-
-If the branch does **not** contain a Jira project ID, use a clear descriptive
-subject line:
-
-```
-Brief description of changes
-```
-
-**Examples:**
-
-```
-Add email notification system
-Fix memory leak in cache service
-Refactor authentication module
-Update documentation for API endpoints
-```
-
-### For Other Organization Repositories
 
 Subject is a plain imperative sentence, around 50 characters, no trailing
 period.
@@ -92,7 +47,7 @@ Keep body lines wrapped at 72 characters.
 **Example:**
 
 ```
-GHOST-200 Add two-factor authentication
+Add two-factor authentication
 
 - Implement TOTP-based verification
 - Add recovery codes for account access
@@ -137,28 +92,6 @@ runs. Failures now back off exponentially after the fifth attempt.
 Closes #123
 ```
 
-## Detecting Jira Project ID from Branch
-
-The skill will automatically extract the Jira project ID from the current branch
-if it follows this pattern:
-
-```
-<PROJECT-ID>-<rest-of-branch-name>
-```
-
-Pattern matching:
-
-- `GHOST-200-add-auth` → Extract `GHOST-200`
-- `DEV-45-fix-bug` → Extract `DEV-45`
-- `feature/add-cache` → No project ID (missing number pattern)
-- `main` → No project ID
-
-The project ID must:
-
-1. Start with letters (A-Z)
-2. Followed by a hyphen and one or more digits
-3. Followed by another hyphen and additional characters
-
 ## Fixup Commits
 
 When a commit should fix or amend a previous commit, indicate this clearly:
@@ -173,14 +106,14 @@ belongs with the previous one.
 **Example:**
 
 ```
-Previous commit: GHOST-200 Add password validation
-Current commit: fixup! GHOST-200 Add password validation
+Previous commit: Add password validation
+Current commit: fixup! Add password validation
 
 (Fixes a bug or completes implementation from previous commit)
 ```
 
-The text after `fixup!` must reproduce the target's subject verbatim — including
-any project ID — or `--autosquash` will not match it.
+The text after `fixup!` must reproduce the target's subject verbatim, or
+`--autosquash` will not match it.
 
 When preparing for merge, fixup commits can be automatically squashed with their
 target commit using:
