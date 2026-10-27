@@ -25,9 +25,6 @@ single-purpose commits, and write messages that explain what and why.
 - **Fixups**: when the change corrects earlier unmerged work rather than adding
   something new, use `fixup! <exact subject of the target commit>` so
   `git rebase --autosquash` can fold it in.
-- **letsdeel org repos**: prefix the subject with the Jira ID extracted from the
-  branch name (`GHOST-200 Add two-factor authentication`). Details and detection
-  rules in `references/commit-format.md`.
 
 ## Atomicity
 
@@ -97,5 +94,4 @@ a change from the tests that cover it.
 
 - **`references/atomic-commits.md`** — atomic commit principles, decision trees,
   and red flags
-- **`references/commit-format.md`** — full message format specification,
-  including Jira-prefixed subjects for letsdeel repos
+- **`references/commit-format.md`** — full message format specification
