@@ -1,12 +1,10 @@
 ---
 name: backfill-releases
 description: >-
-  Create the missing git tags and GitHub releases for every version a
+  Creates the missing git tags and GitHub releases for every version a
   beachball-published repository has already shipped, from its CHANGELOG.json
-  files. Use when moving a repository onto GitHub releases (a Release workflow
-  that tags and releases each version it publishes), or when asked to "backfill
-  releases", "tag old versions", "create releases for historical versions".
-  Triggers: "/backfill-releases".
+  files. Use when moving a repository onto GitHub releases, or when asked to
+  backfill releases or tag old versions. Runs only when invoked by name.
 disable-model-invocation: true
 argument-hint: '[--apply] [--template TEMPLATE]'
 metadata:
