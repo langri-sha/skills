@@ -1,6 +1,5 @@
 ---
 name: wrap
-user_invocable: true
 description:
   Land the current branch. Use when the user says "/wrap", "wrap this up", or
   "ship it". Commits remaining changes, rebases, pushes, and merges the PR once
