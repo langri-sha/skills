@@ -14,6 +14,7 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "changeset": "projen changeset",
     "default": "projen default",
     "prepare": "husky",
     "renovate": "projen renovate",
@@ -21,6 +22,7 @@
     "worktrunk:show": "projen worktrunk:show"
   },
   "devDependencies": {
+    "@changesets/cli": "3.0.3",
     "@langri-sha/lint-staged": "0.9.11",
     "@langri-sha/prettier": "0.4.11",
     "@langri-sha/projen-project": "0.43.0",
