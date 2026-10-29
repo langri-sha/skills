@@ -21,8 +21,8 @@ The plan lives with the work, inside the worktree:
 - **Memory**: `.claude/memory.md`
 
 Both are worktree-local and survive agent restarts — `/create-worktree` and
-`/orchestrate-epic` resume from exactly these files. Never delete, truncate, or
-"clean up" either file; archive instead (see below).
+other orchestration skills resume from exactly these files. Never delete,
+truncate, or "clean up" either file; archive instead (see below).
 
 Keep them out of commits. If `git check-ignore -q .claude/PLAN.md` fails, append
 `.claude/PLAN*.md` and `.claude/memory.md` to the file
