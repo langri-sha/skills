@@ -69,7 +69,7 @@ Ask the user:
 > Start working on it now? (creates worktree + development session with a new
 > agent)
 
-If the user says **no**, skip to step 6 and return just the issue URL.
+If the user says **no**, skip to step 6.
 
 ### 4. Create the Worktree
 
@@ -113,30 +113,11 @@ This creates a tmux window in the chosen lane or opens the worktree's Herdr
 workspace, with Claude on the left pane (fully briefed) and critique on the
 right.
 
-### 6. Output Summary
+### 6. Report
 
-#### If started immediately
-
-```
-Subdivided!
-
-  Issue:    <REPO>#<NUMBER> — <TITLE>
-  Worktree: <WORKTREE_PATH>
-  Branch:   <slug>
-  Session:  <backend> window/tab "<slug>" in <lane-or-workspace> with claude + critique
-
-You can continue working here. The new agent is running next door.
-```
-
-#### If deferred
-
-```
-Subdivided!
-
-  Issue: <REPO>#<NUMBER> — <TITLE>
-
-Run /create-worktree <slug> when you're ready to start.
-```
+Report the issue. If work started, add the worktree, branch and where the
+session opened; otherwise give the slug to pass to `/create-worktree` when the
+user is ready.
 
 ## Edge Cases
 
