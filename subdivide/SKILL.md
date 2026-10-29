@@ -84,10 +84,8 @@ Examples:
 - Issue #642 "Add PDF export" -> `642-add-pdf-export`
 - Issue #650 "Fix auth redirect loop" -> `650-fix-auth-redirect-loop`
 
-Invoke `/create-worktree` with this slug. This handles branch creation, env file
-copying, dependency installation, and directory switching.
-
-Capture the resulting worktree path (`WORKTREE_PATH`).
+Invoke `/create-worktree` with this slug and capture the worktree path it
+reports (`WORKTREE_PATH`).
 
 ### 5. Launch the Development Session
 
@@ -157,5 +155,5 @@ error. Do not proceed to worktree creation.
 
 ### Worktree Slug Already Exists
 
-`/create-worktree` handles this — it will ask the user whether to switch to the
-existing worktree or pick a different slug.
+`/create-worktree` reuses an existing worktree with that slug. Say so, since it
+may hold other work.
