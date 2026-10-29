@@ -24,6 +24,7 @@ const project = new Project({
     '*': '@langri-sha',
   },
   editorConfig: {},
+  githubTemplates: {},
   husky: {
     'pre-commit': 'pnpm --silent lint-staged',
   },
