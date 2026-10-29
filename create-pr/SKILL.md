@@ -18,15 +18,16 @@ description: >-
   Publish with `gh stack submit --auto`, which opens drafts, then set each
   layer's title and body with `gh pr edit`. The `split-pr-stack` skill builds
   such stacks.
-- **Base.** The user's, if named. Otherwise, if the branch sits on another open
-  PR's branch, base on that branch so the PR shows only this layer: after
-  `git fetch origin`, test each `headRefName` from
+- **Existing PR.** `gh pr list --head <branch> --json url,baseRefName`. If one
+  exists, its base is the base, and offer `gh pr edit` instead of opening a
+  duplicate.
+- **Base.** The user's, if named. Otherwise, with no existing PR, if the branch
+  sits on another open PR's branch, base on that branch so the PR shows only
+  this layer: after `git fetch origin`, test each `headRefName` from
   `gh pr list --json headRefName` with
   `git merge-base --is-ancestor origin/<head> HEAD`, take the nearest, and ask
   when more than one fits. Otherwise the default branch
   (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`).
-- **Existing PR.** `gh pr list --head <branch> --json url`. If one exists, offer
-  `gh pr edit` instead of opening a duplicate.
 - **State.** Uncommitted changes won't be in the PR, so ask whether to commit
   them (`create-commit`), stash them, or leave them out. On a detached HEAD,
   create a short kebab-case branch named for the change, with no type prefix. An
