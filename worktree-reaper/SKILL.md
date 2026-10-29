@@ -48,11 +48,10 @@ gitdir pointer to it. Anything else is refused outright rather than guessed at.
 
 ### 1. Run the Dry Report
 
-From anywhere inside the garden, with the script resolved relative to this
-skill's base directory:
+From anywhere inside the garden, where `<skill-dir>` is this skill's directory:
 
 ```bash
-<skill-base-dir>/scripts/reap.sh --fetch
+<skill-dir>/scripts/reap.sh --fetch
 ```
 
 `--fetch` refreshes `origin/main` first, which is the only thing the dry run
@@ -90,7 +89,7 @@ along with the dominant skip reasons — that is a useful answer, not a failure.
 ### 3. Apply, If Asked
 
 ```bash
-<skill-base-dir>/scripts/reap.sh --fetch --apply
+<skill-dir>/scripts/reap.sh --fetch --apply
 ```
 
 Apply re-runs the dry report, then prompts:
