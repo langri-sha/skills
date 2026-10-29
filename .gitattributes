@@ -11,3 +11,4 @@
 /pnpm-lock.yaml linguist-generated
 /pnpm-workspace.yaml linguist-generated
 /prettier.config.js linguist-generated
+/renovate.json5 linguist-generated linguist-language=JSON-with-Comments
