@@ -187,31 +187,10 @@ exists for:
   `mergeable=MERGEABLE` and a ready `mergeStateStatus`, and CONFLICTING is
   _detected_ via those fields — which `gh pr checks` never reports. A single
   `gh pr view` poll covers both in one shot.
-- **The head can move twice** (Renovate push, then the app-bot post-upgrade
-  push). There is a window between them where the known checks are momentarily
+- **The head can move twice**: Renovate's push, then a bot's post-upgrade fix.
+  There is a window between them where the known checks are momentarily
   complete; `--watch` can exit in that gap. The "no pending **and** stable for
   two polls" guard rides past it.
-
-### 7. Expected post-rebase commit chain
-
-After the rebase checkbox is ticked (or Renovate rebases on its own), a GREEN
-landing typically flows through this chain — knowing it tells you the monitor's
-churn is expected, not a failure:
-
-1. **Renovate pushes a new head** as `renovate[bot]`.
-2. `pull_request` workflows fire. `check.yml`'s post-upgrade step runs
-   `eslint --fix`, `prettier --write`, `vitest --update`, `projen`, and a
-   `beachball` change entry.
-3. If the post-upgrade step produced a diff, the `commit-upgrade-changes` job
-   mints an App token via `actions/create-github-app-token@v2` and pushes the
-   fix as `<app-slug>[bot]`. **That bot push re-triggers the `pull_request`
-   workflows**, so the head moves a second time and checks re-run.
-4. Final ready state: `mergeable=MERGEABLE`, `mergeStateStatus=CLEAN`, all
-   checks `SUCCESS`/`SKIPPED`.
-
-Because the head can move twice (Renovate, then the app bot), the monitor keys
-its verdict on "head moved off baseline + no pending + two stable polls" rather
-than the first push it sees.
 
 ## Stopping conditions
 
