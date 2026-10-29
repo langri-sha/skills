@@ -23,5 +23,6 @@ node_modules/
 !/prettier.config.js
 !/.prettierignore
 !/CODEOWNERS
+!/.editorconfig
 !/pnpm-workspace.yaml
 !/.projenrc.ts
