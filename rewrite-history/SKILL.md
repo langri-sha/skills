@@ -8,171 +8,89 @@ description:
 
 # Rewrite History
 
-## Overview
-
-This skill transforms a "messy" state (a large set of uncommitted changes or a
-series of "wip" commits) into a clean, linear history. It treats the commit log
-as a narrative, ensuring each commit represents a single, complete logical unit
-(atomic commit). All operations are performed in a temporary worktree to safely
-build the new history without disrupting the user's current workspace.
-
-## When to Use This Skill
-
-Invoke this skill when the user:
-
-- Has a lot of uncommitted work and wants to "save it" cleanly.
-- Asks to "clean up my history" or "organize these changes".
-- Wants a messy branch to read as a sequence of logical steps.
-- Says "make this look like a story".
-
-To split a large change or PR into a stack of separate, independently reviewable
-PRs, use `split-pr-stack` instead — this skill rewrites the local commit story
-on a single branch and never creates PRs.
-
-## Core Workflow
+Change the commits, never the code: the new history ends on exactly the tree it
+started from. Nothing is pushed unless the user asks.
 
 Neither Claude Code nor Codex keeps shell variables between commands. Step 1
-runs as one command and prints the values the later steps need; write them
-literally wherever `<snapshot>` and `<sandbox>` appear.
+runs as one command and prints three values; write them literally wherever
+`<base>`, `<snapshot>` and `<sandbox>` appear later.
 
-### Step 1: Safe Sandbox Creation
+## 1. Snapshot and sandbox
 
-**Goal:** Perform all destructive operations in isolation to prevent data loss.
+Capture the user's state, including uncommitted and untracked files, without
+touching their index or working tree, then open a detached worktree on it:
 
-1.  **Define the Scope:** the base is the merge base with the trunk when
-    rewriting commits, or `HEAD` when only uncommitted work needs organizing.
+```bash
+TRUNK=$(gh repo view --json defaultBranchRef -q .defaultBranchRef.name)
+git fetch origin "$TRUNK"
+BASE=$(git merge-base "origin/$TRUNK" HEAD)  # $(git rev-parse HEAD) to organize only uncommitted work
+IDX=$(mktemp -u)                             # git must create the index itself
+GIT_INDEX_FILE=$IDX git read-tree HEAD
+GIT_INDEX_FILE=$IDX git add -A
+SNAPSHOT=$(git commit-tree "$(GIT_INDEX_FILE=$IDX git write-tree)" -p HEAD \
+  -m 'Snapshot before history rewrite')
+rm -f "$IDX"
+SANDBOX=$(mktemp -d)
+git worktree add --detach "$SANDBOX" "$SNAPSHOT"
+git -C "$SANDBOX" reset "$BASE"              # the whole change is now unstaged
+printf 'base=%s\nsnapshot=%s\nsandbox=%s\n' "$BASE" "$SNAPSHOT" "$SANDBOX"
+```
 
-2.  **Snapshot and Sandbox:** capture the user's state, uncommitted and
-    untracked files included, without touching their index or working tree, then
-    open a detached worktree on it with the whole change unstaged:
+The snapshot is the recovery point. Install dependencies in the sandbox so hooks
+and checks run.
 
-    ```bash
-    IDX=$(mktemp -u)                       # git must create the index itself
-    GIT_INDEX_FILE=$IDX git read-tree HEAD
-    GIT_INDEX_FILE=$IDX git add -A
-    SNAPSHOT=$(git commit-tree "$(GIT_INDEX_FILE=$IDX git write-tree)" -p HEAD \
-      -m 'Snapshot before history rewrite')
-    rm -f "$IDX"
-    SANDBOX_DIR=$(mktemp -d -t rewrite-history-XXXXXX)
-    git worktree add --detach "$SANDBOX_DIR" "$SNAPSHOT"
-    git -C "$SANDBOX_DIR" reset <base-sha>
-    printf 'snapshot=%s\nsandbox=%s\n' "$SNAPSHOT" "$SANDBOX_DIR"
-    ```
+## 2. Plan the story
 
-    The snapshot is the recovery point. Inside the sandbox `HEAD` is the
-    snapshot, so pass the base as a SHA. Install dependencies in the sandbox so
-    hooks and checks run.
+Propose the commit subjects in order, each with its files or hunks, and the
+untracked files to leave out, such as scratch notes or local env files. Wait for
+the user to approve both. The split follows `create-commit`:
 
-### Step 2: Analysis and Storyboarding
+- one decision per commit that a reviewer could accept or question on its own;
+- dependencies before the code that uses them;
+- tests in the same commit as the code they cover;
+- refactoring and formatting apart from behavior changes;
+- plain imperative subjects, with no type prefixes.
 
-**Goal:** Understand the changes and plan the narrative.
+Size and shared files are never reasons to combine. Stop splitting only where a
+commit would fail its checks or be separated from its tests.
 
-1.  **Draft the Storyboard:** propose the commits in order, each with its files
-    or hunks. The split follows `create-commit`:
-    - one decision per commit that a reviewer could accept or question on its
-      own;
-    - dependencies before the code that uses them;
-    - tests in the same commit as the code they cover;
-    - refactoring and formatting apart from behavior changes;
-    - plain imperative subjects, with no type prefixes.
+## 3. Build it
 
-    Size and shared files are never reasons to combine. Stop splitting only
-    where a commit would fail its checks or be separated from its tests.
+Stage each step with `git -C <sandbox> add <path>`. For a file that spans steps,
+write the exact patch and `git -C <sandbox> apply --cached` it: interactive
+`git add -p` doesn't work in an agent shell. Commit each step and run the repo's
+checks on it. A commit that fails is a planning error, so regroup rather than
+keep a broken intermediate.
 
-### Step 3: Interactive Review
+## 4. Prove it
 
-**Goal:** Get user buy-in on the narrative.
+```bash
+git -C <sandbox> diff --exit-code <snapshot> HEAD -- . ':!<left-out path>'
+```
 
-- **Present the Plan:** Show the user the list of proposed commits, and the
-  untracked files to leave out of history, such as scratch notes or local env
-  files.
-- **Iterate:** Allow the user to combine, split, or rename commits.
-- **Approval:** "Does this story look correct?"
+Add one `':!<path>'` per approved leave-out. Any output means code was lost or
+changed. Stop and report it; don't deliver.
 
-### Step 4: Execution (The "Crafting")
+## 5. Deliver
 
-**Goal:** Build the history commit by commit.
+```bash
+git -C <sandbox> branch <branch>-rewritten HEAD
+git worktree remove --force <sandbox>
+```
 
-For each step in the approved plan:
+`--force` is needed because the left-out files are still in the sandbox; the
+user's own copies stay put. Show the new log. Moving the user's branch is their
+call. First check that their working tree still matches the snapshot:
 
-1.  **Stage Specific Changes:**
-    - **File-level:** `git -C <sandbox> add path/to/file`
-    - **Hunk-level (Advanced):** Use `git apply` with crafted patches for
-      partial file commits.
-2.  **Verify Atomicity:**
-    - Can you describe the commit in one clear sentence?
-    - Does it accomplish a complete logical unit?
-    - Are tests and implementation together (if applicable)?
-3.  **Commit** following the `/create-commit` message conventions (imperative
-    subject, body explains what and why, refs in the body):
+```bash
+IDX=$(mktemp -u); GIT_INDEX_FILE=$IDX git read-tree HEAD; GIT_INDEX_FILE=$IDX git add -A
+[ "$(GIT_INDEX_FILE=$IDX git write-tree)" = "$(git rev-parse '<snapshot>^{tree}')" ] && echo unchanged
+rm -f "$IDX"
+```
 
-    ```bash
-    git -C <sandbox> commit -m "$(cat <<'EOF'
-    Subject line in imperative mood
+- If unchanged, `git reset <branch>-rewritten` moves the branch without touching
+  any file on disk, and left-out files stay untracked.
+- If it has moved on, leave the new branch for them to adopt.
 
-    Body explaining what changed and why.
-    EOF
-    )"
-    ```
-
-4.  **Check:** run the repository's checks on the new commit. A commit that
-    fails is a planning error: regroup rather than keep a broken intermediate.
-
-### Step 5: Final Verification
-
-**Goal:** Ensure no code was lost or corrupted.
-
-1.  **Compare End States:**
-
-    ```bash
-    # Compare the sandbox HEAD with the snapshot
-    git -C <sandbox> diff --exit-code <snapshot> HEAD -- . ':!<left-out path>'
-    ```
-
-    Add one `':!<path>'` per approved leave-out; the snapshot holds them, the
-    new history doesn't.
-
-2.  **Outcome:**
-    - **Empty Diff:** Success! The code is identical, only history changed.
-    - **Non-Empty:** Failure. Abort and report differences.
-
-### Step 6: Delivery
-
-**Goal:** Apply the new history to the user's workspace — locally. Do not push
-anywhere unless the user explicitly asks.
-
-1.  **Create a local branch on the crafted history:**
-
-    ```bash
-    # Name the result so it survives worktree removal
-    git -C <sandbox> branch crafted-history HEAD
-    ```
-
-2.  **Cleanup:**
-
-    ```bash
-    git worktree remove --force <sandbox>
-    ```
-
-    `--force` is needed because the left-out files are still in the sandbox; the
-    user's own copies stay where they are.
-
-3.  **User Action:**
-    - Offer to `git reset --hard crafted-history` on the original branch (only
-      after the Step 5 verification diff came back empty).
-    - Or leave `crafted-history` for the user to inspect and adopt themselves.
-    - Pushing (and any `--force-with-lease` update of a remote branch) happens
-      only on the user's explicit say-so.
-
-## Best Practices for "Storytelling"
-
-1.  **Dependency Order:** Always commit dependencies (libraries, base classes)
-    before the code that uses them.
-2.  **Separation of Concerns:** Never mix formatting changes (prettier/lint)
-    with logic changes.
-3.  **Test Inclusion:** Commit tests in the same commit as the code they cover.
-
-## Troubleshooting
-
-- **"Hunk overlap":** If two logical changes are too close in the same file,
-  manual intervention might be needed.
+Push, or `--force-with-lease` a branch that was already pushed, only when the
+user asks.
