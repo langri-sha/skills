@@ -138,8 +138,15 @@ echo "Step 2: Converting to bare repository..."
 # Move .git/ to .bare/
 mv "$SOURCE_PATH/.git" "$SOURCE_PATH/.bare"
 
-# Set bare = true in config
-git -C "$SOURCE_PATH/.bare" config core.bare true
+# Mark the repository bare. With extensions.worktreeConfig on, every linked
+# worktree reads the shared config's core.bare, so it goes in the bare
+# repository's own config.worktree instead.
+if [[ "$(git -C "$SOURCE_PATH/.bare" config --bool extensions.worktreeConfig || true)" == true ]]; then
+  git -C "$SOURCE_PATH/.bare" config --unset core.bare || true
+  git -C "$SOURCE_PATH/.bare" config --worktree core.bare true
+else
+  git -C "$SOURCE_PATH/.bare" config core.bare true
+fi
 
 # Set the bare repo HEAD to main branch (it no longer has a working tree)
 echo "ref: refs/heads/main" > "$SOURCE_PATH/.bare/HEAD"
