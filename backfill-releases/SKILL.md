@@ -35,10 +35,11 @@ With `--apply` it creates what is missing, oldest version first:
 ## Workflow
 
 1. From any checkout of the repository, including the bare repository of a
-   worktree layout, with `gh` authenticated and `jq` installed:
+   worktree layout, with `gh` authenticated and `jq` installed, run the script;
+   `<skill-dir>` is the directory holding this file:
 
    ```sh
-   ~/.claude/skills/backfill-releases/scripts/backfill-releases
+   <skill-dir>/scripts/backfill-releases
    ```
 
 2. Take every warning to the user before applying. Never delete or move a tag on
