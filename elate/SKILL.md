@@ -1,6 +1,5 @@
 ---
 name: elate
-user_invocable: true
 description: >-
   Spin up a parallel codex agent in a vertical split, in tmux or Herdr. Splits
   the current window (tmux) or the dispatcher's pane (Herdr), launches `codex`
