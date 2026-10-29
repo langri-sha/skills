@@ -8,10 +8,10 @@ description: >-
   "trace this PNG to SVG", "vectorize this image/logo", "pixel-perfect SVG from
   a PNG", "convert this wordmark to vector", "recreate this image as clean SVG
   paths".
+argument-hint: '[input.png] [output.svg]'
 metadata:
   author: langri-sha
   version: '1.0.0'
-  argument-hint: '[input.png] [output.svg]'
 ---
 
 # Trace Image to SVG
