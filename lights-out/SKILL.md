@@ -1,6 +1,5 @@
 ---
 name: lights-out
-user_invocable: true
 description: >-
   Safely close the tmux window or Herdr tab this agent session lives in — last
   one out turns off the lights. Use when the user says "/lights-out", "kill this
