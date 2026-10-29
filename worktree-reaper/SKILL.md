@@ -1,6 +1,5 @@
 ---
 name: worktree-reaper
-user_invocable: true
 description:
   Reclaim disk space in a bare-repo worktree garden. Inventories every worktree,
   reports what each one holds on disk, and removes only those whose branch has
