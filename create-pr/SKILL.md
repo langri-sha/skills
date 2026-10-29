@@ -21,13 +21,17 @@ description: >-
 - **Existing PR.** `gh pr list --head <branch> --json url,baseRefName`. If one
   exists, its base is the base, and offer `gh pr edit` instead of opening a
   duplicate.
-- **Base.** The user's, if named. Otherwise, with no existing PR, if the branch
-  sits on another open PR's branch, base on that branch so the PR shows only
-  this layer: after `git fetch origin`, test each `headRefName` from
-  `gh pr list --json headRefName` with
-  `git merge-base --is-ancestor origin/<head> HEAD`, take the nearest, and ask
-  when more than one fits. Otherwise the default branch
-  (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`).
+- **Base.** The user's, if named. Otherwise, for a new PR:
+  1. After `git fetch origin`, list other open PRs' branches with
+     `gh pr list --limit 1000 --json headRefName`. Skip this branch and any head
+     the default branch already contains
+     (`git merge-base --is-ancestor origin/<head> origin/<default>`).
+  2. Keep the heads this branch contains
+     (`git merge-base --is-ancestor origin/<head> HEAD`), take the nearest, and
+     ask when more than one fits. Basing on it makes the PR show only this
+     layer.
+  3. With no such head, use the default branch
+     (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`).
 - **State.** Uncommitted changes won't be in the PR, so ask whether to commit
   them (`create-commit`), stash them, or leave them out. On a detached HEAD,
   create a short kebab-case branch named for the change, with no type prefix. An
