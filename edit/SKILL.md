@@ -1,6 +1,5 @@
 ---
 name: edit
-user_invocable: true
 description: >-
   Open an editor in the current worktree — nvim in a tmux or Herdr split by
   default, or a named editor (e.g. zed, code, cursor) as a standalone process
