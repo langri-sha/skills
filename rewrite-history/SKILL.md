@@ -77,7 +77,7 @@ on a single branch and never creates PRs.
     conventional-commit prefixes.
 
     _Example Plan:_
-    1.  `Add doctron dependencies` (package.json, pnpm-lock.yaml)
+    1.  `Add the agent dependencies` (package.json, pnpm-lock.yaml)
     2.  `Implement basic agent architecture` (src/agent.ts, src/types.ts)
     3.  `Add system prompts for code review` (src/prompts/\*.md)
     4.  `Add initial agent tests` (tests/agent.test.ts)
