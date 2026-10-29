@@ -17,16 +17,21 @@ can differ from the caller's workspace. Preserve the caller's focus.
 
 Use `SESSION_TOPLEVEL` for the absolute Git worktree root, `SESSION_CWD` for the
 invocation's actual directory, and `SESSION_SLUG` for its resolved slug. Inspect
-the repository's worktrees without modifying Git:
+the repository's worktrees without modifying Git, and take the repository's
+source checkout from the response: the primary checkout, or `.bare` in a bare
+layout.
 
 ```bash
-herdr worktree list --cwd "$SESSION_TOPLEVEL"
+herdr worktree list --cwd "$SESSION_TOPLEVEL" |
+  jq -r '.result.source.source_checkout_path // empty'
 ```
 
-Match the target by canonical path, then open that existing checkout:
+Store it in `SESSION_SOURCE` and match the target by canonical path in
+`.result.worktrees`. Open that existing checkout from the source; Herdr refuses
+a linked worktree as `--cwd` with `linked_worktree_source`:
 
 ```bash
-herdr worktree open --cwd "$SESSION_TOPLEVEL" \
+herdr worktree open --cwd "$SESSION_SOURCE" \
   --path "$SESSION_TOPLEVEL" --no-focus
 ```
 
