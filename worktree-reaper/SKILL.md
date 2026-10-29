@@ -7,7 +7,7 @@ description:
   confidently landed on origin/main — dry run by default, never touching main,
   the bare repo, dirty trees, or worktrees an agent is using. Use when the user
   says "/worktree-reaper", "clean up worktrees", "reap merged worktrees", "the
-  garden is full", or wants a periodic disk-space pass over ~/workspace.
+  garden is full", or wants a periodic disk-space pass over their worktrees.
 metadata:
   author: langri-sha
   version: '1.1.0'
@@ -37,11 +37,11 @@ recreated later with `/create-worktree` at the cost of one `pnpm install`.
 ## Layout It Expects
 
 ```
-~/workspace/<repo>/          garden root
-~/workspace/<repo>/.bare/    bare repository — all objects and refs
-~/workspace/<repo>/.git      file: "gitdir: ./.bare"
-~/workspace/<repo>/main/     worktree for the primary branch
-~/workspace/<repo>/<slug>/   feature worktrees, siblings of main/
+<repo>/          garden root
+<repo>/.bare/    bare repository — all objects and refs
+<repo>/.git      file: "gitdir: ./.bare"
+<repo>/main/     worktree for the primary branch
+<repo>/<slug>/   feature worktrees, siblings of main/
 ```
 
 The reaper validates this layout before doing anything: `.bare/` must be a bare
@@ -68,7 +68,7 @@ report leads with the age of the primary ref so stale verdicts are visible.
 One line per worktree, `reap` first and sorted by size:
 
 ```
-Worktree reaper — /home/user/workspace/my-app
+Worktree reaper — /home/user/src/my-app
   primary      origin/main @ b17c2b19 (2026-07-27 02:47, 1d old)
   worktrees    65
   pr evidence  gh pr list on owner/my-app
