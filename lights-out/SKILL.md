@@ -146,9 +146,6 @@ tab open.
 
 ## Never
 
-- Never run `kill-window`, `kill-pane`, `kill-session`, or `respawn-*` without
-  an explicit `-t`.
-- Never target by window index.
 - Never `kill-session` or `kill-server` — the blast radius is every other window
   the user has open.
 - In Herdr, never close anything but this agent's own tab: no `workspace close`,
