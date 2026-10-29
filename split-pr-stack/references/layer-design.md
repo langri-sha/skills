@@ -81,12 +81,12 @@ Emit after phase 4, before Gate C:
 GitHub renders the native stack map itself — do not duplicate a stale copy of
 it. Each draft body stays under 150 words and follows `/create-pr`: why the
 layer exists, where to start reviewing when that isn't obvious, and one line
-naming what ran. In fallback mode (no native stack map), also state the
-layer's position and review order in one line.
+naming what ran. In fallback mode (no native stack map), also state the layer's
+position and review order in one line.
 
 ```markdown
-Adds the session schema and types that the auth service in the next layer
-builds on. Start at `src/schema/session.ts`.
+Adds the session schema and types that the auth service in the next layer builds
+on. Start at `src/schema/session.ts`.
 
 Split from #1234, which stays open until this stack is accepted.
 
