@@ -82,12 +82,4 @@ herdr pane run "$CRITIQUE_PANE" 'critique --watch origin/main'
 
 The pane keeps its shell after critique exits.
 
-### 4. Output Summary
-
-```
-Critique watcher started!
-
-  Pane: vertical split (right)   (Herdr: <pane id>)
-  Directory: <cwd>
-  Command: critique --watch origin/main
-```
+Report the directory and, in Herdr, the new pane's ID.
