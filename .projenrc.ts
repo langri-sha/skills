@@ -34,10 +34,7 @@ const project = new Project({
   pnpmWorkspace: {
     minimumReleaseAgeExclude: ['@langri-sha/*', ...Project.presetPackages],
   },
-  prettier: {
-    // Work in flight in these skills is formatted once it lands.
-    ignorePatterns: ['/create-session/', '/elate/', '/subdivide/'],
-  },
+  prettier: {},
   renovate: {
     extends: ['github>langri-sha/renovate-config'],
   },

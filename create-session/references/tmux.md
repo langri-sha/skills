@@ -64,8 +64,8 @@ SESSION_WINDOW=$(tmux display-message -p -t "${TMUX_PANE:?}" '#{window_id}') || 
 
 From outside tmux, require an explicit window. Reject an empty or ambiguous
 window ID before passing it to a mutation; an empty target can resolve to
-unrelated focused work. Never move a window from the long-lived `letta`
-session through this lane workflow.
+unrelated focused work. Never move a window from the long-lived `letta` session
+through this lane workflow.
 
 ```bash
 : "${SESSION_WINDOW:?}"
@@ -90,5 +90,5 @@ if [ -n "$SESSION_PLACEHOLDER" ]; then
 fi
 ```
 
-Moving preserves the entire window and its running panes. tmux destroys a
-lane when its final window leaves; it can be created again on demand.
+Moving preserves the entire window and its running panes. tmux destroys a lane
+when its final window leaves; it can be created again on demand.

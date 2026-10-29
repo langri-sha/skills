@@ -3,8 +3,9 @@ name: subdivide
 description: >-
   Branch off new work mid-conversation. Takes a freeform prompt, creates a
   GitHub issue from it, optionally sets up a worktree and development session
-  with a new agent fully briefed on the task. Use when new ideas or subtasks emerge
-  during a session and you want to spin them off without losing your place.
+  with a new agent fully briefed on the task. Use when new ideas or subtasks
+  emerge during a session and you want to spin them off without losing your
+  place.
 metadata:
   author: langri-sha
   version: '1.1.0'
@@ -18,10 +19,10 @@ Orchestrate branching off new work mid-conversation by chaining `/create-issue`,
 
 ## Arguments
 
-| Argument | Required | Description                                            |
-| -------- | -------- | ------------------------------------------------------ |
-| `prompt` | yes      | Freeform description of the work to branch off         |
-| `lane`   | no       | tmux session lane (see `/create-session`)                |
+| Argument | Required | Description                                    |
+| -------- | -------- | ---------------------------------------------- |
+| `prompt` | yes      | Freeform description of the work to branch off |
+| `lane`   | no       | tmux session lane (see `/create-session`)      |
 
 ## Workflow
 
@@ -56,7 +57,8 @@ Use AskUserQuestion to ask:
 
 > Issue created: **<REPO>#<NUMBER>**
 >
-> Start working on it now? (creates worktree + development session with a new agent)
+> Start working on it now? (creates worktree + development session with a new
+> agent)
 
 If the user says **no**, skip to step 6 and return just the issue URL.
 
@@ -95,8 +97,8 @@ Invoke `/create-session` with:
 - **tmux lane**: for tmux, pass the lane the user asked for; `proposals` for
   proposal or design-doc work; otherwise `dev`. Pass it explicitly rather than
   inheriting the current conversation's lane. For Herdr, omit the lane and use
-  the new worktree's native workspace; forward an explicit workspace request.
-  If the user supplied a lane with Herdr, clarify the destination before launch.
+  the new worktree's native workspace; forward an explicit workspace request. If
+  the user supplied a lane with Herdr, clarify the destination before launch.
 - **assistant**: `claude`
 - **prompt**: the constructed prompt above
 
