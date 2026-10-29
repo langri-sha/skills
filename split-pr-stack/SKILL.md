@@ -294,29 +294,19 @@ Stop, preserve all refs and worktrees, and report when:
 - **Safety refs** are deleted only when the user confirms the stack has fully
   landed.
 
-## Integration with adjacent skills
+## Adjacent skills
 
-- **`/create-worktree`** — the stack worktree follows its sibling-directory
-  conventions (env seeding, dependency install); this skill needs one worktree
-  for the whole stack instead of one per branch.
-- **`/create-commit`** — owns commit atomicity and message policy inside every
-  layer; this skill adds the per-branch-tip validation requirement.
-- **`/create-pr`** — owns PR title/body conventions. For native-stack branches,
-  PR creation goes through `gh stack submit --auto` + `gh pr edit`, never a
-  standalone `gh pr create`; `create-pr` carries that guard.
-- **`/wrap`** — landing. It refuses native-stack branches today; stack landing
-  (bottom-up, contiguous, no admin bypass) is a human-driven step.
-- **`/rewrite-history`** — reorganizes the local commit story on one branch.
-  Splitting into separately reviewable PRs is this skill's job.
-- **`/subdivide` / `/orchestrate-epic`** — independent work stays independent
-  PRs from `main`; a stack is only for a strictly dependent chain within one
-  story.
-- **`gh-stack` (official skill)** — when installed, it is the operator authority
-  for stack command semantics, exit codes, and recovery; this skill defers to it
-  for command-level detail.
-- **`/lights-out` / handoff** — before closing a stack worktree, report dirty
-  state, unpushed branches, `gh stack view --json`, PR URLs, and the next human
-  gate.
+- **`rewrite-history`** reorganizes one branch's commits; splitting work into
+  separately reviewable PRs is this skill's job. Independent work stays
+  independent PRs from the trunk: a stack is only for a strictly dependent
+  chain.
+- **`create-commit`** and **`create-pr`** own commit and PR conventions inside
+  each layer. Native-stack PRs go through `gh stack submit --auto` and
+  `gh pr edit`, never a standalone `gh pr create`.
+- **`wrap`** refuses native-stack branches; landing a stack, bottom-up and
+  contiguous, is a human step.
+- **`gh-stack`**, the official skill, is the authority for stack command
+  semantics, exit codes and recovery when it is installed.
 
 ## Examples
 
