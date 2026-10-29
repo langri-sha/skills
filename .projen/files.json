@@ -3,6 +3,7 @@
     ".editorconfig",
     ".gitattributes",
     ".gitignore",
+    ".husky/pre-commit",
     ".prettierignore",
     ".projen/deps.json",
     ".projen/files.json",
