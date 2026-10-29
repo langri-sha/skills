@@ -7,7 +7,7 @@ in one shell invocation or carry their captured IDs explicitly between calls.
 
 ## Create
 
-For caller lane inheritance, query only the validated pane:
+When detection found a tmux caller, inherit its lane by querying only its pane:
 
 ```bash
 tmux display-message -p -t "${TMUX_PANE:?}" '#{session_name}'
@@ -56,13 +56,14 @@ with their session names when the name is ambiguous:
 tmux list-windows -a -F '#{window_id} #{session_name}:#{window_name}'
 ```
 
-With no window argument, resolve the caller's window from its validated pane:
+With no window argument and a tmux caller, resolve the caller's window from its
+pane:
 
 ```bash
 SESSION_WINDOW=$(tmux display-message -p -t "${TMUX_PANE:?}" '#{window_id}') || exit 1
 ```
 
-From outside tmux, require an explicit window. Reject an empty or ambiguous
+For any other caller, require an explicit window. Reject an empty or ambiguous
 window ID before passing it to a mutation; an empty target can resolve to
 unrelated focused work. Never move a window from the long-lived `letta` session
 through this lane workflow.
