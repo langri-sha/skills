@@ -8,8 +8,8 @@ When the user invokes `/bell`, play a bell sound immediately.
 
 ## How to play the bell
 
-Run the bell script in this skill's base directory:
+Run `bell.sh`, where `<skill-dir>` is the directory holding this file:
 
-```
-~/.claude/skills/bell/bell.sh
+```bash
+bash <skill-dir>/bell.sh
 ```
