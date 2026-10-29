@@ -1,6 +1,10 @@
 ---
 name: create-commit
-description: Use this whenever creating Git commits.
+description: >-
+  Plans and writes atomic Git commits: one reviewable decision per commit, plain
+  imperative subjects without type prefixes, and bodies that say why. Use
+  whenever creating a commit, splitting work into commits, or writing a commit
+  message. Not for reorganizing existing history (rewrite-history).
 ---
 
 # Create Commit
