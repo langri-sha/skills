@@ -206,7 +206,7 @@ if ((PR_EVIDENCE)); then
   fi
 fi
 
-declare -a ACTIVE_DIRS=() ACTIVE_LABELS=() TMUX_WINDOWS=()
+declare -a ACTIVE_DIRS=() ACTIVE_LABELS=() TMUX_WINDOWS=() HERDR_TABS=() HERDR_WORKSPACES=()
 ACTIVITY_NOTE=""
 
 note_activity_source() {
@@ -214,10 +214,12 @@ note_activity_source() {
 }
 
 collect_activity() {
-  local pane name pid cwd comm
+  local pane name pid cwd comm panes
   ACTIVE_DIRS=()
   ACTIVE_LABELS=()
   TMUX_WINDOWS=()
+  HERDR_TABS=()
+  HERDR_WORKSPACES=()
   ACTIVITY_NOTE=""
   if command -v tmux >/dev/null 2>&1; then
     while IFS= read -r pane; do
@@ -232,6 +234,29 @@ collect_activity() {
     note_activity_source "${#TMUX_WINDOWS[@]} tmux window(s)"
   else
     note_activity_source "no tmux"
+  fi
+
+  if ! command -v herdr >/dev/null 2>&1; then
+    note_activity_source "no herdr"
+  elif ! command -v jq >/dev/null 2>&1; then
+    note_activity_source "herdr UNAVAILABLE (no jq)"
+  elif panes=$(herdr pane list 2>/dev/null); then
+    while IFS= read -r pane; do
+      [[ -n $pane ]] || continue
+      ACTIVE_DIRS+=("$pane")
+      ACTIVE_LABELS+=("herdr pane")
+    done < <(jq -r '.result.panes[].cwd // empty' <<<"$panes" 2>/dev/null || true)
+    while IFS= read -r name; do
+      [[ -n $name ]] || continue
+      HERDR_TABS+=("$name")
+    done < <(herdr tab list 2>/dev/null | jq -r '.result.tabs[].label // empty' 2>/dev/null || true)
+    while IFS= read -r name; do
+      [[ -n $name ]] || continue
+      HERDR_WORKSPACES+=("$name")
+    done < <(herdr workspace list 2>/dev/null | jq -r '.result.workspaces[].label // empty' 2>/dev/null || true)
+    note_activity_source "${#HERDR_TABS[@]} herdr tab(s)"
+  else
+    note_activity_source "no herdr server"
   fi
 
   if [[ ! -d /proc ]]; then
@@ -253,7 +278,7 @@ collect_activity() {
 }
 
 activity_for() {
-  local target=$1 slug=$2 i dir label seen="" hits="" window
+  local target=$1 slug=$2 i dir label seen="" hits="" window tab workspace
   for i in "${!ACTIVE_DIRS[@]}"; do
     dir=${ACTIVE_DIRS[$i]}
     [[ $dir == "$target" || $dir == "$target"/* ]] || continue
@@ -267,6 +292,18 @@ activity_for() {
   for window in ${TMUX_WINDOWS[@]+"${TMUX_WINDOWS[@]}"}; do
     if [[ $window == "$slug" ]]; then
       hits=${hits:+$hits, }"tmux window '$slug'"
+      break
+    fi
+  done
+  for tab in ${HERDR_TABS[@]+"${HERDR_TABS[@]}"}; do
+    if [[ $tab == "$slug" ]]; then
+      hits=${hits:+$hits, }"herdr tab '$slug'"
+      break
+    fi
+  done
+  for workspace in ${HERDR_WORKSPACES[@]+"${HERDR_WORKSPACES[@]}"}; do
+    if [[ $workspace == "$slug" ]]; then
+      hits=${hits:+$hits, }"herdr workspace '$slug'"
       break
     fi
   done
