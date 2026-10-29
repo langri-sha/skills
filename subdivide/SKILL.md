@@ -1,11 +1,10 @@
 ---
 name: subdivide
 description: >-
-  Branch off new work mid-conversation. Takes a freeform prompt, creates a
-  GitHub issue from it, optionally sets up a worktree and development session
-  with a new agent fully briefed on the task. Use when new ideas or subtasks
-  emerge during a session and you want to spin them off without losing your
-  place.
+  Files a GitHub issue for work that comes up mid-conversation and, if wanted,
+  opens a worktree and a session with a new agent briefed on it. Use when a new
+  idea or subtask should be spun off without losing your place. Not for starting
+  work that already has an issue or branch (create-worktree).
 argument-hint: '<prompt describing the work> [lane]'
 metadata:
   author: langri-sha
