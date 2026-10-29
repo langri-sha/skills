@@ -8,10 +8,10 @@ description: >-
   releases", "tag old versions", "create releases for historical versions".
   Triggers: "/backfill-releases".
 disable-model-invocation: true
+argument-hint: '[--apply] [--template TEMPLATE]'
 metadata:
   author: langri-sha
   version: '1.0.0'
-  argument-hint: '[--apply] [--template TEMPLATE]'
 ---
 
 # Backfill Releases
