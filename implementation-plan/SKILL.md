@@ -1,10 +1,10 @@
 ---
 name: implementation-plan
-description:
-  Resolve the current worktree's plan and either continue it or generate a new
-  one, then conduct task-by-task execution. Use for lightweight plan
-  entrypoints. Triggers on "implementation plan", "create a plan", "plan this
-  feature", or "/implementation-plan".
+description: >-
+  Plans work into a checklist that lives in the worktree and survives restarts,
+  then conducts it one task at a time through sub-agents that record memory,
+  commit and review before handing back. Use when asked for an implementation
+  plan, to plan a feature, or to continue a plan. Not for one-off edits.
 metadata:
   author: langri-sha
   version: '2.0.0'
