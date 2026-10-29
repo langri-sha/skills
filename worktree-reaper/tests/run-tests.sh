@@ -51,6 +51,8 @@ export GIT_AUTHOR_EMAIL="tests@example.invalid"
 export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 mkdir -p "$HOME"
+export PATH="$TMP/bin:$PATH"
+export HERDR_STUB_STATE=up
 
 PASSED=0
 FAILED=0
@@ -190,7 +192,8 @@ build_fixture() {
   git -C "$BARE" worktree add "$GARDEN/wtr-revert-victim" wtr-revert-victim >/dev/null 2>&1
 
   local idle
-  for idle in wtr-no-unique wtr-ignored wtr-dirty wtr-untracked wtr-locked wtr-active wtr-ghost; do
+  for idle in wtr-no-unique wtr-ignored wtr-dirty wtr-untracked wtr-locked wtr-active wtr-ghost \
+    wtr-herdr-pane wtr-herdr-tab wtr-herdr-workspace; do
     git -C "$BARE" branch "$idle" origin/main >/dev/null 2>&1
     git -C "$BARE" worktree add "$GARDEN/$idle" "$idle" >/dev/null 2>&1
   done
@@ -211,6 +214,24 @@ build_fixture() {
   rm -rf -- "$GARDEN/wtr-ghost"
 }
 
+write_herdr_stub() {
+  mkdir -p "$TMP/bin"
+  cat >"$TMP/bin/herdr" <<STUB
+#!/usr/bin/env bash
+if [[ \$HERDR_STUB_STATE == down ]]; then
+  printf '%s\n' '{"error":{"code":"server_not_running","message":"no herdr server is running"}}' >&2
+  exit 1
+fi
+case "\$1 \$2" in
+  "pane list") printf '%s\n' '{"result":{"panes":[{"pane_id":"w1:p1","cwd":"$GARDEN/wtr-herdr-pane/src"}]}}' ;;
+  "tab list") printf '%s\n' '{"result":{"tabs":[{"tab_id":"w1:t1","label":"wtr-herdr-tab"}]}}' ;;
+  "workspace list") printf '%s\n' '{"result":{"workspaces":[{"workspace_id":"w1","label":"wtr-herdr-workspace"}]}}' ;;
+  *) exit 2 ;;
+esac
+STUB
+  chmod +x "$TMP/bin/herdr"
+}
+
 garden_state() {
   git -C "$BARE" worktree list --porcelain
   find "$GARDEN" -maxdepth 1 -mindepth 1 | sort
@@ -219,6 +240,7 @@ garden_state() {
 printf 'worktree-reaper fixture tests\n\n'
 printf 'Building fixture garden in %s\n' "$TMP"
 build_fixture
+write_herdr_stub
 
 printf 'Holding wtr-active busy with a process whose cwd is inside it\n'
 (cd "$GARDEN/wtr-active" && exec sleep 300) &
@@ -245,6 +267,9 @@ expect_verdict "$DRY" "wtr-dirty" skip
 expect_verdict "$DRY" "wtr-untracked" skip
 expect_verdict "$DRY" "wtr-locked" skip
 expect_verdict "$DRY" "wtr-active" skip
+expect_verdict "$DRY" "wtr-herdr-pane" skip
+expect_verdict "$DRY" "wtr-herdr-tab" skip
+expect_verdict "$DRY" "wtr-herdr-workspace" skip
 expect_verdict "$DRY" "wtr-detached" skip
 expect_verdict "$DRY" "wtr-ghost" skip
 expect_verdict "$DRY" ".claude/worktrees/wtr-agent" skip
@@ -258,6 +283,9 @@ expect_reason "$DRY" "wtr-dirty" "uncommitted or untracked"
 expect_reason "$DRY" "wtr-untracked" "uncommitted or untracked"
 expect_reason "$DRY" "wtr-locked" "locked"
 expect_reason "$DRY" "wtr-active" "in use by"
+expect_reason "$DRY" "wtr-herdr-pane" "herdr pane"
+expect_reason "$DRY" "wtr-herdr-tab" "herdr tab 'wtr-herdr-tab'"
+expect_reason "$DRY" "wtr-herdr-workspace" "herdr workspace 'wtr-herdr-workspace'"
 expect_reason "$DRY" "wtr-detached" "detached HEAD"
 expect_reason "$DRY" "wtr-ghost" "directory is missing"
 expect_reason "$DRY" ".claude/worktrees/wtr-agent" "agent-managed nested worktree"
@@ -268,6 +296,7 @@ expect_reason "$DRY" ".bare" "bare repository"
 expect_output "$DRY" "Git objects live once in .bare/"
 expect_output "$DRY" "in-use scan"
 expect_output "$DRY" "process cwds"
+expect_output "$DRY" "1 herdr tab(s)"
 expect_output "$DRY" "Dry run — nothing was touched"
 expect_missing "$DRY" "Pruned stale worktree metadata"
 
@@ -275,6 +304,13 @@ IGNORED_ROW=$(row_for "$DRY" "wtr-ignored")
 check "ignored node_modules counts toward reclaimable size" \
   "$([[ $IGNORED_ROW == *KiB* || $IGNORED_ROW == *MiB* ]] && printf true || printf false)" \
   "row read as '$IGNORED_ROW'"
+
+printf '\nA Herdr server that is not running holds nothing\n'
+HERDR_DOWN=$(HERDR_STUB_STATE=down "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HERDR_DOWN" "no herdr server"
+expect_verdict "$HERDR_DOWN" "wtr-herdr-pane" reap
+expect_verdict "$HERDR_DOWN" "wtr-herdr-tab" reap
+expect_verdict "$HERDR_DOWN" "wtr-herdr-workspace" reap
 
 printf '\nBranch name that differs from the directory name\n'
 git -C "$BARE" branch -m wtr-no-unique wtr-renamed >/dev/null 2>&1
@@ -343,7 +379,8 @@ for gone in wtr-landed-rebase wtr-no-unique wtr-ignored wtr-revert-victim wtr-em
     "$GARDEN/$gone still exists"
 done
 
-for kept in main wtr-unmerged wtr-dirty wtr-untracked wtr-locked wtr-active wtr-detached; do
+for kept in main wtr-unmerged wtr-dirty wtr-untracked wtr-locked wtr-active wtr-detached \
+  wtr-herdr-pane wtr-herdr-tab wtr-herdr-workspace; do
   check "$kept survived apply" \
     "$([[ -d $GARDEN/$kept ]] && printf true || printf false)" \
     "$GARDEN/$kept is gone"

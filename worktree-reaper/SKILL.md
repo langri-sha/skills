@@ -10,7 +10,7 @@ description:
   garden is full", or wants a periodic disk-space pass over their worktrees.
 metadata:
   author: langri-sha
-  version: '1.1.0'
+  version: '1.2.0'
   argument-hint: '[--apply]'
 ---
 
@@ -72,7 +72,7 @@ Worktree reaper — /home/user/src/my-app
   primary      origin/main @ b17c2b19 (2026-07-27 02:47, 1d old)
   worktrees    65
   pr evidence  gh pr list on owner/my-app
-  in-use scan  25 tmux window(s), process cwds
+  in-use scan  25 tmux window(s), 9 herdr tab(s), process cwds
   mode         dry run
 
   reap   929-reconcile-cache-state-drift               2.1 GiB  merged via PR #930 (no unique commits, 1 empty commit(s) ignored)
@@ -105,10 +105,10 @@ Remove 2 worktree(s) and reclaim 3.9 GiB? Type y to confirm:
 
 Before removing anything, apply re-reads `git worktree list`, re-scans for
 activity, and re-runs the **full classifier** on every candidate. A worktree
-that went dirty, got a tmux window, gained a process, or stopped being landed
-while the report sat on screen is skipped with its fresh reason. The gate that
-approves a removal is the same code that produced the report — there is no
-second, weaker set of checks to drift out of sync.
+that went dirty, got a tmux window or Herdr tab, gained a process, or stopped
+being landed while the report sat on screen is skipped with its fresh reason.
+The gate that approves a removal is the same code that produced the report —
+there is no second, weaker set of checks to drift out of sync.
 
 Never pipe a confirmation into `--apply` on the user's behalf. The prompt is the
 last human gate; a scheduled or looped invocation must stay in dry-run mode.
@@ -204,11 +204,16 @@ Skipped with a stated reason:
 - a worktree HEAD that disagrees with its branch tip
 - branches not confidently landed on the primary ref
 - worktrees in use: a tmux pane whose `pane_current_path` is inside them, a tmux
-  window named exactly the slug, or any process whose cwd is inside them
+  window named exactly the slug, a Herdr pane whose `cwd` is inside them, a
+  Herdr tab or workspace labelled exactly the slug, or any process whose cwd is
+  inside them
 
 The header's `in-use scan` line names which of those detections actually ran, so
-a run with no tmux server or no `/proc` says so rather than quietly checking
-less than you think.
+a run with no tmux, no Herdr server, or no `/proc` says so rather than quietly
+checking less than you think. Each multiplexer scan reaches one server: tmux's
+from `$TMUX` or its default socket, Herdr's from `HERDR_SOCKET_PATH` or its
+default session. Herdr clears `TMUX` in its panes, so a run inside Herdr nested
+in tmux sees the outer tmux only when that runs on the default socket.
 
 Mechanics:
 
@@ -264,7 +269,8 @@ Wire nothing up automatically. Removal stays a human decision each time.
 A standalone fixture harness builds a throwaway garden in a temp directory and
 covers every classification branch — rebase-merged, patch-equivalent, empty
 retrigger commit, unmerged, dirty, untracked, ignored-only, detached, locked,
-in-use, nested, out-of-garden, stale, and the protected trio:
+in-use (a Herdr pane, tab or workspace through a stub `herdr`), nested,
+out-of-garden, stale, and the protected trio:
 
 ```bash
 <skill-base-dir>/tests/run-tests.sh
