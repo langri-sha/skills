@@ -2,18 +2,18 @@
 name: edit
 user_invocable: true
 description: >-
-  Open an editor in the current worktree — nvim in a tmux split by default, or a
-  named editor (e.g. zed, code, cursor) as a standalone process
+  Open an editor in the current worktree — nvim in a tmux or Herdr split by
+  default, or a named editor (e.g. zed, code, cursor) as a standalone process
 metadata:
   author: langri-
-  version: '1.0.0'
+  version: '1.1.0'
 ---
 
 # edit
 
 Open an editor in the current worktree.
 
-- **`/edit`** (no args) — open `nvim` in a right-hand tmux split pane.
+- **`/edit`** (no args) — open `nvim` in a right-hand tmux or Herdr split pane.
 - **`/edit <command>`** — launch `<command> .` as a standalone process (e.g.
   `/edit zed`, `/edit code`, `/edit cursor`).
 
@@ -28,32 +28,75 @@ variables don't survive across separate Bash tool invocations, and an empty
 
 ### 2. Dispatch on Argument
 
-If no argument is provided, take the tmux split path. Otherwise, validate the
-editor command and launch it as a standalone process.
+If no argument is provided, take the split path. Otherwise, validate the editor
+command and launch it as a standalone process.
 
-### 3a. Default Path (nvim in tmux split)
+### 3a. Default Path (nvim in a split)
 
-When invoked with no argument, require a tmux pane and open `nvim` in a
-right-hand split. Target `$TMUX_PANE` explicitly — a bare `split-window` follows
-the window the user is currently focused on, which may not be the one this agent
-runs in — and guard both variables, since an empty target (`-t ""`) silently
+When invoked with no argument, open `nvim` in a right-hand split of this agent's
+pane, in tmux or Herdr.
+
+Herdr sets `HERDR_ENV` and `HERDR_PANE_ID`, tmux sets `TMUX` and `TMUX_PANE`,
+and when one runs inside the other the agent inherits both sets. The variables
+only name candidates: the agent belongs to the multiplexer whose pane terminal
+is its controlling terminal. A tool shell often has no terminal of its own, so
+take the nearest ancestor's.
+
+```bash
+tty=
+pid=$$
+while [ "${pid:-1}" -gt 1 ]; do
+  t=$(ps -o tty= -p "$pid" | tr -d ' ')
+  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
+done
+MUX=none PANE=
+if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
+  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
+  MUX=tmux PANE=$TMUX_PANE
+elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
+  INFO=$(herdr pane process-info --current 2>/dev/null) &&
+  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
+  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
+fi
+echo "multiplexer=$MUX pane=$PANE"
+```
+
+A match proves the pane variable names this agent's own pane, so the split can
+target `$TMUX_PANE` or Herdr's `--current`, which resolves a moved pane's
+inherited ID to its live one. With `none`, say this agent is not in a tmux or
+Herdr pane and stop; a named editor (3b) still works. A sandbox that hides
+parent processes or the multiplexer's socket also ends here; rerun the step
+outside it.
+
+**tmux.** Target `$TMUX_PANE` explicitly — a bare `split-window` follows the
+window the user is currently focused on, which may not be the one this agent
+runs in — and keep the `:?` guard, since an empty target (`-t ""`) silently
 resolves to the focused window instead of failing:
 
 ```bash
-if [ -z "$TMUX" ] || [ -z "$TMUX_PANE" ]; then
-  echo "Not inside a tmux pane. Start tmux first, then retry /edit."
-  exit 1
-fi
-
 tmux split-window -t "${TMUX_PANE:?}" -h -c "$PWD" "nvim"
 ```
+
+**Herdr.** Split to the right without moving the user's focus, wait for the new
+shell to draw its prompt so the command isn't typed into a shell still starting
+up, then start nvim in it. `herdr pane --help` has the installed syntax.
+
+```bash
+EDITOR_PANE=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus |
+  jq -r '.result.pane.pane_id // empty')
+: "${EDITOR_PANE:?split failed}"
+herdr pane wait-output "$EDITOR_PANE" --source visible --regex '\S' --timeout 10000 >/dev/null
+herdr pane run "$EDITOR_PANE" nvim
+```
+
+The tmux pane closes when nvim exits; the Herdr pane keeps its shell.
 
 Then output:
 
 ```
 Editor started!
 
-  Pane: vertical split (right)
+  Pane: vertical split (right)   (Herdr: <pane id>)
   Directory: <cwd>
   Command: nvim
 ```
