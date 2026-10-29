@@ -25,7 +25,7 @@
     "@changesets/cli": "3.0.3",
     "@langri-sha/lint-staged": "0.9.11",
     "@langri-sha/prettier": "0.4.11",
-    "@langri-sha/projen-project": "0.43.0",
+    "@langri-sha/projen-project": "0.44.1",
     "@langri-sha/tsconfig": "^1.1.1",
     "husky": "9.1.7",
     "lint-staged": "17.6.0",
