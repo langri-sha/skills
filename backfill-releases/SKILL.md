@@ -44,7 +44,7 @@ With `--apply` it creates what is missing, oldest version first:
 2. Take every warning to the user before applying. Never delete or move a tag on
    your own.
    - _Tags that match no published version_: often carried in by a history
-     import, like langri-sha/projen's `v2.x` tags from langri-sha.com.
+     import, like `v2.x` tags from a repository merged in.
    - _`skip: … is on another commit`_: the tag is left alone, and the next
      version's notes start from it.
    - _No commit sets a version_: that version is left out.
@@ -62,8 +62,8 @@ With `--apply` it creates what is missing, oldest version first:
    since the other packages' versions would claim the same tags.
 
 4. Run it again with `--apply`. Every release notifies the repository's
-   watchers, and a large workspace takes a while: langri-sha/projen plans about
-   600 releases.
+   watchers, and a large workspace takes a while: a few dozen packages can plan
+   hundreds of releases.
 
 5. A release made before the backfill, such as the first automated one, lists
    every pull request since the repository began. Regenerate its notes from its
