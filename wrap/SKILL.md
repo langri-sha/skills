@@ -41,9 +41,10 @@ green. Run it from the feature worktree being landed — never from `main`.
 5. **PR** — if no open PR exists, use `/create-pr` (skip the interactive
    confirmation step). If one already exists, leave it as-is.
 
-6. **Watch checks** — wait for all checks to finish:
+6. **Watch checks** — note the head, then wait for its checks to finish:
 
    ```bash
+   gh pr view <number> --json headRefOid -q .headRefOid
    gh pr checks <number> --watch
    ```
 
@@ -59,7 +60,7 @@ green. Run it from the feature worktree being landed — never from `main`.
    - `CLEAN` or `HAS_HOOKS`: merge.
 
      ```bash
-     gh pr merge <number> --rebase
+     gh pr merge <number> --rebase --match-head-commit <head>
      ```
 
    - `BLOCKED` with `reviewDecision=REVIEW_REQUIRED`, and every check passed:
@@ -67,8 +68,11 @@ green. Run it from the feature worktree being landed — never from `main`.
      `--admin` and say that you did.
 
      ```bash
-     gh pr merge <number> --admin --rebase
+     gh pr merge <number> --admin --rebase --match-head-commit <head>
      ```
 
    - `BEHIND`: the base moved while checks ran; go back to step 3.
    - Anything else: stop and report the state.
+
+   `<head>` is the SHA from step 6, so the merge fails if anything was pushed
+   after the checks started.
