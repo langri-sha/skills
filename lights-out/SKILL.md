@@ -2,19 +2,20 @@
 name: lights-out
 user_invocable: true
 description: >-
-  Safely close the tmux window this agent session lives in — last one out turns
-  off the lights. Use when the user says "/lights-out", "kill this window",
-  "close this window", or wants the agent to clean up its own tmux window after
-  wrapping up. Always targets the agent's own pane explicitly; never runs bare
-  tmux kill commands.
+  Safely close the tmux window or Herdr tab this agent session lives in — last
+  one out turns off the lights. Use when the user says "/lights-out", "kill this
+  window", "close this window", "close this tab", or wants the agent to clean up
+  its own tmux window or Herdr tab after wrapping up. Always targets the agent's
+  own pane explicitly; never runs bare tmux kill commands.
 metadata:
   author: langri-sha
-  version: '1.0.0'
+  version: '1.1.0'
 ---
 
 # lights-out
 
-Close the tmux window this session lives in — safely, and only this one.
+Close the tmux window or Herdr tab this session lives in — safely, and only this
+one.
 
 ## Why this skill exists
 
@@ -22,7 +23,8 @@ Bare tmux commands (`tmux kill-window` with no `-t`) resolve to the **attached
 client's focused window** — whatever the user is looking at — not the window
 containing this agent's pane, even when `TMUX_PANE` is set in the environment. A
 bare kill once took out the wrong window while the user was focused elsewhere.
-Destructive tmux commands must always carry an explicit target.
+Destructive tmux commands must always carry an explicit target. Herdr commands
+without an explicit pane can likewise fall back to the focused one.
 
 ## Workflow
 
@@ -31,7 +33,37 @@ Destructive tmux commands must always carry an explicit target.
 Run these checks before killing anything. If any check fails, STOP and tell the
 user — never fall back to a bare command or guess a target.
 
-Resolve the target window from this session's own pane:
+Herdr sets `HERDR_ENV` and `HERDR_PANE_ID`, tmux sets `TMUX` and `TMUX_PANE`,
+and when one runs inside the other the agent inherits both sets. The variables
+only name candidates: the agent belongs to the multiplexer whose pane terminal
+is its controlling terminal. A tool shell often has no terminal of its own, so
+take the nearest ancestor's. Closing the outer multiplexer's window or tab
+instead would take down every session nested in it.
+
+```bash
+tty=
+pid=$$
+while [ "${pid:-1}" -gt 1 ]; do
+  t=$(ps -o tty= -p "$pid" | tr -d ' ')
+  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
+done
+MUX=none PANE=
+if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
+  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
+  MUX=tmux PANE=$TMUX_PANE
+elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
+  INFO=$(herdr pane process-info --current 2>/dev/null) &&
+  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
+  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
+fi
+echo "multiplexer=$MUX pane=$PANE"
+```
+
+With `none`, this agent is not in a tmux or Herdr pane it can address: say so
+and stop. A sandbox that hides parent processes or the multiplexer's socket also
+ends here; rerun the step outside it.
+
+**tmux.** Resolve the target window from this session's own pane:
 
 ```bash
 : "${TMUX:?not inside tmux}" "${TMUX_PANE:?no pane id}"
@@ -51,6 +83,24 @@ Each guard covers a distinct failure that would otherwise be silent:
 Never substitute a window index (`-t 0:10`) — indexes renumber; only the pane id
 (`%N`) and window id (`@N`) are stable.
 
+**Herdr.** The target is the live pane ID printed above, not `HERDR_PANE_ID`: a
+moved pane keeps its old ID in the environment, and `HERDR_TAB_ID` and
+`HERDR_WORKSPACE_ID` go stale with it. Look up where the pane lives, in the same
+shell call as the detection:
+
+```bash
+read -r TAB WS < <(herdr pane get "$PANE" | jq -r '.result.pane // empty | "\(.tab_id) \(.workspace_id)"')
+: "${TAB:?pane $PANE is gone}" "${WS:?}"
+herdr tab get "$TAB" | jq -r \
+  '.result.tab | "closing: Herdr tab \(.tab_id) \(.label) (\(.pane_count) pane(s))"'
+herdr workspace get "$WS" | jq -r \
+  '.result.workspace | "in workspace \(.workspace_id) \(.label): \(.tab_count) tab(s)"'
+```
+
+Like tmux's window, the whole tab closes with every pane in it, such as a
+critique watcher. Closing a workspace's last tab closes the workspace too, so
+say so when announcing.
+
 ### 2. Check for Unfinished Business
 
 - `git status --porcelain` — uncommitted changes?
@@ -64,13 +114,16 @@ already told you to close regardless).
 
 ### 3. Announce
 
-State the window name/id being closed, so the user can object if it isn't what
-they expect. Say goodbye **before** the kill — it terminates this agent's
-process, so nothing after it will run, and no farewell message can follow it.
+State the window name/id or the Herdr tab and workspace being closed, so the
+user can object if it isn't what they expect. Say goodbye **before** the kill —
+it terminates this agent's process, so nothing after it will run, and no
+farewell message can follow it.
 
 ### 4. Kill
 
 As the very last tool call of the turn:
+
+**tmux.**
 
 ```bash
 tmux kill-window -t "${TMUX_PANE:?}"
@@ -79,6 +132,18 @@ tmux kill-window -t "${TMUX_PANE:?}"
 A pane target resolves to its containing window, so this takes the whole window
 — including sibling panes like a critique watcher — with it.
 
+**Herdr.** Close the tab ID from pre-flight, written out literally since shell
+variables don't survive between tool calls:
+
+```bash
+herdr tab close <tab id from pre-flight>
+```
+
+If this is the last tab in a workspace that heads a worktree group, Herdr
+refuses with `confirmation_required`, because closing it would close the group's
+linked workspaces too. The agent is still running then: report it and leave the
+tab open.
+
 ## Never
 
 - Never run `kill-window`, `kill-pane`, `kill-session`, or `respawn-*` without
@@ -86,3 +151,5 @@ A pane target resolves to its containing window, so this takes the whole window
 - Never target by window index.
 - Never `kill-session` or `kill-server` — the blast radius is every other window
   the user has open.
+- In Herdr, never close anything but this agent's own tab: no `workspace close`,
+  `--group`, or `herdr server stop`.
