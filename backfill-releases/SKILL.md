@@ -7,6 +7,7 @@ description: >-
   that tags and releases each version it publishes), or when asked to "backfill
   releases", "tag old versions", "create releases for historical versions".
   Triggers: "/backfill-releases".
+disable-model-invocation: true
 metadata:
   author: langri-sha
   version: '1.0.0'
