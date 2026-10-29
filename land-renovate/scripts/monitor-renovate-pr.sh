@@ -11,7 +11,7 @@
 #   * no checks are pending, AND
 #   * the signature is stable across two consecutive polls.
 #
-# Final line on stdout (the agent consumes this via the Monitor tool):
+# Final line on stdout, for the agent watching it through a background monitor:
 #   GREEN:     #<n> ready to merge at <head-sha>
 #   BEHIND:    #<n> behind <base> by N commit(s), state=S
 #   NOT-GREEN: #<n> settled failures=X mergeable=Y state=Z
