@@ -5,10 +5,10 @@ description:
   as sibling directories next to main/ (e.g. <repo>/<slug>). Copies .env.example
   files and runs pnpm install. Use when starting a new feature branch or
   switching between features.
+argument-hint: '[slug-or-title]'
 metadata:
   author: langri-sha
   version: '2.0.0'
-  argument-hint: '[slug-or-title]'
 ---
 
 # Create Worktree
