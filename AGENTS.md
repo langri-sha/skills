@@ -5,8 +5,8 @@ Skills tied to one project live in that project instead.
 
 ## Adding skills
 
-Add new general skills here and push. A skill's `name` frontmatter equals its
-directory name; `projen-skills` selects skills by that name.
+Add new general skills here. A skill's `name` frontmatter equals its directory
+name; `projen-skills` selects skills by that name.
 
 `babysit-pr` started from openai/codex but is maintained here, so edit it
 directly; its `LICENSE.txt`, `NOTICE` and "Modified from openai/codex" lines are
@@ -17,5 +17,6 @@ source instead of being copied here.
 
 ## Repository policy
 
-Commit on `main` and push each commit immediately, without asking. The
-repository ruleset refuses force pushes and deletions.
+Never commit on `main`. Work on a branch in its own worktree, a sibling of the
+`main/` checkout, and land it through a pull request that merges by rebase. The
+repository ruleset keeps `main` linear and refuses force pushes and deletions.
