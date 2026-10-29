@@ -12,6 +12,7 @@
 *.db
 *.log
 !.github/
+!.husky/
 !.projen/
 dist/
 node_modules/

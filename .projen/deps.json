@@ -16,6 +16,11 @@
       "type": "build"
     },
     {
+      "name": "husky",
+      "version": "9.1.7",
+      "type": "build"
+    },
+    {
       "name": "lint-staged",
       "version": "17.6.0",
       "type": "build"

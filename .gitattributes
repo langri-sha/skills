@@ -4,6 +4,7 @@
 /.editorconfig linguist-generated
 /.gitattributes linguist-generated
 /.gitignore linguist-generated
+/.husky/pre-commit linguist-generated
 /.prettierignore linguist-generated
 /.projen/** linguist-generated
 /CODEOWNERS linguist-generated
