@@ -148,7 +148,8 @@ and hides the real problem.
 ### 6. Monitor until settled
 
 The bundled `scripts/monitor-renovate-pr.sh` polls a single PR until its checks
-settle and prints a verdict the agent consumes via the **Monitor** tool.
+settle and prints a verdict. Run it under a background monitor that delivers
+each output line as it appears, so the conversation stays free while it polls.
 
 ```bash
 scripts/monitor-renovate-pr.sh <pr-number> <repo> <baseline-head-sha-short>
