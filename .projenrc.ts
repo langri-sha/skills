@@ -13,12 +13,14 @@ const project = new Project({
     repository: 'langri-sha/skills',
 
     type: 'module',
+    devDeps: ['@langri-sha/prettier@0.4.11'],
   },
   codeowners: {
     '*': '@langri-sha',
   },
   lintSynthesized: {},
   pnpmWorkspace: {},
+  prettier: {},
 })
 
 project.package?.addEngine('pnpm', '>= 11.0.0')
