@@ -45,53 +45,20 @@ Accept any of the following:
 - PR number
 - PR URL
 
-## Core Workflow
+## Workflow
 
-1. When the user asks to "monitor"/"watch"/"babysit" a PR, start a background
+1. When the user asks to monitor, watch or babysit a PR, start a background
    monitor (see Background Monitoring), report what it watches and hand the
-   conversation back to the user. Take a one-shot diagnostic snapshot instead
-   only when that is what the user asked for.
-2. The monitor snapshots PR/review/CI state with the watcher script (or streams
-   snapshots from `--watch`), and each snapshot is handled with the steps below
-   by whoever owns the event: this conversation when the harness delivers the
-   event to it, or the background agent that owns the monitor.
-3. Inspect the `actions` list in the JSON response.
-4. If `diagnose_ci_failure` is present, inspect failed run logs and classify the
-   failure.
-5. If the failure is likely caused by the current branch, patch code locally,
-   commit, and push. Do not patch random flaky tests, CI infrastructure,
-   dependency outages, runner issues, or other failures that are unrelated to
-   the branch.
-6. If `process_review_comment` is present, inspect surfaced published review
-   items and decide whether to address them.
-7. If a review item is actionable and correct, patch code locally, commit, push,
-   and then resolve the associated review thread only when allowed by the GitHub
-   state mutation policy below.
-8. Do not post replies to human-authored review comments/threads unless the user
-   explicitly confirms the exact response. If a human review item is
-   non-actionable, already addressed, or not valid, surface the item and
-   recommended response to the user instead of replying on GitHub.
-9. If the failure is likely flaky/unrelated and `retry_failed_checks` is
-   present, rerun failed jobs with `--retry-failed-now`.
-10. If both actionable review feedback and `retry_failed_checks` are present,
-    prioritize review feedback first; a new commit will retrigger CI, so avoid
-    rerunning flaky checks on the old SHA unless you intentionally defer the
-    review change.
-11. On every snapshot, look for newly surfaced review feedback before acting on
-    CI failures or mergeability state, then verify mergeability / merge-conflict
-    status (for example via `gh pr view`) alongside CI.
-12. After any push or rerun action, keep the monitor polling on the updated
-    SHA/state.
-13. If you paused the monitor to patch/commit/push, restart it yourself
-    immediately after the push (do not wait for the user to re-invoke the
-    skill).
-14. Keep monitoring until `stop_pr_closed` appears or a user-help-required
-    blocker is reached. A green + review-clean + mergeable PR is a progress
-    milestone, not a reason to stop the watcher while the PR is still open.
-15. Own the monitor until it ends: keep its handle, stop it when babysitting
-    stops, and never report babysitting as complete while it is still running.
-    Between events the conversation belongs to the user; never hold it with a
-    foreground wait on the monitor.
+   conversation back. Take a one-shot snapshot instead only when the user asked
+   for one, or to debug.
+2. Each snapshot, streamed by `--watch` or taken with `--once`, is handled by
+   whoever owns the event: this conversation when the harness delivers it here,
+   or the background agent that owns the monitor (see Handling a Snapshot).
+3. Own the monitor until it ends: keep its handle, stop it when babysitting
+   stops, and never report babysitting as complete while it is still running.
+   Between events the conversation belongs to the user: answer their other
+   requests as usual, and never hold the conversation with a foreground wait on
+   the monitor.
 
 ## Commands
 
@@ -389,56 +356,34 @@ answers CI or review.
 
 ## Handling a Snapshot
 
-The monitor's owner handles each snapshot like this:
-
-1. Take a `--once` snapshot, or read the one the watcher streamed.
-2. Read `actions`.
-3. First check whether the PR is now merged or otherwise closed; if so, report
-   that terminal state and stop polling immediately.
-4. Check CI summary, new review items, and mergeability/conflict status.
-5. Diagnose CI failures and classify branch-related vs flaky/unrelated. If the
-   overall run is still pending but `failed_jobs` already includes a failed job,
-   fetch that job's logs and diagnose immediately instead of waiting for the
-   whole workflow run to finish. Patch only when the failure is branch-related.
-6. For each surfaced review item from another author, patch/commit/push if it is
-   actionable, then resolve it only when allowed by the GitHub state mutation
-   policy above. If it is non-actionable, already addressed, or requires a
-   written answer, surface it to the user with a suggested response instead of
-   posting automatically. If a later snapshot surfaces your own approved reply,
-   treat it as informational and continue without responding again.
-7. Process actionable review comments before flaky reruns when both are present;
-   if a review fix requires a commit, push it and skip rerunning failed checks
-   on the old SHA.
-8. Retry failed checks only when `retry_failed_checks` is present and you are
-   not about to replace the current SHA with a review/CI fix commit. Do not make
-   code changes for unrelated flakes or infrastructure failures just to get CI
-   green.
-9. If you pushed a commit, resolved an eligible review thread, or triggered a
-   rerun, report the action briefly and keep monitoring (do not stop). If a
-   human review comment needs a written GitHub response, stop and ask for
-   confirmation before posting.
-10. After a review-fix push, keep monitoring without being asked: restart the
-    monitor if it is no longer running, unless a strict stop condition has
-    already been reached.
-11. If everything is passing, mergeable, not blocked on required review
-    approval, and there are no unaddressed review items, report that the PR is
-    currently ready to merge but keep the watcher running so new review comments
-    are surfaced quickly while the PR remains open.
-12. If blocked on a user-help-required issue (infra outage, exhausted flaky
-    retries, unclear reviewer request, permissions), report the blocker and
-    stop.
-13. Otherwise leave the next snapshot to the monitor, which polls at the cadence
-    below.
-
-When the user explicitly asks to monitor/watch/babysit a PR, run a background
-monitor. Use a foreground `--once` only for debugging, local testing, or when
-the user explicitly asks for a one-shot check. Do not stop to ask the user
-whether to continue polling; the monitor continues autonomously until a strict
-stop condition is met or the user stops it. A review-fix push does not end
-babysitting just because a new SHA was created; keep or restart the monitor on
-the new SHA. While the monitor runs, babysitting is still in progress even
-though the conversation is back with the user: answer their other requests as
-usual and handle monitor events as they arrive.
+1. Take a `--once` snapshot, or read the one the watcher streamed, and read its
+   `actions`.
+2. If the PR is merged or otherwise closed, report that and stop.
+3. Look for newly surfaced review items first, then check CI and mergeability,
+   with `gh pr view` when the snapshot leaves mergeability unknown.
+4. `diagnose_ci_failure`: classify the failure (see CI Failure Classification).
+   If the run is still pending but `failed_jobs` already lists a failed job,
+   fetch that job's logs now. Patch, commit and push only branch-related
+   failures; never patch flaky tests, CI infrastructure, dependency outages,
+   runner issues or anything else unrelated to the branch.
+5. `process_review_comment`: for each item from another author, patch, commit
+   and push when it is actionable and correct, then resolve its thread only as
+   the GitHub State Mutation Policy allows. Surface anything non-actionable,
+   already addressed or needing a written answer to the user, with a suggested
+   response; never reply to a human on GitHub without their confirmation of the
+   exact text. Treat your own approved reply as handled.
+6. Review fixes come before flaky reruns: a new commit retriggers CI, so don't
+   rerun checks on a SHA you are about to replace.
+7. `retry_failed_checks`, with no fix on the way: rerun with
+   `--retry-failed-now` (see Commands).
+8. Report what you pushed, resolved or reran in a line. When everything is
+   passing, mergeable, not blocked on a required review and free of unaddressed
+   items, say the PR is ready to merge.
+9. A blocker that needs the user, such as an infrastructure outage, exhausted
+   retries, an unclear review request or permissions: report it and stop.
+10. Otherwise leave the next snapshot to the monitor. After a push, keep or
+    restart the monitor on the new SHA without being asked, and never ask the
+    user whether to keep polling.
 
 ## Polling Cadence
 
