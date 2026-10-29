@@ -13,8 +13,7 @@ metadata:
 # Implementation Plan
 
 Conduct plan-driven work in the current worktree: locate the plan, generate one
-if missing (via `/implementation-plan-generate`), then execute tasks one at a
-time with progress tracked in the plan.
+if missing, then execute tasks one at a time with progress tracked in the plan.
 
 The plan lives with the work, inside the worktree:
 
@@ -49,8 +48,56 @@ TOPLEVEL=$(git rev-parse --show-toplevel)
 
 ## Phase 2: Generate the Plan
 
-Invoke `/implementation-plan-generate`. It gathers requirements and writes
-`.claude/PLAN.md` (and creates `.claude/memory.md` if missing).
+Ask the user for the goal and the requirements: what must be true when the work
+is done. Draft the architecture and the tasks from the codebase, and confirm
+them with the user before writing.
+
+Create `.claude/` and an empty `.claude/memory.md` if they don't exist. If
+`PLAN.md` already exists, ask before appending the new plan below a separator.
+Write `.claude/PLAN.md` in this shape:
+
+```markdown
+# Implementation Plan: <title>
+
+<One or two sentences on what the plan accomplishes.>
+
+## Hand-off protocol
+
+Each task runs in a sub-agent, which before reporting back:
+
+1. Records decisions, discoveries and notes for the next agent in
+   `.claude/memory.md`, under `## Task <n>: <name>`.
+2. Commits the work with `/create-commit`.
+3. Reviews the diff and addresses what it finds, noting anything unresolved in
+   memory.
+4. Checks the task off in this plan.
+
+## Requirements
+
+- 1.1 <requirement>
+
+## Architecture
+
+<Components and how they interact; an ASCII diagram if it helps.>
+
+## Tasks
+
+### 1. <Section>
+
+- [ ] 1.1 <Task>: <details, files to create or change>. _Requirements: 1.1_
+
+### 2. Checkpoint: <section>
+
+- [ ] 2. Verify <section> works: <steps>. Ask the user if questions arise.
+
+## Follow-up
+
+- [ ] <Out of scope for now>
+```
+
+Number sections 1, 2, 3 and tasks within them 1.1, 1.2. Each task has one clear
+outcome. Put a checkpoint after each functional section, such as setup, the API
+layer, the UI and the wiring, and end with an end-to-end check.
 
 ## Phase 3: Conduct Execution
 
