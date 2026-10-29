@@ -79,20 +79,6 @@ literally wherever `<snapshot>` and `<sandbox>` appear.
     Size and shared files are never reasons to combine. Stop splitting only
     where a commit would fail its checks or be separated from its tests.
 
-2.  **Identify Orthogonal Chunks (Parallel Merge Opportunities):**
-    - Check if the changes contain independent groups of commits (orthogonal
-      chunks) that could be merged in parallel (e.g., unrelated features,
-      distinct fixes).
-    - If identified, present each chunk to the user using this format:
-
-      ```
-      <PR title>
-
-      <A concise description of what is changing, 1-2 sentences max.>
-
-      <List of commits>
-      ```
-
 ### Step 3: Interactive Review
 
 **Goal:** Get user buy-in on the narrative.
