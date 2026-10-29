@@ -3,6 +3,7 @@
 !.babelrc
 !.dockerignore
 !.editorconfig
+!.env.example
 !.gitattributes
 !.gitignore
 !.gitkeep
@@ -29,5 +30,7 @@ node_modules/
 !/.editorconfig
 !/lint-staged.config.js
 !/pnpm-workspace.yaml
+!/.config
+!/.config/wt.toml
 !/renovate.json5
 !/.projenrc.ts
