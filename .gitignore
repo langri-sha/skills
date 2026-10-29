@@ -20,6 +20,8 @@ node_modules/
 !/.projen/deps.json
 !/.projen/files.json
 !/package.json
+!/prettier.config.js
+!/.prettierignore
 !/CODEOWNERS
 !/pnpm-workspace.yaml
 !/.projenrc.ts

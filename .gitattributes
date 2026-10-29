@@ -3,8 +3,10 @@
 * text=auto eol=lf
 /.gitattributes linguist-generated
 /.gitignore linguist-generated
+/.prettierignore linguist-generated
 /.projen/** linguist-generated
 /CODEOWNERS linguist-generated
 /package.json linguist-generated
 /pnpm-lock.yaml linguist-generated
 /pnpm-workspace.yaml linguist-generated
+/prettier.config.js linguist-generated
