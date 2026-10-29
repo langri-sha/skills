@@ -1,6 +1,5 @@
 ---
 name: bell
-user_invocable: true
 description: "Play a bell sound to get the user's attention."
 ---
 
