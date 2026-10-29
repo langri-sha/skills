@@ -1,13 +1,11 @@
 ---
 name: trace-image-to-svg
 description: >-
-  Use this skill to produce a pixel-faithful SVG vector recreation of a raster
-  image (logo, wordmark, icon, glyph art) — real smooth Bezier paths,
-  transparent background, no embedded raster, no font dependency. Use it
-  whenever a redraw needs to match the source, not merely evoke it. Triggers:
-  "trace this PNG to SVG", "vectorize this image/logo", "pixel-perfect SVG from
-  a PNG", "convert this wordmark to vector", "recreate this image as clean SVG
-  paths".
+  Traces a raster image, such as a logo, wordmark, icon or glyph art, into a
+  pixel-faithful SVG of smooth Bezier paths with a transparent background, no
+  embedded raster and no font dependency, scored against the source. Use when
+  asked to trace, vectorize or convert an image to SVG and the result must match
+  the source rather than evoke it.
 argument-hint: '[input.png] [output.svg]'
 metadata:
   author: langri-sha
