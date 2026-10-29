@@ -148,9 +148,6 @@ else
   git -C "$SOURCE_PATH/.bare" config core.bare true
 fi
 
-# Set the bare repo HEAD to main branch (it no longer has a working tree)
-echo "ref: refs/heads/main" > "$SOURCE_PATH/.bare/HEAD"
-
 # Create .git file pointing to .bare
 echo "gitdir: ./.bare" > "$SOURCE_PATH/.git"
 
