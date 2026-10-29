@@ -381,29 +381,18 @@ step in. Keep polling while checks run or are queued, while CI is green but
 mergeability is unknown, and while a green PR waits for approval
 (`REVIEW_REQUIRED`) or for new review comments.
 
-## Output Expectations
+## Reporting
 
-Provide concise progress updates through the monitor's notifications and a final
-summary that includes:
+Report changes through the monitor's notifications, not every poll, and relay no
+heartbeats. When CI first turns all green for the current SHA, say so once. Send
+the final summary only after a stop condition, covering:
 
-- During long unchanged monitoring periods, avoid emitting a full update on
-  every poll; summarize only status changes plus occasional heartbeat updates.
-- Treat push confirmations, intermediate CI snapshots, ready-to-merge snapshots,
-  and review-action updates as progress updates only; do not emit the final
-  summary or end the babysitting session unless a strict stop condition is met.
-- When CI first transitions to all green for the current SHA, emit a one-time
-  celebratory progress update (do not repeat it on every green poll). Preferred
-  style: `🚀 CI is all green! 33/33 passed. Still on watch for review approval.`
-- Do not send the final summary while the monitor is still running unless the
-  watcher has emitted/confirmed a strict stop condition; otherwise continue with
-  progress updates.
-
-- Final PR SHA
-- CI status summary
-- Mergeability / conflict status
-- Fixes pushed
-- Flaky retry cycles used
-- Remaining unresolved failures or review comments
+- the final PR SHA;
+- CI status;
+- mergeability or conflicts;
+- fixes pushed;
+- flaky retry cycles used;
+- failures or review comments still unresolved.
 
 ## References
 
