@@ -1,9 +1,11 @@
 ---
 name: rewrite-history
-description:
-  Use this skill when the user says "rewrite history" or wants to reorganize
-  messy changes or WIP commits into clean, atomic commits that tell a logical
-  story.
+description: >-
+  Rebuilds a messy branch or uncommitted work as a sequence of atomic commits in
+  a scratch worktree, and proves the result ends on the identical tree before
+  the real branch moves. Use when asked to rewrite history, clean up WIP
+  commits, or make a branch read as a story. Not for splitting work into
+  separate PRs (split-pr-stack).
 ---
 
 # Rewrite History
