@@ -36,11 +36,11 @@ both.
   in prose. Shell variables don't last between an agent's commands, so steps
   pass values literally.
 - **Body:** the contract first, since Claude Code keeps only the start of a
-  skill after compaction. State each rule once, with a clause of why only where
-  it would look arbitrary. Design rationale and notes for maintainers stay out
-  of SKILL.md.
+  skill after compaction, and within 500 lines. State each rule once, with a
+  clause of why only where it would look arbitrary. Design rationale and notes
+  for maintainers stay out of SKILL.md.
 
-`test/frontmatter.test.js` checks the frontmatter rules.
+`test/frontmatter.test.js` checks the rules a test can.
 
 ## Repository policy
 

@@ -102,6 +102,12 @@ describe('skill frontmatter', () => {
         )
       })
 
+      test('keeps SKILL.md within 500 lines', () => {
+        const lines = readSkill(directory).trimEnd().split('\n').length
+
+        assert.ok(lines <= 500, `${lines} lines`)
+      })
+
       test('has a lowercase, hyphenated name of at most 64 characters', () => {
         const name = fieldsOf(directory).get('name') ?? ''
 
