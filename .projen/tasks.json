@@ -39,7 +39,12 @@
     },
     "test": {
       "name": "test",
-      "description": "Run tests"
+      "description": "Run tests",
+      "steps": [
+        {
+          "exec": "node --test test/*.test.js"
+        }
+      ]
     },
     "worktrunk:dry-run": {
       "name": "worktrunk:dry-run",

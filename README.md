@@ -4,8 +4,9 @@ General-purpose agent skills for Claude Code, Codex and other agents.
 
 ## Structure
 
-Each top-level directory is a self-contained skill with a `SKILL.md` entry point
-and optional `references/`, `scripts/` and `rules/` directories.
+Each top-level directory except `test/` is a self-contained skill with a
+`SKILL.md` entry point and optional `references/`, `scripts/` and `rules/`
+directories. `test/` checks that each one is discoverable by its directory name.
 
 ## Usage
 
