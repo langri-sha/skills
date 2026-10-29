@@ -1,8 +1,10 @@
 ---
 name: edit
 description: >-
-  Open an editor in the current worktree — nvim in a tmux or Herdr split by
-  default, or a named editor (e.g. zed, code, cursor) as a standalone process
+  Opens an editor on the current worktree: nvim in a split beside this agent's
+  tmux or Herdr pane, or a named editor such as zed, code or cursor as its own
+  process. Use when asked to open the worktree in an editor. Not for watching
+  the diff (critique).
 metadata:
   author: langri-
   version: '1.1.0'
