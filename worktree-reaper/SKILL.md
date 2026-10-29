@@ -206,9 +206,6 @@ Exit codes: `0` success, `1` usage or safety refusal, `2` a removal failed.
   shared commit is irrelevant.
 - **Stale worktree entries** (directory deleted by hand) — reported as missing
   and left registered until an apply run prunes them.
-- **A candidate goes dirty mid-run** — caught by the re-check before removal.
-- **Not a bare-repo garden** — the script refuses and explains, rather than
-  falling back to guesswork.
 - **`du` on a huge garden** — sizes are measured for candidates only; use
   `--all-sizes` when you want the full inventory and can wait.
 
