@@ -15,6 +15,33 @@ license requirements and stay, even in its test module.
 Skills that mirror an upstream project are pinned by `projen-skills` from their
 source instead of being copied here.
 
+## Writing skills
+
+The skills serve Claude Code and Codex alike, so they keep to what works on
+both.
+
+- **Description:** a third-person verb phrase for what the skill does, then "Use
+  when…", then "Not for…" naming the sibling to use instead. Lead with the
+  trigger, since both harnesses shorten descriptions once the listing outgrows
+  its budget. Leave out angle brackets, which Claude Code shows escaped.
+- **Frontmatter:** `name`, `description` and `metadata`, `license` where a skill
+  carries its own, plus Claude Code's top-level `argument-hint` and
+  `disable-model-invocation` where needed. Keep to these keys.
+- **Manual-only skills,** whose side effects should never start unasked, set
+  `disable-model-invocation: true` and ship `agents/openai.yaml` with
+  `policy.allow_implicit_invocation: false`.
+- **Paths:** name bundled files relative to the skill's directory, written
+  `<skill-dir>/…` in commands, never `~/.claude/skills/…`.
+- **Scripts:** fragile, deterministic mechanics go in `scripts/`; judgment stays
+  in prose. Shell variables don't last between an agent's commands, so steps
+  pass values literally.
+- **Body:** the contract first, since Claude Code keeps only the start of a
+  skill after compaction. State each rule once, with a clause of why only where
+  it would look arbitrary. Design rationale and notes for maintainers stay out
+  of SKILL.md.
+
+`test/frontmatter.test.js` checks the frontmatter rules.
+
 ## Repository policy
 
 Never commit on `main`. Work on a branch in its own worktree, a sibling of the
