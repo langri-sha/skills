@@ -33,8 +33,22 @@ worktree. No branch is special.
 
 ### 1. Create or Reuse the Worktree
 
-Without an argument, ask for the feature title first. Then run the bundled
-script, relative to this skill's directory, with the slug or title:
+Without an argument, ask for the feature title first, and turn a title into a
+short kebab-case slug.
+
+**With worktrunk.** When the repository has `.config/wt.toml`, let worktrunk
+create or reuse the worktree. That file's hooks seed env files and install
+dependencies the way the project wants:
+
+```bash
+wt switch --create <slug> --no-cd --format json
+```
+
+Drop `--create` when the branch already exists. The JSON's `path` is the
+worktree. If worktrunk asks to approve the project's hooks, show them to the
+user and rerun with `--yes` once they agree.
+
+**Otherwise,** run the bundled script, relative to this skill's directory:
 
 ```bash
 scripts/create-worktree.sh "<slug-or-title>"
