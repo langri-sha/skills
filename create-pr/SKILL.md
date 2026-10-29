@@ -1,9 +1,11 @@
 ---
 name: create-pr
-description:
-  Use this skill when the user says "create a PR", "open a pull request", or
-  wants to create a GitHub pull request. Analyzes git changes, reads the PR
-  template, generates descriptions, and handles stacked branches.
+description: >-
+  Opens a GitHub pull request for the current branch with gh: picks the base,
+  fills the repo's PR template in under 150 words, and refuses branches that
+  belong to a native GitHub stack. Use when asked to create, open or update a
+  PR. Not for splitting a change into a stack (split-pr-stack) or merging
+  (wrap).
 ---
 
 # Create PR
