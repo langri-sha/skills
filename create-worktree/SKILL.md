@@ -43,9 +43,9 @@ scripts/create-worktree.sh "<slug-or-title>"
 It finds the repo root from the bare repository and turns a title into a
 kebab-case slug. If `<repo>/<slug>` exists, it reuses it. Otherwise it fetches
 origin's default branch, adds the worktree on a new branch (or on the existing
-branch of that name), copies `.env.example` files to `.env`, and runs
-`pnpm install`, reporting a failed install without failing. The last line of
-output is the worktree path.
+branch of that name), copies `.env.example` files to `.env`, and installs
+dependencies with the package manager the lockfile names, reporting a failed
+install without failing. The last line of output is the worktree path.
 
 ### 2. Existing Worktree
 
