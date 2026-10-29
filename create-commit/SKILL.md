@@ -23,8 +23,9 @@ single-purpose commits, and write messages that explain what and why.
   (`Closes #123`, `Refs #45`) — never in the subject. Subjects with refs clutter
   `git log --oneline` and go stale across forks and rebases.
 - **Fixups**: when the change corrects earlier unmerged work rather than adding
-  something new, use `fixup! <exact subject of the target commit>` so
-  `git rebase --autosquash` can fold it in.
+  something new, use `fixup! <exact subject of the target commit>` so autosquash
+  can fold it in:
+  `GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash "$(git merge-base HEAD origin/<default>)"`.
 
 ## Atomicity
 
