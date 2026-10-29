@@ -152,6 +152,3 @@ Report the backend, tmux lane or Herdr workspace, window/tab ID and label,
 directory, assistant and critique pane IDs, and commands started. For a detached
 tmux lane, include `tmux attach -t <lane>`. For a move, report the source and
 destination lanes.
-
-Other pane skills such as `/edit`, `/elate`, and `/lights-out` may still be
-tmux-specific. This skill's backend support does not change their behavior.
