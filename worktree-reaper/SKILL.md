@@ -1,12 +1,11 @@
 ---
 name: worktree-reaper
-description:
-  Reclaim disk space in a bare-repo worktree garden. Inventories every worktree,
-  reports what each one holds on disk, and removes only those whose branch has
-  confidently landed on origin/main — dry run by default, never touching main,
-  the bare repo, dirty trees, or worktrees an agent is using. Use when the user
-  says "/worktree-reaper", "clean up worktrees", "reap merged worktrees", "the
-  garden is full", or wants a periodic disk-space pass over their worktrees.
+description: >-
+  Reclaims disk in a bare-repo worktree garden: reports what each worktree holds
+  and removes only those whose branch has landed on origin/main, dry run by
+  default, never touching main, dirty trees or worktrees in use. Use when asked
+  to clean up or reap merged worktrees, or for a periodic disk-space pass. Not
+  for creating worktrees (create-worktree).
 argument-hint: '[--apply]'
 metadata:
   author: langri-sha
