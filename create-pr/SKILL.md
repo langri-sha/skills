@@ -12,10 +12,6 @@ Create a GitHub pull request from the current branch: determine the base,
 analyze commits and diff, fill the repo's PR template, and open the PR with
 `gh`. Handles stacked branches (Git Town), detached HEAD, and custom bases.
 
-Deep-dive material (stacked-branch details, template parsing, troubleshooting)
-lives in `references/pr-workflow.md` — load it for complex scenarios, not on the
-happy path.
-
 ## Workflow
 
 ### 1. Determine the Base Branch
@@ -158,7 +154,7 @@ config); native GitHub stacks are caught by the guard in step 1. For a stacked
 PR, the base is the parent branch, and the title and description cover this
 layer only. GitHub renders the stack natively, so never add a stack section, PR
 list, position marker, or "builds on #123" note — a hand-kept copy only goes
-stale. Full details in `references/pr-workflow.md`.
+stale.
 
 ## Helper Scripts
 
@@ -174,5 +170,3 @@ stale. Full details in `references/pr-workflow.md`.
 - **PR already exists for the branch** — offer to update it, never open a
   duplicate.
 - **Behind the base** — suggest `git rebase origin/<base>` before pushing.
-- Anything else (auth failures, missing `gh`, template quirks):
-  `references/pr-workflow.md` has the troubleshooting table.
