@@ -20,7 +20,10 @@ const project = new Project({
   },
   lintSynthesized: {},
   pnpmWorkspace: {},
-  prettier: {},
+  prettier: {
+    // Work in flight in these skills is formatted once it lands.
+    ignorePatterns: ['/create-session/', '/elate/', '/subdivide/'],
+  },
 })
 
 project.package?.addEngine('pnpm', '>= 11.0.0')
