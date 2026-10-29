@@ -129,8 +129,8 @@ gh api "repos/{owner}/{repo}/rules/branches/<trunk>"  # required checks, signed
   one of `native` (gh-stack installed and the repo supports stacks), `fallback`
   (plain Git + `gh` chained draft PRs), or `local-only`.
 - **Validation commands** — read the repository's AGENTS.md/CLAUDE.md for the
-  required check commands (in this repo `pnpm dagger:check`) and verify they
-  exist before promising per-layer validation with them.
+  required check commands and verify they exist before promising per-layer
+  validation with them.
 - **Suspicious content** — scan the source diff for credentials, unresolved
   conflict markers, or generated files of unknown provenance; stop and surface
   them.
