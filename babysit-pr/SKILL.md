@@ -30,8 +30,8 @@ Babysit a PR persistently until one of these terminal outcomes occurs:
   late-arriving review comments are still surfaced promptly while the PR remains
   open.
 
-Do not stop merely because a single snapshot returns `idle` while checks are
-still pending.
+Nothing else ends babysitting: not a push, a rerun, a green and mergeable PR, or
+a snapshot whose only action is `idle` while checks are still pending.
 
 Babysitting runs in the background. The foreground conversation sets up a
 monitor, says what it watches and hands the conversation back to the user; the
@@ -263,18 +263,6 @@ babysitting may outlast the current session, pass the same `--state-file <path>`
 on every run: a harness may give each session its own `TMPDIR`, and a fresh
 state file resets the seen items and the retry budget.
 
-When you agree with a comment and it is actionable:
-
-1. Patch code locally.
-2. Commit following the commit message conventions below.
-3. Push to the PR head branch.
-4. After the push succeeds, resolve the associated GitHub review thread only
-   when allowed by the GitHub state mutation policy below.
-5. Resume watching on the new SHA immediately (do not stop after reporting the
-   push).
-6. If monitoring was running continuously, resume it immediately after the push;
-   do not wait for the user to ask again.
-
 Do not post replies to human-authored GitHub review comments/threads
 automatically. If you disagree with a human comment, believe it is
 non-actionable/already addressed, or need to answer a question, report the item
@@ -341,14 +329,9 @@ clarification.
 - Do not switch branches unless necessary to recover context.
 - Before editing, check for unrelated uncommitted changes. If present, stop and
   ask the user.
-- After each successful fix, commit and `git push`, then re-run the watcher.
-- If you interrupted continuous monitoring to make the fix, resume it
-  immediately after the push.
 - Do not run multiple concurrent watchers (`--watch` processes or overlapping
   `--once` loops) for the same PR/state file; keep one watcher session active
   and reuse it until it stops or you intentionally restart it.
-- A push is not a terminal outcome; continue the monitoring loop unless a strict
-  stop condition is met.
 
 Commit messages follow the repository's conventions and any commit rules the
 user or project instructions set. Describe the fix itself, not the fact that it
@@ -433,11 +416,6 @@ summary that includes:
 - Treat push confirmations, intermediate CI snapshots, ready-to-merge snapshots,
   and review-action updates as progress updates only; do not emit the final
   summary or end the babysitting session unless a strict stop condition is met.
-- A user request to "monitor" is not satisfied by a couple of sample polls; keep
-  the monitor running until a strict stop condition or an explicit user
-  interruption.
-- A review-fix commit + push is not a completion event; immediately resume
-  continuous monitoring and continue reporting progress updates.
 - When CI first transitions to all green for the current SHA, emit a one-time
   celebratory progress update (do not repeat it on every green poll). Preferred
   style: `🚀 CI is all green! 33/33 passed. Still on watch for review approval.`
