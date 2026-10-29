@@ -48,8 +48,8 @@ otherwise.
 ### 3. Resolve the Branch
 
 - On a named branch: use it.
-- On detached HEAD: generate a name with
-  `python3 scripts/generate_branch_name.py [base]` and `git checkout -b` it.
+- On detached HEAD: create a short kebab-case branch named for the change, with
+  no type prefix, and `git switch -c` to it.
 
 ### 4. Generate the PR Title
 
@@ -155,11 +155,6 @@ stacked PR, the base is the parent branch, and the title and description cover
 this layer only. GitHub renders the stack natively, so never add a stack
 section, PR list, position marker, or "builds on #123" note — a hand-kept copy
 only goes stale.
-
-## Helper Scripts
-
-- **`scripts/generate_branch_name.py [base]`** — derives a dasherized branch
-  name from commits/changes; used for detached HEAD.
 
 ## Edge Cases
 
