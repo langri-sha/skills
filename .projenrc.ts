@@ -25,6 +25,9 @@ const project = new Project({
     // Work in flight in these skills is formatted once it lands.
     ignorePatterns: ['/create-session/', '/elate/', '/subdivide/'],
   },
+  renovate: {
+    extends: ['github>langri-sha/renovate-config'],
+  },
 })
 
 project.package?.addEngine('pnpm', '>= 11.0.0')

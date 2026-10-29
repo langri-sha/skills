@@ -14,7 +14,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "default": "projen default"
+    "default": "projen default",
+    "renovate": "projen renovate"
   },
   "devDependencies": {
     "@langri-sha/prettier": "0.4.11",
