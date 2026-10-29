@@ -42,9 +42,6 @@ TOPLEVEL=$(git rev-parse --show-toplevel)
   the old plan to `.claude/PLAN-<UTC-timestamp>.md.bak` before generating a new
   one.
 - If there is no plan, proceed to Phase 2.
-- Legacy location: older plans lived at `~/agents/<repo>/<worktree>/PLAN.md`. If
-  no worktree plan exists but a legacy one does, offer to copy it into
-  `.claude/` and continue from there.
 
 ## Phase 2: Generate the Plan
 
