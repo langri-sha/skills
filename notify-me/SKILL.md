@@ -1,6 +1,10 @@
 ---
 name: notify-me
-description: 'Play an audio notification when the current task is done.'
+description: >-
+  Speaks a one- or two-sentence summary aloud when the current task finishes,
+  through Mistral or OpenAI text-to-speech, or rings a bell when no API key is
+  set. Use when the user asks to be told, or notified, when the work is done.
+  Not for an immediate sound (bell).
 ---
 
 When the user invokes `/notify-me`, they want an audio notification when you
