@@ -6,10 +6,10 @@ description: >-
   with a new agent fully briefed on the task. Use when new ideas or subtasks
   emerge during a session and you want to spin them off without losing your
   place.
+argument-hint: '<prompt describing the work> [lane]'
 metadata:
   author: langri-sha
   version: '1.1.0'
-  argument-hint: '<prompt describing the work> [lane]'
 ---
 
 # Subdivide
