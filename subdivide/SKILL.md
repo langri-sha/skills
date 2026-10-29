@@ -112,7 +112,7 @@ right.
 Subdivided!
 
   Issue:    <REPO>#<NUMBER> — <TITLE>
-  Worktree: ~/workspace/<repo>/<slug>
+  Worktree: <WORKTREE_PATH>
   Branch:   <slug>
   Session:  <backend> window/tab "<slug>" in <lane-or-workspace> with claude + critique
 
