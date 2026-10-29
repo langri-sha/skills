@@ -1,13 +1,12 @@
 ---
 name: split-pr-stack
 description: >-
-  Split a large change or existing pull request into a dependency-ordered stack
-  of small, standalone, independently reviewable draft PRs. Preserves the
-  original branch and PR by default, proves exact end-state equivalence between
-  the original change and the assembled stack, validates every layer
-  independently, and never merges. Use when the user says "/split-pr-stack",
-  "split this PR into a stack", "break this change into reviewable PRs", or
-  wants to review a large PR one piece at a time.
+  Splits a large change or pull request into a dependency-ordered stack of small
+  draft PRs that each pass checks alone, proves the stack ends on the original
+  tree, leaves the original branch and PR untouched, and never merges. Use when
+  asked to split a PR into a stack, break a change into reviewable PRs, or
+  review a large PR one piece at a time. Not for reordering one branch's commits
+  (rewrite-history).
 argument-hint: >-
   [PR number | branch] [--base <branch>] [--plan-only | --materialize-local |
   --publish-drafts]
