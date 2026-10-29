@@ -9,6 +9,7 @@ description: >-
   or cross-file HOLD cases. Use when the user says "/land-renovate", "land the
   Renovate PRs", "clear the Renovate queue", or wants to merge a batch of
   dependency-update PRs.
+disable-model-invocation: true
 metadata:
   author: langri-sha
   version: '1.0.0'
