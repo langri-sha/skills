@@ -1,11 +1,11 @@
 ---
 name: migrate-git-worktree
-description:
-  Migrate a git worktree layout from the side-by-side convention (repo/ +
-  repo.worktree/branch/) to a bare-repo convention where the repo directory
-  contains a bare clone at .bare/, a .git file pointing to it, and all branches
-  (including main) as worktree subdirectories. Use when the user wants to
-  reorganize their worktree folder structure.
+description: >-
+  Converts a regular clone, and the worktrees linked to it, into the bare-repo
+  layout: the repository under .bare/, the clone's checkout as main/, and
+  worktrees from the old repo.worktree/ folder as siblings. Use when asked to
+  migrate or reorganize a repository's worktree layout. Not for creating a
+  worktree in a repository already laid out this way (create-worktree).
 argument-hint: '[--allow-dirty] [repo-path]'
 metadata:
   author: langri-sha
