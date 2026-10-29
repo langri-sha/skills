@@ -32,7 +32,9 @@ description: >-
      `git rev-list --count origin/<head>..HEAD`. Ask only on a tie. Basing on it
      makes the PR show only this layer.
   3. With no such head, use the default branch
-     (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`).
+     (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`), unless
+     `git log origin/<default>..HEAD` lists commits that aren't part of this
+     change, such as a parent rebased since; then ask for the base.
 - **State.** Uncommitted changes won't be in the PR, so ask whether to commit
   them (`create-commit`), stash them, or leave them out. On a detached HEAD,
   create a short kebab-case branch named for the change, with no type prefix. An
