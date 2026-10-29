@@ -23,6 +23,7 @@ const project = new Project({
   codeowners: {
     '*': '@langri-sha',
   },
+  dagger: {},
   editorConfig: {},
   githubTemplates: {},
   husky: {
