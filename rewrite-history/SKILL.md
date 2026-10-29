@@ -103,7 +103,9 @@ literally wherever `<snapshot>` and `<sandbox>` appear.
 
 **Goal:** Get user buy-in on the narrative.
 
-- **Present the Plan:** Show the user the list of proposed commits.
+- **Present the Plan:** Show the user the list of proposed commits, and the
+  untracked files to leave out of history, such as scratch notes or local env
+  files.
 - **Iterate:** Allow the user to combine, split, or rename commits.
 - **Approval:** "Does this story look correct?"
 
@@ -138,10 +140,15 @@ For each step in the approved plan:
 **Goal:** Ensure no code was lost or corrupted.
 
 1.  **Compare End States:**
+
     ```bash
     # Compare the sandbox HEAD with the snapshot
-    git -C <sandbox> diff --exit-code <snapshot> HEAD
+    git -C <sandbox> diff --exit-code <snapshot> HEAD -- . ':!<left-out path>'
     ```
+
+    Add one `':!<path>'` per approved leave-out; the snapshot holds them, the
+    new history doesn't.
+
 2.  **Outcome:**
     - **Empty Diff:** Success! The code is identical, only history changed.
     - **Non-Empty:** Failure. Abort and report differences.
@@ -163,6 +170,9 @@ anywhere unless the user explicitly asks.
     ```bash
     git worktree remove --force <sandbox>
     ```
+
+    `--force` is needed because the left-out files are still in the sandbox; the
+    user's own copies stay where they are.
 
 3.  **User Action:**
     - Offer to `git reset --hard crafted-history` on the original branch (only
