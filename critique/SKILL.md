@@ -1,8 +1,10 @@
 ---
 name: critique
 description: >-
-  Start a critique watcher in a split pane next to this agent, in tmux or Herdr,
-  to review local changes
+  Opens a critique watcher that reviews local changes, in a split beside this
+  agent's tmux or Herdr pane. Use when asked to start critique or to watch the
+  working changes. Not for a new worktree session with its own watcher
+  (create-session).
 metadata:
   author: langri-
   version: '1.1.0'
