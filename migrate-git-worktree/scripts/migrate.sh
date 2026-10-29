@@ -12,10 +12,17 @@
 #   ~/src/repo/main/               (worktree for main branch)
 #   ~/src/repo/branch/             (feature worktrees as siblings)
 #
-# Usage: migrate.sh [repo-path]
-#   repo-path: path to the main worktree (default: detected from cwd)
+# Usage: migrate.sh [--allow-dirty] [repo-path]
+#   --allow-dirty: migrate even when a worktree has uncommitted changes
+#   repo-path:     path to the main worktree (default: detected from cwd)
 
 set -euo pipefail
+
+ALLOW_DIRTY=0
+if [[ "${1:-}" == --allow-dirty ]]; then
+  ALLOW_DIRTY=1
+  shift
+fi
 
 # --- Resolve source repo ---
 if [[ $# -ge 1 ]]; then
@@ -97,9 +104,12 @@ if [[ ${#DIRTY[@]} -gt 0 ]]; then
     echo "    - $d"
   done
   echo ""
-  echo "Changes will be preserved but paths will change."
-  echo "Press Enter to continue or Ctrl-C to abort."
-  read -r
+  if [[ "$ALLOW_DIRTY" -eq 0 ]]; then
+    echo "Nothing was changed. Commit or stash, or rerun with --allow-dirty;"
+    echo "uncommitted changes survive the migration, but their paths change."
+    exit 1
+  fi
+  echo "Continuing with --allow-dirty: changes are kept, but paths change."
 fi
 
 # --- Step 1: Move existing linked worktrees into the repo directory ---
