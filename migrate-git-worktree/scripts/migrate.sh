@@ -187,7 +187,7 @@ echo "$MAIN_WT_PATH/.git" > "$SOURCE_PATH/.bare/worktrees/$WORKTREE_ID/gitdir"
 
 # HEAD: preserve the original state (detached or branch ref)
 if [[ -n "$MAIN_HEAD_REF" ]]; then
-  echo "$MAIN_HEAD_REF" > "$SOURCE_PATH/.bare/worktrees/$WORKTREE_ID/HEAD"
+  echo "ref: $MAIN_HEAD_REF" > "$SOURCE_PATH/.bare/worktrees/$WORKTREE_ID/HEAD"
 else
   echo "$MAIN_HEAD_SHA" > "$SOURCE_PATH/.bare/worktrees/$WORKTREE_ID/HEAD"
 fi
