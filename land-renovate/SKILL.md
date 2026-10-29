@@ -50,7 +50,7 @@ List open Renovate-authored PRs, oldest (lowest number) first:
 
 ```bash
 gh pr list -R "$REPO" --author "app/renovate" --state open --limit 30 \
-  --json number,title,mergeable,mergeStateStatus,statusCheckRollup
+  --json number,title,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup
 ```
 
 Sort ascending by `number` and walk them in that order. If explicit PR numbers
@@ -65,18 +65,23 @@ were passed as arguments, restrict the set to those.
 
 Bucket each PR using `statusCheckRollup` + `mergeable` + `mergeStateStatus`:
 
-| Bucket           | Signal                                                                                 | Action                                     |
-| ---------------- | -------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **GREEN**        | no `FAILURE`/`CANCELLED`/`TIMED_OUT` in rollup, nothing pending, `mergeable=MERGEABLE` | approve + rebase-merge (step 4)            |
-| **CONFLICTING**  | `mergeable=CONFLICTING` or `mergeStateStatus=DIRTY`                                    | tick the rebase checkbox (step 5), monitor |
-| **REAL_FAILURE** | rollup contains a `FAILURE` not auto-fixable by post-upgrade                           | skip; leave for human triage               |
-| **HOLD**         | cross-file coordination needed (manual checklist — see below)                          | surface for human; do not proceed          |
+| Bucket           | Signal                                                                                                                  | Action                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **GREEN**        | no `FAILURE`/`CANCELLED`/`TIMED_OUT` in rollup, nothing pending, `mergeable=MERGEABLE`, and a ready merge state (below) | approve + rebase-merge (step 4)            |
+| **CONFLICTING**  | `mergeable=CONFLICTING` or `mergeStateStatus=DIRTY`                                                                     | tick the rebase checkbox (step 5), monitor |
+| **REAL_FAILURE** | rollup contains a `FAILURE` not auto-fixable by post-upgrade                                                            | skip; leave for human triage               |
+| **HOLD**         | cross-file coordination needed (manual checklist — see below)                                                           | surface for human; do not proceed          |
 
 A check in the rollup is **pending** when a `CheckRun` has `status != COMPLETED`
 or a `StatusContext` has `state` of `PENDING`/`EXPECTED`. It is a **failure**
 when a `CheckRun.conclusion` is `FAILURE`/`CANCELLED`/`TIMED_OUT`/
 `ACTION_REQUIRED`/`STARTUP_FAILURE`, or a `StatusContext.state` is `FAILURE`/
 `ERROR`.
+
+The merge state is **ready** when `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`,
+or `BLOCKED` only because the PR awaits the approval this skill gives
+(`reviewDecision=REVIEW_REQUIRED`). `MERGEABLE` alone means only that the branch
+has no conflicts; any other merge state means GitHub would not merge it as is.
 
 #### HOLD checklist (manual — not hard-coded)
 
@@ -101,6 +106,13 @@ and do not tick the rebase checkbox. Keep walking the rest of the queue.
 ```bash
 gh pr review "$PR" -R "$REPO" --approve \
   --body "LGTM — auto-approved as part of Renovate batch landing."
+gh pr view "$PR" -R "$REPO" --json mergeStateStatus -q .mergeStateStatus
+```
+
+Merge only when the approval left the merge state `CLEAN` or `HAS_HOOKS`;
+anything else goes back to step 3.
+
+```bash
 gh pr merge "$PR" -R "$REPO" --rebase --delete-branch
 ```
 
@@ -135,7 +147,7 @@ scripts/monitor-renovate-pr.sh <pr-number> <repo> <baseline-head-sha-short>
 ```
 
 - Polls
-  `gh pr view --json headRefOid,mergeable,mergeStateStatus,statusCheckRollup`
+  `gh pr view --json headRefOid,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup`
   every 45s (`POLL_INTERVAL` override) and prints a line only when the signature
   `${head:0:9}|<mergeable>:<state>|ok=N pend=M fail=K` changes.
 - Emits a verdict once the head has moved **off** the baseline, no checks are
@@ -161,7 +173,7 @@ exists for:
   `head moved off baseline` condition is exactly what guards against that
   false-green.
 - **It only knows checks, not mergeability.** The GREEN verdict needs
-  `mergeable=MERGEABLE` + `mergeStateStatus=CLEAN`, and CONFLICTING is
+  `mergeable=MERGEABLE` and a ready `mergeStateStatus`, and CONFLICTING is
   _detected_ via those fields — which `gh pr checks` never reports. A single
   `gh pr view` poll covers both in one shot.
 - **The head can move twice** (Renovate push, then the app-bot post-upgrade
