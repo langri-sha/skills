@@ -3,10 +3,10 @@ name: backfill-releases
 description: >-
   Create the missing git tags and GitHub releases for every version a
   beachball-published repository has already shipped, from its CHANGELOG.json
-  files. Use when moving a repository onto GitHub releases (the langri-sha/github
-  packages workflow with `github-releases` and `tag-template`), or when asked to
-  "backfill releases", "tag old versions", "create releases for historical
-  versions". Triggers: "/backfill-releases".
+  files. Use when moving a repository onto GitHub releases (a Release workflow
+  that tags and releases each version it publishes), or when asked to "backfill
+  releases", "tag old versions", "create releases for historical versions".
+  Triggers: "/backfill-releases".
 metadata:
   author: langri-sha
   version: '1.0.0'
@@ -77,15 +77,9 @@ With `--apply` it creates what is missing, oldest version first:
 
 ## Going forward
 
-The repository's Release workflow tags and releases new versions itself once it
-calls the shared packages workflow, v0.21.0 or later, like this:
+From here on, the repository's Release workflow tags each version it publishes
+with the same template and creates its GitHub release, so the tags continue
+where the backfill stopped.
 
-```yaml
-uses: langri-sha/github/.github/workflows/packages.yml@v0.21.0
-with:
-  github-releases: true
-  tag-template: v{version}
-```
-
-Beachball's `gitTags` stays off, which is the `@langri-sha/projen-project`
-default; with it on, beachball would add its own `<name>_v<version>` tags.
+Keep beachball's `gitTags` off; with it on, beachball would add its own
+`<name>_v<version>` tags next to the workflow's.
