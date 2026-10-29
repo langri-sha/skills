@@ -7,7 +7,7 @@ description: >-
   launch a worktree session or park or resume existing work.
 metadata:
   author: langri-sha
-  version: '3.0.0'
+  version: '3.1.0'
   argument-hint:
     '[tmux|herdr] [lane|--workspace ID] [assistant] [continue] [prompt] | tmux
     move <lane> [window]'
@@ -28,33 +28,50 @@ Examples: `/create-session`, `/create-session herdr --workspace wM`,
 
 ## Resolve the backend
 
-Inspect only the relevant environment markers:
+Herdr sets `HERDR_ENV` and `HERDR_PANE_ID`, tmux sets `TMUX` and `TMUX_PANE`,
+and when one runs inside the other the caller inherits both sets, so the markers
+only name candidates. The caller belongs to the multiplexer whose pane terminal
+is its controlling terminal. A tool shell often has no terminal of its own, so
+take the nearest ancestor's:
 
-| Candidate | Required markers                           | Validate before using it                                                                             |
-| --------- | ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| tmux      | Nonempty `TMUX` and `TMUX_PANE`            | `tmux display-message -p -t "$TMUX_PANE" '#{pane_id}'`; require the returned ID to equal `TMUX_PANE` |
-| Herdr     | `HERDR_ENV=1` and nonempty `HERDR_PANE_ID` | `herdr pane current --current`; require success and a nonempty `.result.pane.pane_id`                |
+```bash
+tty=
+pid=$$
+while [ "${pid:-1}" -gt 1 ]; do
+  t=$(ps -o tty= -p "$pid" | tr -d ' ')
+  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
+done
+MUX=none PANE=
+if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
+  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
+  MUX=tmux PANE=$TMUX_PANE
+elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
+  INFO=$(herdr pane process-info --current 2>/dev/null) &&
+  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
+  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
+fi
+echo "caller=$MUX pane=$PANE"
+```
 
-An explicit backend wins. Otherwise select the sole candidate. If both
-candidates exist, ask which backend to use: nested multiplexers can inherit both
-environments, and precedence cannot establish the intended layer. If neither
-exists, ask which backend to use before creating anything.
+A match proves the marker names the caller's own pane. Without an explicit
+backend, use the detected one. With `none`, say the caller is in neither and
+stop; an explicit `tmux` can still create a detached lane. A sandbox that hides
+parent processes or the multiplexer's socket also ends in `none`; rerun the step
+outside it.
 
 Never infer the runtime from installed executables, `TERM`, running servers, or
-UI focus. If any marker for the selected backend exists but its required markers
-are incomplete or its live lookup fails, stop and report the context problem; do
-not silently switch backends or fall back to focus.
+UI focus, and never fall back to focus when detection fails.
 
-An explicit `tmux` request with no tmux markers may create a detached session or
-move an explicitly named window. Herdr requires a validated managed caller pane
-even when explicitly selected; do not control a focused Herdr session from
-outside it. Check the selected CLI is available before mutation.
+An explicit `tmux` request outside a tmux caller may create a detached session
+or move an explicitly named window. Herdr requires a Herdr caller even when
+explicitly selected; when detection finds tmux or none, the Herdr markers belong
+to an outer pane, so report that and stop rather than control Herdr from outside
+it. Check the selected CLI is available before mutation.
 
-For Herdr, retain the returned live pane, tab, and workspace IDs. Inherited
-`HERDR_TAB_ID` and `HERDR_WORKSPACE_ID` can be stale after pane moves; the
-inherited pane ID can remain an alias, so do not require its returned ID to
-match. Guard the pane marker before `--current`, which can otherwise fall back
-to UI focus.
+For Herdr, take the live tab and workspace IDs from
+`herdr pane current --current`. Inherited `HERDR_TAB_ID` and
+`HERDR_WORKSPACE_ID` go stale after pane moves, while the inherited pane ID
+stays an alias that `--current` resolves.
 
 ## Resolve the work and destination
 
@@ -73,10 +90,10 @@ in a repository.
 | `proposals` | Proposals and design work  |
 | `archive`   | Parked work                |
 
-An explicit lane wins. Otherwise inherit the validated caller's tmux session
-name when it exactly matches a lane; otherwise use `dev`. Reject unknown lanes
-and Herdr workspace arguments. `letta` selects the assistant and never a lane;
-do not put worktree sessions in the long-lived `letta` session.
+An explicit lane wins. Otherwise, when the caller is in tmux, inherit its tmux
+session name if it exactly matches a lane; otherwise use `dev`. Reject unknown
+lanes and Herdr workspace arguments. `letta` selects the assistant and never a
+lane; do not put worktree sessions in the long-lived `letta` session.
 
 Create missing lanes on demand, reusing the first window returned by session
 creation. Do not leave a placeholder shell behind.
