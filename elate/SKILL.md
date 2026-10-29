@@ -7,6 +7,7 @@ description: >-
   in the new pane, and seeds it with a prompt telling it to read the dispatcher
   pane's contents and treat them as its brief. Optional argument is appended to
   the seed prompt as extra context.
+disable-model-invocation: true
 metadata:
   author: langri-sha
   version: '1.0.1'
