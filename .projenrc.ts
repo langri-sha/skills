@@ -22,4 +22,8 @@ project.package?.addEngine('pnpm', '>= 11.0.0')
 project.package?.addField('packageManager', 'pnpm@12.15.0')
 project.package?.addField('private', true)
 
+// `LICENSE` is maintained by hand, so the license is declared here rather
+// than through `package.license`, which would synthesize a second file.
+project.package?.addField('license', 'MIT')
+
 project.synth()
