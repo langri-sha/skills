@@ -91,15 +91,7 @@ herdr pane run "$EDITOR_PANE" nvim
 
 The tmux pane closes when nvim exits; the Herdr pane keeps its shell.
 
-Then output:
-
-```
-Editor started!
-
-  Pane: vertical split (right)   (Herdr: <pane id>)
-  Directory: <cwd>
-  Command: nvim
-```
+Report the directory and, in Herdr, the new pane's ID.
 
 ### 3b. Named Editor Path
 
@@ -160,11 +152,4 @@ fi
 rm -f "$LOG"
 ```
 
-Then output:
-
-```
-Editor started!
-
-  Directory: <cwd>
-  Command: <launch> .
-```
+Report the directory and the command launched.
