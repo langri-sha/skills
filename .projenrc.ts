@@ -14,6 +14,9 @@ const project = new Project({
 
     type: 'module',
   },
+  codeowners: {
+    '*': '@langri-sha',
+  },
   lintSynthesized: {},
   pnpmWorkspace: {},
 })
