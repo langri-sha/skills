@@ -1,11 +1,10 @@
 ---
 name: lights-out
 description: >-
-  Safely close the tmux window or Herdr tab this agent session lives in — last
-  one out turns off the lights. Use when the user says "/lights-out", "kill this
-  window", "close this window", "close this tab", or wants the agent to clean up
-  its own tmux window or Herdr tab after wrapping up. Always targets the agent's
-  own pane explicitly; never runs bare tmux kill commands.
+  Closes the tmux window or Herdr tab this agent runs in, after checking for
+  unfinished work, always targeting its own pane by ID. Use when asked to close
+  this window or tab, kill this window, or clean up after wrapping up. Not for
+  closing other windows, tabs, sessions or workspaces.
 metadata:
   author: langri-sha
   version: '1.1.0'
