@@ -1,13 +1,11 @@
 ---
 name: land-renovate
 description: >-
-  Batch-land open Renovate PRs in the current repo. Enumerate Renovate-authored
-  PRs, classify each as GREEN / CONFLICTING / BEHIND / REAL_FAILURE / HOLD,
-  approve and rebase-merge the safe ones in ascending PR-number order, nudge
-  conflicting ones with the rebase checkbox, and stop cleanly on real failures
-  or cross-file HOLD cases. Use when the user says "/land-renovate", "land the
-  Renovate PRs", "clear the Renovate queue", or wants to merge a batch of
-  dependency-update PRs.
+  Batch-lands a repository's open Renovate PRs, oldest first: approves and
+  rebase-merges the green ones, sends conflicting or stale ones back to
+  Renovate's rebase checkbox, and stops on real failures or upgrades that need a
+  coordinated edit. Use when asked to land, merge or clear the Renovate queue.
+  Not for landing your own branch (wrap).
 disable-model-invocation: true
 argument-hint: '[limit=N] [<pr-number>...]'
 metadata:
