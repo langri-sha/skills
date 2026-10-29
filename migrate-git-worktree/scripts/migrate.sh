@@ -46,19 +46,31 @@ else
   echo "  Main HEAD:      detached at $MAIN_HEAD_SHA"
 fi
 
-# --- Collect existing worktrees (excluding main) ---
+# --- Collect linked worktrees (excluding main) ---
+# Worktrees under $WORKTREE_DIR move next to main/; any other linked worktree
+# stays where it is and only has its link to the repository rewritten.
 declare -a WORKTREE_NAMES=()
-if [[ -d "$WORKTREE_DIR" ]]; then
-  for wt in "$WORKTREE_DIR"/*/; do
-    [[ -d "$wt" ]] || continue
-    name="$(basename "$wt")"
-    WORKTREE_NAMES+=("$name")
-  done
-fi
+declare -a OTHER_WORKTREES=()
+first=1
+while read -r key value; do
+  [[ "$key" == worktree ]] || continue
+  if [[ "$first" -eq 1 ]]; then
+    first=0
+    continue
+  fi
+  if [[ "$(dirname "$value")" == "$WORKTREE_DIR" ]]; then
+    WORKTREE_NAMES+=("$(basename "$value")")
+  else
+    OTHER_WORKTREES+=("$value")
+  fi
+done < <(git -C "$SOURCE_PATH" worktree list --porcelain)
 
-echo "  Worktrees found: ${#WORKTREE_NAMES[@]}"
+echo "  Worktrees found: $((${#WORKTREE_NAMES[@]} + ${#OTHER_WORKTREES[@]}))"
 for name in "${WORKTREE_NAMES[@]}"; do
-  echo "    - $name"
+  echo "    - $name (moves next to main/)"
+done
+for wt in "${OTHER_WORKTREES[@]}"; do
+  echo "    - $wt (stays in place)"
 done
 echo ""
 
@@ -71,6 +83,11 @@ for name in "${WORKTREE_NAMES[@]}"; do
   wt_path="$WORKTREE_DIR/$name"
   if [[ -n "$(git -C "$wt_path" status --porcelain 2>/dev/null)" ]]; then
     DIRTY+=("$name ($wt_path)")
+  fi
+done
+for wt in "${OTHER_WORKTREES[@]}"; do
+  if [[ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]]; then
+    DIRTY+=("$wt")
   fi
 done
 
@@ -154,6 +171,13 @@ else
   echo ""
 fi
 
+# Worktrees that stay in place point into .git/worktrees/<id> too.
+for wt in "${OTHER_WORKTREES[@]}"; do
+  gitdir="$(sed -n 's/^gitdir: //p' "$wt/.git")"
+  echo "gitdir: $SOURCE_PATH/.bare/worktrees/${gitdir##*/}" > "$wt/.git"
+  echo "  Relinked: $wt"
+done
+
 # --- Step 4: Create main/ worktree from existing working tree files ---
 echo "Step 4: Creating main worktree..."
 
@@ -227,6 +251,13 @@ else
   echo ""
 fi
 
+# Let git confirm both directions of every link it now holds.
+REPAIR=("${OTHER_WORKTREES[@]}")
+for name in "${WORKTREE_NAMES[@]}"; do
+  REPAIR+=("$NEW_ROOT/$name")
+done
+git -C "$MAIN_WT_PATH" worktree repair "${REPAIR[@]}"
+
 # --- Step 6: Verify remote configuration ---
 # Bare repos cloned with --bare get a different default refspec.
 # Since we converted from a regular clone, the refspec should already be correct,
@@ -251,6 +282,9 @@ echo "  ├── .git"
 echo "  ├── main/"
 for name in "${WORKTREE_NAMES[@]}"; do
   echo "  ├── $name/"
+done
+for wt in "${OTHER_WORKTREES[@]}"; do
+  echo "  Left in place: $wt"
 done
 echo ""
 echo "Verify with: git -C '$MAIN_WT_PATH' worktree list"
