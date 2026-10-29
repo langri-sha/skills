@@ -60,7 +60,8 @@ literally wherever `<snapshot>` and `<sandbox>` appear.
     ```
 
     The snapshot is the recovery point. Inside the sandbox `HEAD` is the
-    snapshot, so pass the base as a SHA.
+    snapshot, so pass the base as a SHA. Install dependencies in the sandbox so
+    hooks and checks run.
 
 ### Step 2: Analysis and Storyboarding
 
@@ -128,6 +129,9 @@ For each step in the approved plan:
     )"
     ```
 
+4.  **Check:** run the repository's checks on the new commit. A commit that
+    fails is a planning error: regroup rather than keep a broken intermediate.
+
 ### Step 5: Final Verification
 
 **Goal:** Ensure no code was lost or corrupted.
@@ -186,6 +190,3 @@ anywhere unless the user explicitly asks.
 
 - **"Hunk overlap":** If two logical changes are too close in the same file,
   manual intervention might be needed.
-- **"Build failure":** If a commit in the middle of the chain breaks the build,
-  ask the user if they care about "green" intermediate commits or just the final
-  result.
