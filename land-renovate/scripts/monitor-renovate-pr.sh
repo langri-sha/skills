@@ -55,7 +55,7 @@ while true; do
   polls=$((polls + 1))
 
   if ! json=$(gh pr view "$PR" -R "$REPO" \
-      --json headRefOid,mergeable,mergeStateStatus,statusCheckRollup 2>/dev/null \
+      --json headRefOid,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null \
       | sed -n '/^{/,$p'); then
     printf '%s  #%s  poll-error (will retry)\n' "$(ts)" "$PR"
     sleep "$INTERVAL"
@@ -71,6 +71,7 @@ while true; do
   head=$(jq -r '.headRefOid' <<<"$json")
   mergeable=$(jq -r '.mergeable' <<<"$json")
   state=$(jq -r '.mergeStateStatus' <<<"$json")
+  review=$(jq -r '.reviewDecision // ""' <<<"$json")
   read -r ok pending failures < <(jq -r "$ROLLUP_JQ" <<<"$json")
 
   rollup="ok=$ok pend=$pending fail=$failures"
@@ -101,7 +102,11 @@ while true; do
   prev_sig="$sig"
 
   if [ "$stable" -ge 2 ]; then
-    if [ "$failures" -eq 0 ] && [ "$mergeable" = "MERGEABLE" ]; then
+    case "$state:$review" in
+      CLEAN:* | HAS_HOOKS:* | BLOCKED:REVIEW_REQUIRED) ready=1 ;;
+      *) ready=0 ;;
+    esac
+    if [ "$failures" -eq 0 ] && [ "$mergeable" = "MERGEABLE" ] && [ "$ready" -eq 1 ]; then
       echo "GREEN: #$PR ready to merge"
     else
       echo "NOT-GREEN: #$PR settled failures=$failures mergeable=$mergeable state=$state"
