@@ -6,10 +6,10 @@ description:
   contains a bare clone at .bare/, a .git file pointing to it, and all branches
   (including main) as worktree subdirectories. Use when the user wants to
   reorganize their worktree folder structure.
+argument-hint: '[--allow-dirty] [repo-path]'
 metadata:
   author: langri-sha
   version: '2.0.0'
-  argument-hint: '[repo-path]'
 ---
 
 # Migrate Git Worktree Layout
