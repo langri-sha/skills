@@ -14,8 +14,8 @@ metadata:
 
 # Subdivide
 
-Orchestrate branching off new work mid-conversation by chaining `/create-issue`,
-`/create-worktree`, and `/create-session` into a single flow.
+Orchestrate branching off new work mid-conversation: file an issue with `gh`,
+then chain `/create-worktree` and `/create-session` into a single flow.
 
 ## Arguments
 
@@ -33,23 +33,32 @@ From the user's freeform prompt, infer:
 - **Issue title**: a concise summary (under 70 characters)
 - **Issue body**: under 100 words, without headings: the problem, why it
   matters, and when it's done
-- **Labels**: infer from context (`enhancement`, `bug`, etc.)
+- **Labels**: infer from context, choosing only labels the repository has
+  (`gh label list --limit 1000`), since `gh` refuses any other
 
 If the prompt is too vague to infer a clear title or body, ask the user to
 clarify before proceeding.
 
 ### 2. Create the Issue
 
-Invoke `/create-issue` with the inferred title, body, and labels. This handles
-label selection, body formatting, project board assignment, and returns the
-issue URL and number.
+File it on the current repository, with the body in a file outside it:
+
+```bash
+gh issue create --title "<title>" --body-file <body file> --label <label>
+```
+
+If the repository's or the user's instructions name a project board for new
+issues, add the issue to it with `gh project item-add` and set the fields they
+ask for. Without the `project` scope only that step fails: report it and carry
+on.
 
 Capture the resulting:
 
 - `ISSUE_NUMBER` (e.g. `642`)
 - `ISSUE_URL` (e.g. `https://github.com/<owner>/<repo>/issues/642`)
 - `ISSUE_TITLE`
-- `REPO` — the `owner/repo` that `/create-issue` resolved and filed against
+- `REPO` — the `owner/repo` it was filed against
+  (`gh repo view --json nameWithOwner -q .nameWithOwner`)
 
 ### 3. Ask Whether to Start Immediately
 
@@ -143,8 +152,8 @@ created successfully.
 
 ### Issue Creation Fails
 
-If `/create-issue` fails (e.g. missing `gh` scopes), stop and report the error.
-Do not proceed to worktree creation.
+If `gh issue create` fails (e.g. missing `gh` scopes), stop and report the
+error. Do not proceed to worktree creation.
 
 ### Worktree Slug Already Exists
 
