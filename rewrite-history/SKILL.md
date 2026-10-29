@@ -35,29 +35,27 @@ on a single branch and never creates PRs.
 
 **Goal:** Perform all destructive operations in isolation to prevent data loss.
 
-1.  **Define the Scope:**
-    - If working with uncommitted changes: Target is `HEAD`.
-    - If rewriting history: Target is the merge base (e.g., `main`).
+1.  **Define the Scope:** the base is the merge base with the trunk when
+    rewriting commits, or `HEAD` when only uncommitted work needs organizing.
 
-2.  **Create Worktree:**
+2.  **Snapshot and Sandbox:** capture the user's state, uncommitted and
+    untracked files included, without touching their index or working tree, then
+    open a detached worktree on it with the whole change unstaged:
 
     ```bash
-    # Create a temporary directory
+    IDX=$(mktemp -u)                       # git must create the index itself
+    GIT_INDEX_FILE=$IDX git read-tree HEAD
+    GIT_INDEX_FILE=$IDX git add -A
+    SNAPSHOT=$(git commit-tree "$(GIT_INDEX_FILE=$IDX git write-tree)" -p HEAD \
+      -m 'Snapshot before history rewrite')
+    rm -f "$IDX"
     SANDBOX_DIR=$(mktemp -d -t rewrite-history-XXXXXX)
-
-    # Create a detached worktree at the current state
-    git worktree add --detach "$SANDBOX_DIR" HEAD
+    git worktree add --detach "$SANDBOX_DIR" "$SNAPSHOT"
+    git -C "$SANDBOX_DIR" reset <base-sha>
     ```
 
-3.  **Flatten the State (The "Canvas"):** Inside the sandbox, reset the state to
-    the base so all changes appear as "new work" to be organized.
-    ```bash
-    cd "$SANDBOX_DIR"
-    # Soft reset to the base branch to stage all changes
-    git reset --soft <base-branch>
-    # Unstage everything to start with a clean slate
-    git reset HEAD
-    ```
+    The snapshot is the recovery point. Inside the sandbox `HEAD` is the
+    snapshot, so pass the base as a SHA.
 
 ### Step 2: Analysis and Storyboarding
 
@@ -136,8 +134,8 @@ For each step in the approved plan:
 
 1.  **Compare End States:**
     ```bash
-    # Compare the sandbox HEAD with the original user HEAD
-    git diff HEAD <original-user-head-sha>
+    # Compare the sandbox HEAD with the snapshot
+    git -C "$SANDBOX_DIR" diff --exit-code "$SNAPSHOT" HEAD
     ```
 2.  **Outcome:**
     - **Empty Diff:** Success! The code is identical, only history changed.
