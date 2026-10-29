@@ -9,7 +9,7 @@ description: >-
   the seed prompt as extra context.
 metadata:
   author: langri-sha
-  version: '1.0.0'
+  version: '1.0.1'
 ---
 
 # elate
@@ -35,31 +35,41 @@ Herdr the agent is named `elate-<dispatcher pane id>`, lowercased, with `-2`,
 
 ### 1. Detect the Multiplexer
 
-Herdr wins only when its current pane is this session's own. Herdr and tmux can
-both be set when one runs inside the other, and `HERDR_*` and `TMUX_PANE` go
-stale when a pane moves, so ask the multiplexer rather than trusting the
-environment.
+Herdr sets `HERDR_ENV` and `HERDR_PANE_ID`, tmux sets `TMUX` and `TMUX_PANE`,
+and when one runs inside the other the agent inherits both sets. `HERDR_*` also
+goes stale when a pane moves. The variables only name candidates: the agent
+belongs to the multiplexer whose pane terminal is its controlling terminal. A
+tool shell often has no terminal of its own, so take the nearest ancestor's.
+
+Herdr's own record of the agent in a pane can't settle this: an agent started in
+tmux inside Herdr reports its session to the inherited outer pane.
 
 ```bash
-MUX=""
-if [ "${HERDR_ENV:-}" = 1 ]; then
-  CURRENT=$(herdr pane current --current)
-  if [ "$(jq -r '.result.pane.agent_session.value' <<<"$CURRENT")" = "${CLAUDE_CODE_SESSION_ID:-}" ]; then
-    MUX=herdr
-  fi
+tty=
+pid=$$
+while [ "${pid:-1}" -gt 1 ]; do
+  t=$(ps -o tty= -p "$pid" | tr -d ' ')
+  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
+done
+MUX=none PANE=
+if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
+  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
+  MUX=tmux PANE=$TMUX_PANE
+elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
+  INFO=$(herdr pane process-info --current 2>/dev/null) &&
+  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
+  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
 fi
-if [ -z "$MUX" ] && [ -n "${TMUX:-}" ]; then
-  MUX=tmux
-fi
-if [ -z "$MUX" ] && [ "${HERDR_ENV:-}" = 1 ]; then
-  echo "The current Herdr pane belongs to another session. Ask which pane is this conversation, then retry /elate."
-  exit 1
-fi
-if [ -z "$MUX" ]; then
-  echo "Not inside tmux or Herdr. Start one first, then retry /elate."
+echo "multiplexer=$MUX pane=$PANE"
+if [ "$MUX" = none ]; then
+  echo "Not in a tmux or Herdr pane of this agent's own. Start one first, then retry /elate."
   exit 1
 fi
 ```
+
+A match proves the pane variable names this agent's own pane; for Herdr, `PANE`
+is its live ID even after a move. A sandbox that hides parent processes or the
+multiplexer's socket also ends in `none`; rerun the step outside it.
 
 ### 2. Resolve the Brief Pane and CWD
 
@@ -90,7 +100,7 @@ session's. Never choose a pane from another tab: the codex pane must land in the
 tab the user is looking at.
 
 ```bash
-DISPATCHER_PANE=$(jq -r '.result.pane.pane_id' <<<"$CURRENT")
+DISPATCHER_PANE=$PANE
 CWD=$(pwd)
 
 BRIEF_PANE=$DISPATCHER_PANE
@@ -208,10 +218,12 @@ it independently.
 
 Bail in step 1 with a hint to start one of them.
 
-### Herdr Pane Belongs to Another Session
+### Inherited Pane Is Not This Agent's
 
-A continued session or a background job inherits a pane that is not its own.
-Step 1 stops; ask which pane is the conversation instead of splitting a guess.
+A background job, a session nested in another multiplexer, or a terminal opened
+from a pane can inherit a pane ID that is not its own. Step 1 then picks the
+multiplexer that owns this agent's terminal, or stops with `none`; ask which
+pane is the conversation instead of splitting a guess.
 
 ### Window Already Has Many Panes
 
