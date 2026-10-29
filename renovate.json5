@@ -26,6 +26,8 @@
       matchManagers: ['npm'],
       matchPackageNames: [
         '@changesets/cli',
+        '@langri-sha/lint-staged',
+        '@langri-sha/prettier',
         'husky',
         'lint-staged',
         'prettier',
