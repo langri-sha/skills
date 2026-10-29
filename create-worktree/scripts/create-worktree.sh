@@ -27,11 +27,18 @@ if [ -d "$path" ]; then
   exit 0
 fi
 
-git fetch --quiet origin main
+default=$(git ls-remote --symref origin HEAD 2>/dev/null | sed -n 's|^ref: refs/heads/\(.*\)\tHEAD$|\1|p')
+if [ -z "$default" ]; then
+  default=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)
+  default=${default#origin/}
+fi
+[ -n "$default" ] || { echo "Cannot tell origin's default branch." >&2; exit 1; }
+
+git fetch --quiet origin "$default"
 if git show-ref --verify --quiet "refs/heads/$slug"; then
   git worktree add --quiet "$path" "$slug"
 else
-  git worktree add --quiet -b "$slug" "$path" origin/main
+  git worktree add --quiet -b "$slug" "$path" "origin/$default"
 fi
 echo "Created $path on branch $slug" >&2
 
