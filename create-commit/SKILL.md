@@ -94,4 +94,3 @@ a change from the tests that cover it.
 
 - **`references/atomic-commits.md`** — atomic commit principles, decision trees,
   and red flags
-- **`references/commit-format.md`** — full message format specification
