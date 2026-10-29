@@ -22,21 +22,21 @@ Migrate from the side-by-side worktree convention to a bare-repo layout where
 **Before (side-by-side):**
 
 ```
-~/workspace/myrepo/                    # main worktree (regular clone)
-~/workspace/myrepo.worktree/           # worktree container
-~/workspace/myrepo.worktree/feature-a/ # feature worktree
-~/workspace/myrepo.worktree/feature-b/ # feature worktree
+~/src/myrepo/                    # main worktree (regular clone)
+~/src/myrepo.worktree/           # worktree container
+~/src/myrepo.worktree/feature-a/ # feature worktree
+~/src/myrepo.worktree/feature-b/ # feature worktree
 ```
 
 **After (bare-repo):**
 
 ```
-~/workspace/myrepo/                    # parent directory
-~/workspace/myrepo/.bare/              # bare repository (all objects, refs)
-~/workspace/myrepo/.git                # file: "gitdir: ./.bare"
-~/workspace/myrepo/main/               # worktree for main branch
-~/workspace/myrepo/feature-a/          # worktree
-~/workspace/myrepo/feature-b/          # worktree
+~/src/myrepo/                    # parent directory
+~/src/myrepo/.bare/              # bare repository (all objects, refs)
+~/src/myrepo/.git                # file: "gitdir: ./.bare"
+~/src/myrepo/main/               # worktree for main branch
+~/src/myrepo/feature-a/          # worktree
+~/src/myrepo/feature-b/          # worktree
 ```
 
 ## How It Works
@@ -77,14 +77,14 @@ Before proceeding, display the migration plan and confirm via AskUserQuestion:
 ```
 Migration plan:
 
-  Current main:  ~/workspace/myrepo
-  Worktree dir:  ~/workspace/myrepo.worktree/
+  Current main:  ~/src/myrepo
+  Worktree dir:  ~/src/myrepo.worktree/
 
   New layout:
-    ~/workspace/myrepo/.bare/             (bare repository)
-    ~/workspace/myrepo/.git               (gitdir pointer)
-    ~/workspace/myrepo/main/              (worktree — was ~/workspace/myrepo)
-    ~/workspace/myrepo/feature-a/         (worktree — was ~/workspace/myrepo.worktree/feature-a)
+    ~/src/myrepo/.bare/             (bare repository)
+    ~/src/myrepo/.git               (gitdir pointer)
+    ~/src/myrepo/main/              (worktree — was ~/src/myrepo)
+    ~/src/myrepo/feature-a/         (worktree — was ~/src/myrepo.worktree/feature-a)
 
   Proceed?
 ```
@@ -114,7 +114,7 @@ After migration completes:
 After migrating, new worktrees are added from any existing worktree:
 
 ```bash
-cd ~/workspace/myrepo/main
+cd ~/src/myrepo/main
 git worktree add ../new-feature -b new-feature origin/main
 ```
 
