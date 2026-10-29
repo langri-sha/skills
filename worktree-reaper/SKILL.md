@@ -24,15 +24,9 @@ Dry run is the default and the mode meant for periodic use: it reads, measures,
 and reports. Removal happens only under `--apply`, and only after a confirmation
 typed at the prompt.
 
-`/create-worktree` grows the garden; this skill is what shrinks it.
-
-## Where the Space Actually Goes
-
-Git objects live once in `.bare/` and are shared by every worktree. Removing a
-worktree therefore reclaims its **checked-out files only** — `node_modules`,
-build output, caches, and other ignored or untracked files. History is never at
-stake, and no branch is deleted. That is why a 2 GiB worktree can be removed and
-recreated later with `/create-worktree` at the cost of one `pnpm install`.
+Git objects live once in `.bare/`, so removing a worktree reclaims only its
+checked-out files: `node_modules`, build output, caches. `/create-worktree`
+grows the garden; this skill is what shrinks it.
 
 ## Layout It Expects
 
@@ -107,8 +101,6 @@ Before removing anything, apply re-reads `git worktree list`, re-scans for
 activity, and re-runs the **full classifier** on every candidate. A worktree
 that went dirty, got a tmux window or Herdr tab, gained a process, or stopped
 being landed while the report sat on screen is skipped with its fresh reason.
-The gate that approves a removal is the same code that produced the report —
-there is no second, weaker set of checks to drift out of sync.
 
 Never pipe a confirmation into `--apply` on the user's behalf. The prompt is the
 last human gate; a scheduled or looped invocation must stay in dry-run mode.
@@ -121,7 +113,7 @@ nothing under that workflow and are not used. Instead, per worktree:
 
 `git cherry origin/main <branch>` must report **no unmatched commit that carries
 a change** — every commit unique to the branch either has a patch-equivalent
-commit already upstream, or alters nothing at all (see Empty Commits).
+commit already upstream, or alters nothing at all (see below).
 
 The evidence is reported per candidate, strongest first:
 
@@ -136,49 +128,17 @@ PR evidence is corroboration, not the gate: it strengthens a verdict
 When `gh` is missing or `origin` is not a GitHub remote the header says so and
 the run continues offline.
 
-### What Patch-Equivalence Does Not Prove
+`git cherry` proves the commits appear in the primary's history, not that its
+current tree still holds them: a change that landed and was later reverted still
+reads as landed. Removal keeps the branch, so `git worktree add <path> <branch>`
+brings the worktree back.
 
-`git cherry` proves a branch's commits **appear in the primary's history**, not
-that the primary's **current tree** still contains them. If a change landed and
-was later reverted, a branch carrying that change still reads as landed, because
-its upstream twin is right there in the history. A merged-PR lookup does not
-save you either — the PR really was merged; the revert came after.
-
-The blast radius is bounded and worth stating plainly: removal never deletes a
-branch, so the commits survive and the worktree comes back with
-`git worktree add <path> <branch>`. What you lose is the directory and the
-`pnpm install` in it.
-
-A final-state check was tried and rejected: `git merge-tree --write-tree`
-against the primary answers the revert case correctly, but conflicts on old
-branches whose work landed long ago and whose files have since moved on — two of
-the three real candidates in this garden — so it trades a rare false positive
-for common false negatives. The fixture harness pins the revert case so the
-behaviour stays visible rather than surprising.
-
-### Empty Commits
-
-A commit that changes no files is a normal part of this workflow —
-`Retrigger CI`, or a commit recording an action taken outside the repo like a
-Terraform apply. Rebase-merge **drops** them, so they never reach `origin/main`,
-while the branch ref keeps them forever because nothing rewrites a branch after
-its PR merges.
-
-`git cherry` decides "already upstream" by patch-id, and a commit with no diff
-has no patch to match. Such a commit is therefore structurally `+` —
-permanently, no matter what landed. A commit-for-commit rule would let one
-deliberate no-op veto an entire branch forever: when this skill shipped, all
-three genuinely reclaimable worktrees in the garden were held back by exactly
-one such commit each, so the default mode could never fire.
-
-So the question asked is "is every _change_ accounted for upstream?", not "is
-every _commit_?". A commit whose tree matches its parent's demonstrably alters
-nothing and cannot carry unlanded work, so it does not hold a worktree back.
-Candidates say so in their evidence (`1 empty commit(s) ignored`).
-
-`--strict-commits` restores the commit-for-commit rule if you want it. Be aware
-of what it means in practice: any branch that ever needed a CI retrigger stays
-skipped, however completely its work landed.
+A commit that changes no files, such as `Retrigger CI`, has no patch for
+`git cherry` to match, and rebase-merge drops it, so it would hold its branch
+back forever. It cannot carry unlanded work, so it doesn't count; candidates say
+so in their evidence (`1 empty commit(s) ignored`). `--strict-commits` restores
+the commit-for-commit rule, which keeps any branch that ever needed a CI
+retrigger.
 
 ## Safety Model
 
@@ -241,14 +201,8 @@ Exit codes: `0` success, `1` usage or safety refusal, `2` a removal failed.
 
 ## Periodic Use
 
-The dry report is cheap — about 4 seconds over 65 worktrees, plus `du` on the
-candidates — and mutates nothing, so it is safe to run on a schedule:
-
-```
-/loop 1d <skill-base-dir>/scripts/reap.sh --fetch
-```
-
-Wire nothing up automatically. Removal stays a human decision each time.
+The dry report mutates nothing, so it is safe to run on a schedule. Wire nothing
+up automatically: removal stays a human decision each time.
 
 ## Edge Cases
 
@@ -264,25 +218,10 @@ Wire nothing up automatically. Removal stays a human decision each time.
 - **`du` on a huge garden** — sizes are measured for candidates only; use
   `--all-sizes` when you want the full inventory and can wait.
 
-## Tests
-
-A standalone fixture harness builds a throwaway garden in a temp directory and
-covers every classification branch — rebase-merged, patch-equivalent, empty
-retrigger commit, unmerged, dirty, untracked, ignored-only, detached, locked,
-in-use (a Herdr pane, tab or workspace through a stub `herdr`), nested,
-out-of-garden, stale, and the protected trio:
-
-```bash
-<skill-base-dir>/tests/run-tests.sh
-```
-
-It asserts that dry runs change nothing, that apply removes only the landed and
-idle worktrees, that branches and the bare repo survive, and that prune runs
-only after a successful removal. It never touches a real garden. Run it after
-changing `reap.sh`.
-
 ## Resources
 
 - **`scripts/reap.sh`** — the reaper: inventory, classification, disk report,
   and the guarded apply path
-- **`tests/run-tests.sh`** — fixture harness covering the decision logic
+- **[`references/design.md`](references/design.md)** — why it works this way:
+  where the space goes, what patch-equivalence misses, empty commits, and the
+  fixture tests
