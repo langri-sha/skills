@@ -47,3 +47,29 @@ both.
 Never commit on `main`. Work on a branch in its own worktree, a sibling of the
 `main/` checkout, and land it through a pull request that merges by rebase. The
 repository ruleset keeps `main` linear and refuses force pushes and deletions.
+
+## Releases
+
+Every pull request carries a change file, from `pnpm changeset` or written by
+hand:
+
+<!-- prettier-ignore -->
+```md
+---
+"skills": minor
+---
+
+Summary
+```
+
+Fleet repositories select skills by name, so the bump follows what they notice:
+
+- **major:** a skill is removed or renamed.
+- **minor:** a skill is new, or its behavior changes.
+- **patch:** wording and fixes.
+
+Dependency and tooling changes that release nothing get an empty change file,
+which Renovate pull requests receive automatically.
+
+A release is cut by merging the version pull request that the Release workflow
+keeps open: it tags `vX.Y.Z` and creates the GitHub release. Never tag by hand.
