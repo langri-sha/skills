@@ -1,6 +1,5 @@
 ---
 name: critique
-user_invocable: true
 description: >-
   Start a critique watcher in a split pane next to this agent, in tmux or Herdr,
   to review local changes
