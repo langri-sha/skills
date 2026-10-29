@@ -51,6 +51,14 @@ find . -name .env.example -type f | while read -r example; do
   fi
 done
 
-pnpm install >&2 || echo "pnpm install failed; the worktree is still usable." >&2
+install=()
+if [ -f pnpm-lock.yaml ]; then install=(pnpm install --frozen-lockfile)
+elif [ -f package-lock.json ]; then install=(npm ci)
+elif [ -f yarn.lock ]; then install=(yarn install --immutable)
+elif [ -f bun.lock ] || [ -f bun.lockb ]; then install=(bun install --frozen-lockfile)
+fi
+if [ ${#install[@]} -gt 0 ]; then
+  "${install[@]}" >&2 || echo "${install[*]} failed; the worktree is still usable." >&2
+fi
 
 echo "$path"
