@@ -1,14 +1,11 @@
 ---
 name: agent-browser-hygiene
-description:
-  Mandatory companion to the agent-browser skill, applied before any browser
-  automation starts. Read it whenever a task involves driving a website or web
-  app — opening a site, navigating pages, filling forms, clicking buttons,
-  taking screenshots, scraping or extracting data, testing or QA-ing a web UI,
-  logging into a site, working in an admin or cloud console, or automating an
-  Electron desktop app. Enforces one rule — every browser task runs in a fresh
-  throwaway browser profile, created as the first step and deleted as the last —
-  never the user's real Chrome profile, never a leftover from a previous run.
+description: >-
+  Runs every browser-automation task in a fresh throwaway profile, created first
+  and deleted last, never the user's real Chrome profile. Use alongside
+  agent-browser whenever a task drives a website, web app or Electron app:
+  navigating, filling forms, clicking, screenshots, scraping, testing a web UI,
+  signing in, or working in an admin console.
 metadata:
   author: langri-sha
   version: '1.0.0'
