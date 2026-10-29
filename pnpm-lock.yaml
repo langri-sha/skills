@@ -176,8 +176,8 @@ importers:
         specifier: 0.4.11
         version: 0.4.11(prettier@3.9.9)
       '@langri-sha/projen-project':
-        specifier: 0.44.1
-        version: 0.44.1(@changesets/cli@3.0.3)(husky@9.1.7)(lint-staged@17.6.0)(prettier@3.9.9)(projen@0.104.1(constructs@10.8.1))(tsx@4.23.15)(typescript@5.9.3)
+        specifier: 0.44.2
+        version: 0.44.2(@changesets/cli@3.0.3)(husky@9.1.7)(lint-staged@17.6.0)(prettier@3.9.9)(projen@0.104.1(constructs@10.8.1))(tsx@4.23.15)(typescript@5.9.3)
       '@langri-sha/tsconfig':
         specifier: ^1.1.1
         version: 1.1.1(typescript@5.9.3)
@@ -444,8 +444,8 @@ packages:
     peerDependencies:
       prettier: ^3.0.0
 
-  '@langri-sha/projen-project@0.44.1':
-    resolution: {integrity: sha512-SS+meLi64O9wGSm63g2FjZ5oENvb6kIavPewsUQbG9WFzBR2UwQiP50Mf0j6D7gy0YQdwRjBa0zTMd1aBFRXmA==}
+  '@langri-sha/projen-project@0.44.2':
+    resolution: {integrity: sha512-hWvU+ztZvrADRuG3Zci+qBpj25wzEWEF3fvGeG5tIjEjigFeEqpZkaOJX4zY0/YpmCY9TxCi5LTqDAyLMRC/vA==}
     peerDependencies:
       '@babel/core': ^8.0.0
       '@changesets/cli': ^3.0.0
@@ -587,6 +587,10 @@ packages:
   get-them-args@1.3.2:
     resolution: {integrity: sha512-LRn8Jlk+DwZE4GTlDbT3Hikd1wSHgLMme/+7ddlqKd7ldwR6LjJgTVWzBnR01wnYGe4KgrXjg287RaI22UHmAw==}
 
+  hosted-git-info@10.1.1:
+    resolution: {integrity: sha512-DeOnSPAvOndYKfw075gt8yZzQ7S2hNztw34zBTfhIzLhmBTswIBg5/y+pqu/VD5cYWm5goAFTusDmUEmKZ0PEQ==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
+
   human-id@4.2.2:
     resolution: {integrity: sha512-Z+8unD6em/MJwyrkWQ2M3wygRGI1+MztbutiNwk1DCuEPXOZRWGjtcMPZYP1exY9iNZMhd7ZOSMQSo9WYtiQRw==}
     hasBin: true
@@ -632,6 +636,10 @@ packages:
     resolution: {integrity: sha512-nOhBfYkZEwkFtNzD5pK9s9LkcWoxJ+whLzEnhqi9nl7zTB5n7tg8+9iYgMGx2Wm3VlLu8cbNj0RACzY+nWi5iQ==}
     engines: {node: '>=22.22.1'}
     hasBin: true
+
+  lru-cache@11.5.3:
+    resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
+    engines: {node: 20 || >=22}
 
   minimatch@10.2.6:
     resolution: {integrity: sha512-vpLQEs+VLCr1nU0BXS07maYoFwlDAH0gngQuuttxIwutDFEMHq2blX+8vpgxDdK3J1PwjCJiep77OitTZ4Ll1A==}
@@ -1141,8 +1149,9 @@ snapshots:
       prettier: 3.9.9
       prettier-plugin-ini: 1.3.0
 
-  '@langri-sha/projen-project@0.44.1(@changesets/cli@3.0.3)(husky@9.1.7)(lint-staged@17.6.0)(prettier@3.9.9)(projen@0.104.1(constructs@10.8.1))(tsx@4.23.15)(typescript@5.9.3)':
+  '@langri-sha/projen-project@0.44.2(@changesets/cli@3.0.3)(husky@9.1.7)(lint-staged@17.6.0)(prettier@3.9.9)(projen@0.104.1(constructs@10.8.1))(tsx@4.23.15)(typescript@5.9.3)':
     dependencies:
+      hosted-git-info: 10.1.1
       projen: 0.104.1(constructs@10.8.1)
       projen-babel-config: 0.5.20(projen@0.104.1(constructs@10.8.1))
       projen-beachball: 0.5.16(projen@0.104.1(constructs@10.8.1))
@@ -1295,6 +1304,10 @@ snapshots:
 
   get-them-args@1.3.2: {}
 
+  hosted-git-info@10.1.1:
+    dependencies:
+      lru-cache: 11.5.3
+
   human-id@4.2.2: {}
 
   human-signals@8.0.1: {}
@@ -1329,6 +1342,8 @@ snapshots:
       tinyexec: 1.3.1
     optionalDependencies:
       yaml: 2.9.1
+
+  lru-cache@11.5.3: {}
 
   minimatch@10.2.6:
     dependencies:
