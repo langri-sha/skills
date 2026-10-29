@@ -117,7 +117,8 @@ Act as the conductor: delegate tasks to sub-agents and track progress.
    - Append decisions, discoveries, and notes for the next agent to
      `.claude/memory.md`
    - Commit the completed task with `/create-commit`
-   - Review the diff (e.g. `/code-review`) and address findings
+   - Review the diff, with a review skill where the harness has one, and address
+     findings
    - Mark the task `[x]` in PLAN.md
    - Report results back
 
