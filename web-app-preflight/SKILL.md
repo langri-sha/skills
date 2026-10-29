@@ -7,10 +7,10 @@ description:
   /llms.txt, link previews, browser and mobile chrome, the 404 and previews,
   with a Next.js section. Runs only when invoked by name.
 disable-model-invocation: true
+argument-hint: '[path, URL or app name] [what to focus on]'
 metadata:
   author: langri-sha
   version: '1.0.0'
-  argument-hint: '[path, URL or app name] [what to focus on]'
 ---
 
 # Web App Preflight
