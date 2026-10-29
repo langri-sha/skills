@@ -31,50 +31,23 @@ worktree. No branch is special.
 
 ## Workflow
 
-### 1. Detect Source Repository
+### 1. Create or Reuse the Worktree
 
-Use `git worktree list` to find the repo root. The first entry is the bare
-repository (`.bare/`); the repo root is its parent, and `main/` lives as a
-sibling worktree:
-
-```bash
-# First entry is .bare in this layout; its parent is the repo root.
-BARE_PATH=$(git worktree list | head -1 | awk '{print $1}')
-REPO_ROOT=$(dirname "$BARE_PATH")
-MAIN_PATH="$REPO_ROOT/main"
-
-echo "Repo root:     $REPO_ROOT"
-echo "Bare repo:     $BARE_PATH"
-echo "Main worktree: $MAIN_PATH"
-```
-
-Example:
-
-- Running from: `~/src/my-app/add-login/`
-- Repo root: `~/src/my-app/`
-- Bare repo: `~/src/my-app/.bare/`
-- Main worktree: `~/src/my-app/main/`
-
-### 2. If Argument Provided - Check for Existing Worktree
-
-If the user provides an argument, first check if it matches an existing
-worktree:
+Without an argument, ask for the feature title first. Then run the bundled
+script, relative to this skill's directory, with the slug or title:
 
 ```bash
-SLUG="$1"
-
-# Check if worktree exists
-if [ -d "$REPO_ROOT/$SLUG" ]; then
-  cd "$REPO_ROOT/$SLUG"
-  echo "Switched to existing worktree: $SLUG"
-  pwd
-fi
-
-# If not found as slug, treat argument as title and create new worktree
-TITLE="$1"
+scripts/create-worktree.sh "<slug-or-title>"
 ```
 
-#### 2.1 For Existing Worktree - Rename Session and Check for Plan
+It finds the repo root from the bare repository and turns a title into a
+kebab-case slug. If `<repo>/<slug>` exists, it reuses it. Otherwise it fetches
+`origin/main`, adds the worktree on a new branch (or on the existing branch of
+that name), copies `.env.example` files to `.env`, and runs `pnpm install`,
+reporting a failed install without failing. The last line of output is the
+worktree path.
+
+### 2. Existing Worktree
 
 When switching to an existing worktree:
 
@@ -109,84 +82,7 @@ When switching to an existing worktree:
    Run /implementation-plan to continue, or start fresh.
    ```
 
-### 3. Create New Worktree
-
-#### 3.1 Get Title (if not provided)
-
-Use AskUserQuestion:
-
-- "What is the feature title?"
-- Example: "Add user authentication", "Fix login bug #123"
-
-#### 3.2 Generate Slug from Title
-
-Convert title to GitHub-friendly branch name:
-
-```bash
-SLUG=$(echo "$TITLE" | \
-  tr '[:upper:]' '[:lower:]' | \
-  sed 's/[^a-z0-9]/-/g' | \
-  sed 's/--*/-/g' | \
-  sed 's/^-//' | \
-  sed 's/-$//')
-
-echo "Generated slug: $SLUG"
-```
-
-Examples:
-
-- "Add User Authentication" → `add-user-authentication`
-- "Fix: Login Bug #123" → `fix-login-bug-123`
-- "FEAT: New Dashboard" → `feat-new-dashboard`
-
-#### 3.3 Create Branch and Worktree
-
-```bash
-git -C "$MAIN_PATH" fetch origin main
-git -C "$MAIN_PATH" worktree add "$REPO_ROOT/$SLUG" -b "$SLUG" origin/main
-```
-
-If branch already exists (no worktree):
-
-```bash
-git -C "$MAIN_PATH" worktree add "$REPO_ROOT/$SLUG" "$SLUG"
-```
-
-#### 3.4 Copy Environment Files
-
-Find all `.env.example` files and copy to `.env`:
-
-```bash
-cd "$REPO_ROOT/$SLUG"
-
-find . -name ".env.example" -type f | while read example; do
-  target="${example%.example}"
-  if [ ! -f "$target" ]; then
-    cp "$example" "$target"
-    echo "Copied: $example → $target"
-  else
-    echo "Skipped (exists): $target"
-  fi
-done
-```
-
-#### 3.5 Install Dependencies
-
-```bash
-cd "$REPO_ROOT/$SLUG"
-pnpm install
-```
-
-#### 3.6 Switch to Worktree
-
-The working directory should now be in the new worktree:
-
-```bash
-cd "$REPO_ROOT/$SLUG"
-pwd
-```
-
-#### 3.7 Rename Session
+### 3. New Worktree
 
 Rename the Claude session to match the slug for easy identification:
 
@@ -226,32 +122,6 @@ Switched to worktree: <slug>
 
 Run 'git status' to see current state.
 ```
-
-## Edge Cases
-
-### Worktree Already Exists for Slug
-
-If the slug already exists as a worktree, ask user:
-
-- Switch to existing worktree?
-- Choose a different slug?
-
-### Branch Exists Without Worktree
-
-Create worktree from existing branch:
-
-```bash
-git -C "$MAIN_PATH" worktree add "$REPO_ROOT/$SLUG" "$SLUG"
-```
-
-### No .env.example Files Found
-
-Just skip the copy step and note it in output.
-
-### pnpm install Fails
-
-Report the error but don't fail the entire operation. The worktree is still
-usable.
 
 ## Quick Reference
 
