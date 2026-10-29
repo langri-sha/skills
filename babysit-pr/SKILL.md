@@ -189,9 +189,8 @@ answer relayed by this conversation (see the GitHub State Mutation Policy).
 
 Report through the harness's notifications or agent messages. Never type into
 the user's terminal pane or composer, never wait for it to go idle to inject
-text, and never submit a draft the user hasn't sent. Report changes, not polls:
-heartbeats only show the watcher is alive, so don't relay them, and raise
-`--heartbeat-polls` when each heartbeat costs a turn.
+text, and never submit a draft the user hasn't sent. Raise `--heartbeat-polls`
+when each heartbeat costs a turn.
 
 Whenever babysitting stops, for a stop condition, a blocker or the user asking,
 stop the monitor too (end the job, cancel the schedule or tell the agent to
@@ -216,23 +215,12 @@ to print logs containing terminal escape sequences unless given
 The watcher includes a `failed_jobs` list with each failed job's `job_id` and
 `logs_endpoint` when GitHub exposes one.
 
-Prefer treating failures as branch-related when failed-job logs point to changed
-code (compile/test/lint/typecheck/snapshots/static analysis in touched areas).
-
-Prefer treating failures as flaky/unrelated when logs show transient
-infra/external issues (timeouts, runner provisioning failures, registry/network
-outages, GitHub Actions infra errors).
-
-Do not attempt to fix flaky/unrelated failures by changing tests, build scripts,
-CI configuration, dependency pins, or infrastructure-adjacent code unless the
-logs clearly connect the failure to the PR branch. For flaky/unrelated failures,
-rerun only when the watcher recommends `retry_failed_checks`; otherwise wait or
-stop for user help.
-
-If classification is ambiguous, perform one manual diagnosis attempt before
-choosing rerun.
-
-Read `references/heuristics.md` for a concise checklist.
+Classify with `references/heuristics.md`. Don't fix a flaky or unrelated failure
+by changing tests, build scripts, CI configuration, dependency pins or
+infrastructure-adjacent code unless the logs clearly tie it to the branch; rerun
+it only when the watcher recommends `retry_failed_checks`, and otherwise wait or
+stop for help. When classification is ambiguous, make one manual diagnosis
+attempt before choosing a rerun.
 
 ## Review Comment Handling
 
@@ -263,11 +251,8 @@ babysitting may outlast the current session, pass the same `--state-file <path>`
 on every run: a harness may give each session its own `TMPDIR`, and a fresh
 state file resets the seen items and the retry budget.
 
-Do not post replies to human-authored GitHub review comments/threads
-automatically. If you disagree with a human comment, believe it is
-non-actionable/already addressed, or need to answer a question, report the item
-to the user with a suggested response and wait for explicit confirmation before
-posting anything on GitHub. If the user approves a response, prefix it with the
+A reply to a human waits for the user's confirmation of the exact text (see
+Handling a Snapshot). If the user approves a response, prefix it with the
 attribution marker (see the GitHub State Mutation Policy) so it is clear the
 response is automated and not from the human user. If the watcher later surfaces
 your own approved reply, because the authenticated operator is treated as a
