@@ -1,14 +1,12 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   release:
     permissions:
       contents: read
       id-token: write
-    uses: langri-sha/github/.github/workflows/packages.yml@v0.32.0
+    uses: langri-sha/github/.github/workflows/packages.yml@v0.33.0
     secrets: inherit
