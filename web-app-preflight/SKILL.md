@@ -1,11 +1,12 @@
 ---
 name: web-app-preflight
-description:
-  Readiness checklist for a web app before it goes out, like a pilot's
-  preflight, reporting PASS, FAIL, NOT APPLICABLE or UNVERIFIED with evidence
-  for each check. Covers its audience and visibility, analytics (PostHog),
-  /llms.txt, link previews, browser and mobile chrome, the 404 and previews,
-  with a Next.js section. Runs only when invoked by name.
+description: >-
+  Checks whether a web app is ready to go out, like a pilot's preflight,
+  reporting PASS, FAIL, NOT APPLICABLE or UNVERIFIED with evidence for each
+  check: audience and visibility, analytics (PostHog), /llms.txt, link previews,
+  browser and mobile chrome, the 404 and previews, with a Next.js section. Use
+  when asked for a preflight or launch-readiness check of a web app. Runs only
+  when invoked by name.
 disable-model-invocation: true
 argument-hint: '[path, URL or app name] [what to focus on]'
 metadata:
