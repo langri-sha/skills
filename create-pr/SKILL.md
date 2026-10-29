@@ -79,8 +79,10 @@ headings.
 
 ## Open it
 
-Show the title and body and ask for a go, unless the user asked for a
-non-interactive run or a composing skill such as `wrap` said to skip it:
+Show the base, title and body and ask for a go, unless the user asked for a
+non-interactive run or a composing skill such as `wrap` said to skip it. A skip
+doesn't cover an inferred base other than the default branch: confirm that one
+anyway, since merging the PR lands it there.
 
 ```bash
 git push -u origin <branch>
