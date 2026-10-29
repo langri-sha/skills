@@ -20,7 +20,9 @@ const project = new Project({
   },
   editorConfig: {},
   lintSynthesized: {},
-  pnpmWorkspace: {},
+  pnpmWorkspace: {
+    minimumReleaseAgeExclude: ['@langri-sha/*', ...Project.presetPackages],
+  },
   prettier: {
     // Work in flight in these skills is formatted once it lands.
     ignorePatterns: ['/create-session/', '/elate/', '/subdivide/'],
