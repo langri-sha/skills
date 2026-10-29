@@ -71,5 +71,6 @@ Fleet repositories select skills by name, so the bump follows what they notice:
 Dependency and tooling changes that release nothing get an empty change file,
 which Renovate pull requests receive automatically.
 
-A release is cut by merging the version pull request that the Release workflow
-keeps open: it tags `vX.Y.Z` and creates the GitHub release. Never tag by hand.
+A release is cut by dispatching the Release workflow: it consumes the change
+files, commits the version bump and changelog to `main`, tags `vX.Y.Z` and
+creates the GitHub release. Never tag by hand.
