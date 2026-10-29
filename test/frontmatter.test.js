@@ -6,6 +6,14 @@ import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
 const directoriesThatAreNotSkills = new Set(['node_modules', 'test'])
+const allowedFields = new Set([
+  'name',
+  'description',
+  'metadata',
+  'license',
+  'argument-hint',
+  'disable-model-invocation',
+])
 
 const skillDirectories = readdirSync(root, { withFileTypes: true })
   .filter(
@@ -76,6 +84,12 @@ describe('skill frontmatter', () => {
     describe(directory, () => {
       test('opens SKILL.md with a frontmatter block', () => {
         assert.ok(frontmatterBlock(readSkill(directory)))
+      })
+
+      test('uses only the frontmatter fields the house style allows', () => {
+        for (const field of fieldsOf(directory).keys()) {
+          assert.ok(allowedFields.has(field), `${field} is not allowed`)
+        }
       })
 
       test('has a lowercase, hyphenated name of at most 64 characters', () => {
