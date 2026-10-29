@@ -368,43 +368,18 @@ answers CI or review.
     restart the monitor on the new SHA without being asked, and never ask the
     user whether to keep polling.
 
-## Polling Cadence
+## Polling and Stopping
 
-Keep review polling aggressive and continue monitoring even after CI turns
-green:
+Poll every minute while the PR is open, green or not, so review comments surface
+promptly. Never poll faster than the watcher's default `--poll-seconds` of 30;
+each poll makes several GitHub API calls. Reset the cadence whenever anything
+changes: a new SHA, check status, review comments, mergeability or the review
+decision.
 
-- While CI is not green (pending/running/queued or failing): poll every 1
-  minute. Never poll faster than the watcher's default `--poll-seconds` of 30;
-  each poll makes several GitHub API calls.
-- After CI turns green: keep polling at the base cadence while the PR remains
-  open so newly posted review comments are surfaced promptly instead of waiting
-  on a long green-state backoff.
-- Reset the cadence immediately whenever anything changes (new commit/SHA, check
-  status changes, new review comments, mergeability changes, review decision
-  changes).
-- If CI stops being green again (new commit, rerun, or regression): stay on the
-  base polling cadence.
-- If any poll shows the PR is merged or otherwise closed: stop polling
-  immediately and report the terminal state.
-
-## Stop Conditions (Strict)
-
-Stop only when one of the following is true:
-
-- PR merged or closed (stop as soon as a poll/snapshot confirms this).
-- User intervention is required and you cannot safely proceed alone.
-
-Keep polling when:
-
-- `actions` contains only `idle` but checks are still pending.
-- CI is still running/queued.
-- Review state is quiet but CI is not terminal.
-- CI is green but mergeability is unknown/pending.
-- CI is green and mergeable, but the PR is still open and you are waiting for
-  possible new review comments or merge-conflict changes.
-- The PR is green but blocked on review approval (`REVIEW_REQUIRED` / similar);
-  continue polling at the base cadence and surface any new review comments
-  without asking for confirmation to keep watching.
+Stop only when a snapshot shows the PR merged or closed, or when the user must
+step in. Keep polling while checks run or are queued, while CI is green but
+mergeability is unknown, and while a green PR waits for approval
+(`REVIEW_REQUIRED`) or for new review comments.
 
 ## Output Expectations
 
