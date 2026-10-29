@@ -29,8 +29,6 @@ Keep them out of commits. If `git check-ignore -q .claude/PLAN.md` fails, append
 `git rev-parse --git-path info/exclude` names: `.git/info/exclude` isn't a path
 in a linked worktree.
 
-Note: the command is `/implementation-plan` (not `/implement-plan`).
-
 ## Phase 1: Resolve the Plan
 
 Work from the worktree the plan belongs to:
@@ -113,14 +111,9 @@ Act as the conductor: delegate tasks to sub-agents and track progress.
    Use a design-oriented agent for design tasks and a general-purpose agent for
    implementation.
 
-3. **Hand-off protocol (the sub-agent must complete all of these):**
-   - Append decisions, discoveries, and notes for the next agent to
-     `.claude/memory.md`
-   - Commit the completed task with `/create-commit`
-   - Review the diff, with a review skill where the harness has one, and address
-     findings
-   - Mark the task `[x]` in PLAN.md
-   - Report results back
+3. **Hand-off** — the sub-agent follows the protocol written into the plan:
+   memory, commits through `/create-commit`, a reviewed diff, the task checked
+   off, and a report back.
 
 4. **Review the hand-off** — verify the protocol was followed: memory updated,
    commit created, task checked off. Surface the result to the user and ask
