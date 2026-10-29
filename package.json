@@ -11,7 +11,7 @@
     "type": "git",
     "url": "langri-sha/skills"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "default": "projen default"
