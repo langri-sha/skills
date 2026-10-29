@@ -44,6 +44,8 @@ const project = new Project({
   worktrunk: {},
 })
 
+project.testTask.exec('node --test test/*.test.js')
+
 project.package?.addEngine('pnpm', '>= 11.0.0')
 project.package?.addField('packageManager', 'pnpm@12.15.0')
 project.package?.addField('private', true)
