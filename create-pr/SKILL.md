@@ -28,7 +28,12 @@ stacks and the official `gh-stack` skill for command semantics.
 Otherwise, in priority order:
 
 1. **User-specified** — "create a PR to develop" → `develop`.
-2. **Default branch** — `main`/`master` per `git remote show origin`.
+2. **Parent PR** — if the branch sits on another open PR's branch, base on that
+   branch so the PR shows only this layer. After `git fetch origin`, test each
+   `headRefName` from `gh pr list --json headRefName` with
+   `git merge-base --is-ancestor origin/<head> HEAD`, take the nearest, and ask
+   when more than one fits.
+3. **Default branch** — `main`/`master` per `git remote show origin`.
 
 ### 2. Verify Workspace State
 
