@@ -1,11 +1,10 @@
 ---
 name: elate
 description: >-
-  Spin up a parallel codex agent in a vertical split, in tmux or Herdr. Splits
-  the current window (tmux) or the dispatcher's pane (Herdr), launches `codex`
-  in the new pane, and seeds it with a prompt telling it to read the dispatcher
-  pane's contents and treat them as its brief. Optional argument is appended to
-  the seed prompt as extra context.
+  Starts a parallel codex agent in a split beside this agent's tmux or Herdr
+  pane, seeded to read that pane as its brief, with any extra context appended.
+  Use when asked to elate, or to hand the conversation to a parallel codex
+  agent. Not for a new worktree session (create-session).
 disable-model-invocation: true
 metadata:
   author: langri-sha
