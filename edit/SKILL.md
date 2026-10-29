@@ -19,137 +19,38 @@ Open an editor in the current worktree.
 
 ## Workflow
 
-### 1. Working Directory
+`<skill-dir>` is this skill's directory. Run the script from the current
+worktree: it opens the editor in its working directory.
 
-The editor must open in the current worktree. Use `$PWD` inline in the launch
-commands — do not capture `CWD=$(pwd)` in a separate step, because shell
-variables don't survive across separate Bash tool invocations, and an empty
-`-c ""` silently opens the editor in the wrong directory.
+### nvim in a split
 
-### 2. Dispatch on Argument
-
-If no argument is provided, take the split path. Otherwise, validate the editor
-command and launch it as a standalone process.
-
-### 3a. Default Path (nvim in a split)
-
-When invoked with no argument, open `nvim` in a right-hand split of this agent's
-pane, in tmux or Herdr.
-
-Herdr sets `HERDR_ENV` and `HERDR_PANE_ID`, tmux sets `TMUX` and `TMUX_PANE`,
-and when one runs inside the other the agent inherits both sets. The variables
-only name candidates: the agent belongs to the multiplexer whose pane terminal
-is its controlling terminal. A tool shell often has no terminal of its own, so
-take the nearest ancestor's.
+With no argument:
 
 ```bash
-tty=
-pid=$$
-while [ "${pid:-1}" -gt 1 ]; do
-  t=$(ps -o tty= -p "$pid" | tr -d ' ')
-  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
-done
-MUX=none PANE=
-if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
-  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
-  MUX=tmux PANE=$TMUX_PANE
-elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
-  INFO=$(herdr pane process-info --current 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
-fi
-echo "multiplexer=$MUX pane=$PANE"
+bash <skill-dir>/scripts/edit.sh
 ```
 
-A match proves the pane variable names this agent's own pane, so the split can
-target `$TMUX_PANE` or Herdr's `--current`, which resolves a moved pane's
-inherited ID to its live one. With `none`, say this agent is not in a tmux or
-Herdr pane and stop; a named editor (3b) still works. A sandbox that hides
-parent processes or the multiplexer's socket also ends here; rerun the step
-outside it.
-
-**tmux.** Target `$TMUX_PANE` explicitly — a bare `split-window` follows the
-window the user is currently focused on, which may not be the one this agent
-runs in — and keep the `:?` guard, since an empty target (`-t ""`) silently
-resolves to the focused window instead of failing:
-
-```bash
-tmux split-window -t "${TMUX_PANE:?}" -h -c "$PWD" "nvim"
-```
-
-**Herdr.** Split to the right without moving the user's focus, wait for the new
-shell to draw its prompt so the command isn't typed into a shell still starting
-up, then start nvim in it. `herdr pane --help` has the installed syntax.
-
-```bash
-EDITOR_PANE=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus |
-  jq -r '.result.pane.pane_id // empty')
-: "${EDITOR_PANE:?split failed}"
-herdr pane wait-output "$EDITOR_PANE" --source visible --regex '\S' --timeout 10000 >/dev/null
-herdr pane run "$EDITOR_PANE" nvim
-```
-
-The tmux pane closes when nvim exits; the Herdr pane keeps its shell.
+It splits this agent's own pane to the right, in whichever of tmux or Herdr owns
+this agent's terminal, and starts nvim there. When neither does, it says so and
+exits 1; a named editor still works. A sandbox that hides parent processes or
+the multiplexer's socket ends the same way, so rerun it outside the sandbox. The
+tmux pane closes when nvim exits; the Herdr pane keeps its shell.
 
 Report the directory and, in Herdr, the new pane's ID.
 
-### 3b. Named Editor Path
+### A named editor
 
-When invoked with an argument, resolve the command — expanding a shell alias to
-its real target — and launch it against the current directory. Do not require
-tmux. Surface launch errors instead of swallowing them.
+The script runs without your shell's aliases, so expand an alias first, then
+pass the command:
 
 ```bash
-EDITOR_CMD="<arg>"
-
-# Resolve the editor word before launching.
-#
-# Bash expands aliases only for *literal* command words, never when the command
-# name comes from a variable — so `"$EDITOR_CMD" .` execs a literal `zed` and
-# fails on hosts where `zed` is an alias (e.g. `alias zed='zeditor'`). The old
-# `command -v "$EDITOR_CMD"` guard hid this: it *succeeds* for an alias, so the
-# doomed launch passed the check and then no-op'd behind `&`.
-#
-# We classify the word with `type` and expand an alias to its real command line
-# via `BASH_ALIASES`. Tradeoff vs the alternatives:
-#   - `bash -ic '<cmd> .'` lets bash expand the alias natively, but the editor
-#     name must be spliced into the string as a literal (passing it via a var
-#     hits the same bug), and interactive bash emits job-control noise on a
-#     non-tty. More fragile, so avoided.
-#   - A hardcoded zed->zeditor map doesn't generalize. Avoided.
-# This relies on the shell having the user's aliases loaded — it does: the
-# profile is sourced and `expand_aliases` is on.
-case "$(type -t "$EDITOR_CMD" 2>/dev/null)" in
-  alias) LAUNCH="${BASH_ALIASES[$EDITOR_CMD]}" ;;
-  file | function | builtin | keyword) LAUNCH="$EDITOR_CMD" ;;
-  *) echo "Editor command not found: $EDITOR_CMD"; exit 1 ;;
-esac
-
-# Launch in the background so this skill returns, but do NOT swallow startup
-# errors. Capture stderr, then probe the process: if it died immediately
-# (missing binary, bad args) report its stderr and exit non-zero; if it is still
-# alive (foreground editor) or detached cleanly (exit 0), treat it as launched.
-# $LAUNCH is left unquoted on purpose: an alias body may carry flags (e.g.
-# `zeditor --foo`) that must word-split into command + arguments.
-LOG=$(mktemp "/tmp/edit-launch-XXXXXX.log")
-( cd "$PWD" && exec $LAUNCH . ) >/dev/null 2>"$LOG" &
-EDITOR_PID=$!
-
-sleep 0.3
-if kill -0 "$EDITOR_PID" 2>/dev/null; then
-  STATUS=0
-else
-  wait "$EDITOR_PID"
-  STATUS=$?
-fi
-
-if [ "$STATUS" -ne 0 ]; then
-  echo "Editor failed to launch ($EDITOR_CMD -> $LAUNCH, exit $STATUS):"
-  cat "$LOG"
-  rm -f "$LOG"
-  exit "$STATUS"
-fi
-rm -f "$LOG"
+EDITOR_CMD=<arg>
+[ "$(type -t "$EDITOR_CMD")" = alias ] && EDITOR_CMD=${BASH_ALIASES[$EDITOR_CMD]}
+bash <skill-dir>/scripts/edit.sh $EDITOR_CMD
 ```
+
+`$EDITOR_CMD` stays unquoted so an alias's flags split into arguments. The
+script launches `<command> .` in the background, without needing a multiplexer,
+and reports a launch that fails at once with its stderr.
 
 Report the directory and the command launched.
