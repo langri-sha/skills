@@ -31,6 +31,10 @@ on a single branch and never creates PRs.
 
 ## Core Workflow
 
+Neither Claude Code nor Codex keeps shell variables between commands. Step 1
+runs as one command and prints the values the later steps need; write them
+literally wherever `<snapshot>` and `<sandbox>` appear.
+
 ### Step 1: Safe Sandbox Creation
 
 **Goal:** Perform all destructive operations in isolation to prevent data loss.
@@ -52,6 +56,7 @@ on a single branch and never creates PRs.
     SANDBOX_DIR=$(mktemp -d -t rewrite-history-XXXXXX)
     git worktree add --detach "$SANDBOX_DIR" "$SNAPSHOT"
     git -C "$SANDBOX_DIR" reset <base-sha>
+    printf 'snapshot=%s\nsandbox=%s\n' "$SNAPSHOT" "$SANDBOX_DIR"
     ```
 
     The snapshot is the recovery point. Inside the sandbox `HEAD` is the
@@ -109,7 +114,7 @@ on a single branch and never creates PRs.
 For each step in the approved plan:
 
 1.  **Stage Specific Changes:**
-    - **File-level:** `git add path/to/file`
+    - **File-level:** `git -C <sandbox> add path/to/file`
     - **Hunk-level (Advanced):** Use `git apply` with crafted patches for
       partial file commits.
 2.  **Verify Atomicity:**
@@ -120,7 +125,7 @@ For each step in the approved plan:
     subject, body explains what and why, refs in the body):
 
     ```bash
-    git commit -m "$(cat <<'EOF'
+    git -C <sandbox> commit -m "$(cat <<'EOF'
     Subject line in imperative mood
 
     Body explaining what changed and why.
@@ -135,7 +140,7 @@ For each step in the approved plan:
 1.  **Compare End States:**
     ```bash
     # Compare the sandbox HEAD with the snapshot
-    git -C "$SANDBOX_DIR" diff --exit-code "$SNAPSHOT" HEAD
+    git -C <sandbox> diff --exit-code <snapshot> HEAD
     ```
 2.  **Outcome:**
     - **Empty Diff:** Success! The code is identical, only history changed.
@@ -149,16 +154,14 @@ anywhere unless the user explicitly asks.
 1.  **Create a local branch on the crafted history:**
 
     ```bash
-    # From inside the sandbox, name the result so it survives worktree removal
-    git branch crafted-history HEAD
+    # Name the result so it survives worktree removal
+    git -C <sandbox> branch crafted-history HEAD
     ```
 
 2.  **Cleanup:**
 
     ```bash
-    # Remove the worktree
-    cd <original-dir>
-    git worktree remove "$SANDBOX_DIR" --force
+    git worktree remove --force <sandbox>
     ```
 
 3.  **User Action:**
