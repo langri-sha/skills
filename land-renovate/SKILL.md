@@ -9,10 +9,10 @@ description: >-
   Renovate PRs", "clear the Renovate queue", or wants to merge a batch of
   dependency-update PRs.
 disable-model-invocation: true
+argument-hint: '[limit=N] [<pr-number>...]'
 metadata:
   author: langri-sha
   version: '1.0.0'
-  argument-hint: '[limit=N] [<pr-number>...]'
 ---
 
 # land-renovate
