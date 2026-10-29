@@ -113,8 +113,6 @@ Each task is executed by a sub-agent. Before completing, agents MUST:
 
 - Each task = one atomic commit (unless trivially small)
 - Use `/create-commit` to generate commit with proper message
-- Commit message should reference task number (e.g., "Task 1.2: Add popover
-  component")
 
 **Review protocol:**
 
