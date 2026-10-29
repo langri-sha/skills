@@ -3,12 +3,12 @@ name: land-renovate
 user_invocable: true
 description: >-
   Batch-land open Renovate PRs in the current repo. Enumerate Renovate-authored
-  PRs, classify each as GREEN / CONFLICTING / REAL_FAILURE / HOLD, approve and
-  rebase-merge the safe ones in ascending PR-number order, nudge conflicting
-  ones with the rebase checkbox, and stop cleanly on real failures or cross-file
-  HOLD cases. Use when the user says "/land-renovate", "land the Renovate PRs",
-  "clear the Renovate queue", or wants to merge a batch of dependency-update
-  PRs.
+  PRs, classify each as GREEN / CONFLICTING / BEHIND / REAL_FAILURE / HOLD,
+  approve and rebase-merge the safe ones in ascending PR-number order, nudge
+  conflicting ones with the rebase checkbox, and stop cleanly on real failures
+  or cross-file HOLD cases. Use when the user says "/land-renovate", "land the
+  Renovate PRs", "clear the Renovate queue", or wants to merge a batch of
+  dependency-update PRs.
 metadata:
   author: langri-sha
   version: '1.0.0'
@@ -65,18 +65,23 @@ were passed as arguments, restrict the set to those.
 
 Bucket each PR using `statusCheckRollup` + `mergeable` + `mergeStateStatus`:
 
-| Bucket           | Signal                                                                                                                  | Action                                     |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| **GREEN**        | no `FAILURE`/`CANCELLED`/`TIMED_OUT` in rollup, nothing pending, `mergeable=MERGEABLE`, and a ready merge state (below) | approve + rebase-merge (step 4)            |
-| **CONFLICTING**  | `mergeable=CONFLICTING` or `mergeStateStatus=DIRTY`                                                                     | tick the rebase checkbox (step 5), monitor |
-| **REAL_FAILURE** | rollup contains a `FAILURE` not auto-fixable by post-upgrade                                                            | skip; leave for human triage               |
-| **HOLD**         | cross-file coordination needed (manual checklist — see below)                                                           | surface for human; do not proceed          |
+| Bucket           | Signal                                                                                                                        | Action                                     |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| **GREEN**        | no `FAILURE`/`CANCELLED`/`TIMED_OUT` in rollup, nothing pending, `mergeable=MERGEABLE`, and a ready merge state (below)       | approve + rebase-merge (step 4)            |
+| **CONFLICTING**  | `mergeable=CONFLICTING` or `mergeStateStatus=DIRTY`                                                                           | tick the rebase checkbox (step 5), monitor |
+| **BEHIND**       | `mergeStateStatus=BEHIND`, or the head lacks the base tip (`behind_by > 0` from `gh api repos/$REPO/compare/<base>...<head>`) | tick the rebase checkbox (step 5), monitor |
+| **REAL_FAILURE** | rollup contains a `FAILURE` not auto-fixable by post-upgrade                                                                  | skip; leave for human triage               |
+| **HOLD**         | cross-file coordination needed (manual checklist — see below)                                                                 | surface for human; do not proceed          |
 
 A check in the rollup is **pending** when a `CheckRun` has `status != COMPLETED`
 or a `StatusContext` has `state` of `PENDING`/`EXPECTED`. It is a **failure**
 when a `CheckRun.conclusion` is `FAILURE`/`CANCELLED`/`TIMED_OUT`/
 `ACTION_REQUIRED`/`STARTUP_FAILURE`, or a `StatusContext.state` is `FAILURE`/
 `ERROR`.
+
+A PR is **behind** once an earlier merge in the batch moves its base: its checks
+ran on a tree without that merge, so landing it would ship a combination CI
+never tested. Rebasing reruns them on the new base.
 
 The merge state is **ready** when `mergeStateStatus` is `CLEAN` or `HAS_HOOKS`,
 or `BLOCKED` only because the PR awaits the approval this skill gives
@@ -116,7 +121,7 @@ anything else goes back to step 3.
 gh pr merge "$PR" -R "$REPO" --rebase --delete-branch
 ```
 
-### 5. Tick the rebase checkbox (CONFLICTING)
+### 5. Tick the rebase checkbox (CONFLICTING or BEHIND)
 
 Flip Renovate's rebase checkbox so it rebases the branch, then monitor:
 
@@ -147,13 +152,15 @@ scripts/monitor-renovate-pr.sh <pr-number> <repo> <baseline-head-sha-short>
 ```
 
 - Polls
-  `gh pr view --json headRefOid,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup`
+  `gh pr view --json headRefOid,baseRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup`
   every 45s (`POLL_INTERVAL` override) and prints a line only when the signature
-  `${head:0:9}|<mergeable>:<state>|ok=N pend=M fail=K` changes.
+  `${head:0:9}|<mergeable>:<state>|ok=N pend=M fail=K` changes. Once settled, it
+  asks the compare API how far the head is behind the base.
 - Emits a verdict once the head has moved **off** the baseline, no checks are
   pending, and the signature is stable across two consecutive polls.
 - Final stdout line is one of:
   - `GREEN: #<n> ready to merge` → go back to step 4 and approve + merge.
+  - `BEHIND: #<n> behind <base> by N commit(s), state=S` → step 5 again.
   - `NOT-GREEN: #<n> settled failures=X mergeable=Y state=Z` → re-classify; it
     is now a REAL_FAILURE or HOLD.
 - Optional env: `POLL_INTERVAL` (seconds, default 45), `MAX_POLLS` (give up

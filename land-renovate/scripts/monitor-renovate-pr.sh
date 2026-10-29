@@ -13,6 +13,7 @@
 #
 # Final line on stdout (the agent consumes this via the Monitor tool):
 #   GREEN:     #<n> ready to merge
+#   BEHIND:    #<n> behind <base> by N commit(s), state=S
 #   NOT-GREEN: #<n> settled failures=X mergeable=Y state=Z
 #
 # Optional env:
@@ -55,7 +56,7 @@ while true; do
   polls=$((polls + 1))
 
   if ! json=$(gh pr view "$PR" -R "$REPO" \
-      --json headRefOid,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null \
+      --json headRefOid,baseRefName,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup 2>/dev/null \
       | sed -n '/^{/,$p'); then
     printf '%s  #%s  poll-error (will retry)\n' "$(ts)" "$PR"
     sleep "$INTERVAL"
@@ -69,6 +70,7 @@ while true; do
   fi
 
   head=$(jq -r '.headRefOid' <<<"$json")
+  base=$(jq -r '.baseRefName' <<<"$json")
   mergeable=$(jq -r '.mergeable' <<<"$json")
   state=$(jq -r '.mergeStateStatus' <<<"$json")
   review=$(jq -r '.reviewDecision // ""' <<<"$json")
@@ -102,6 +104,11 @@ while true; do
   prev_sig="$sig"
 
   if [ "$stable" -ge 2 ]; then
+    behind=$(gh api "repos/$REPO/compare/$base...$head" --jq .behind_by)
+    if [ "$state" = "BEHIND" ] || [ "$behind" -gt 0 ]; then
+      echo "BEHIND: #$PR behind $base by $behind commit(s), state=$state"
+      exit 0
+    fi
     case "$state:$review" in
       CLEAN:* | HAS_HOOKS:* | BLOCKED:REVIEW_REQUIRED) ready=1 ;;
       *) ready=0 ;;
