@@ -61,94 +61,12 @@ branch of that name), copies `.env.example` files to `.env`, and installs
 dependencies with the package manager the lockfile names, reporting a failed
 install without failing. The last line of output is the worktree path.
 
-### 2. Existing Worktree
+### 2. Then
 
-When switching to an existing worktree:
+Report the path, the branch, and whether the worktree was created or reused.
+Work from that path with absolute paths: a `cd` doesn't last between commands in
+either Claude Code or Codex. In Claude Code, `/rename <slug>` names the session
+after the worktree.
 
-1. **Rename the session** to match the slug:
-
-   ```
-   /rename <slug>
-   ```
-
-2. **Check for existing plan** at `.claude/PLAN.md`
-
-3. **If plan exists**, ask user via AskUserQuestion:
-   - "Found existing plan. Resume where you left off?"
-   - "Start fresh conversation (plan remains)?"
-
-4. **If resuming**:
-   - Read `.claude/PLAN.md` to show progress
-   - Read `.claude/memory.md` for context from previous agents
-   - Run `/implementation-plan` to continue (it will detect the plan)
-
-5. **Output for existing worktree**:
-
-   ```
-   Switched to worktree: <slug>
-
-     Path:   <repo>/<slug>
-     Branch: <slug>
-     Plan:   Found (.claude/PLAN.md) - 5/12 tasks complete
-
-   Session renamed to: <slug>
-
-   Run /implementation-plan to continue, or start fresh.
-   ```
-
-### 3. New Worktree
-
-Rename the Claude session to match the slug for easy identification:
-
-```
-/rename <slug>
-```
-
-This makes it easy to find and resume this conversation later.
-
-### 4. Output Summary
-
-After creating, display:
-
-```
-Worktree created successfully!
-
-  Path:   <repo>/<slug>
-  Branch: <slug>
-  Source: <repo>/main
-
-Environment files copied:
-  - .env
-  - apps/web/.env
-
-Dependencies installed via pnpm.
-
-Ready to develop. Run /implementation-plan to create a plan.
-```
-
-After switching to existing, display:
-
-```
-Switched to worktree: <slug>
-
-  Path:   <repo>/<slug>
-  Branch: <slug>
-
-Run 'git status' to see current state.
-```
-
-## Quick Reference
-
-```bash
-# List all worktrees
-git worktree list
-
-# Remove a worktree (from main)
-git -C <repo>/main worktree remove <repo>/<slug>
-
-# Prune stale worktree references
-git worktree prune
-
-# Delete branch after removing worktree
-git branch -d <slug>
-```
+If the worktree has `.claude/PLAN.md`, show its progress (tasks done / total)
+and offer to continue it with `implementation-plan`.
