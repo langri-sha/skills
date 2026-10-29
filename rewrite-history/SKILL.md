@@ -66,26 +66,19 @@ literally wherever `<snapshot>` and `<sandbox>` appear.
 
 **Goal:** Understand the changes and plan the narrative.
 
-1.  **Analyze Diffs:**
-    - Run `git diff` to see all changes.
-    - Group changes by:
-      - **Infrastructure:** Config files, build scripts, `.gitignore`.
-      - **Core Logic:** Models, utilities, backend logic.
-      - **Features:** UI components, routes, business logic.
-      - **Tests:** Unit/Integration tests.
-      - **Documentation:** README, comments.
+1.  **Draft the Storyboard:** propose the commits in order, each with its files
+    or hunks. The split follows `create-commit`:
+    - one decision per commit that a reviewer could accept or question on its
+      own;
+    - dependencies before the code that uses them;
+    - tests in the same commit as the code they cover;
+    - refactoring and formatting apart from behavior changes;
+    - plain imperative subjects, with no type prefixes.
 
-2.  **Draft the Storyboard:** The agent proposes a sequence of commits. Subjects
-    follow the `/create-commit` conventions — plain imperative mood, no
-    conventional-commit prefixes.
+    Size and shared files are never reasons to combine. Stop splitting only
+    where a commit would fail its checks or be separated from its tests.
 
-    _Example Plan:_
-    1.  `Add the agent dependencies` (package.json, pnpm-lock.yaml)
-    2.  `Implement basic agent architecture` (src/agent.ts, src/types.ts)
-    3.  `Add system prompts for code review` (src/prompts/\*.md)
-    4.  `Add initial agent tests` (tests/agent.test.ts)
-
-3.  **Identify Orthogonal Chunks (Parallel Merge Opportunities):**
+2.  **Identify Orthogonal Chunks (Parallel Merge Opportunities):**
     - Check if the changes contain independent groups of commits (orthogonal
       chunks) that could be merged in parallel (e.g., unrelated features,
       distinct fixes).
@@ -187,8 +180,7 @@ anywhere unless the user explicitly asks.
     before the code that uses them.
 2.  **Separation of Concerns:** Never mix formatting changes (prettier/lint)
     with logic changes.
-3.  **Test Inclusion:** Ideally, commit tests alongside the feature they test
-    (TDD style), or immediately after.
+3.  **Test Inclusion:** Commit tests in the same commit as the code they cover.
 
 ## Troubleshooting
 
