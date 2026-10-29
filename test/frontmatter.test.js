@@ -58,10 +58,13 @@ const topLevelFields = (block) => {
 const fieldsOf = (directory) =>
   topLevelFields(frontmatterBlock(readSkill(directory)) ?? '')
 
+const filesOf = (directory) =>
+  readdirSync(join(root, directory), { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => join(entry.parentPath, entry.name).slice(root.length))
+
 const markdownFilesOf = (directory) =>
-  readdirSync(join(root, directory), { recursive: true })
-    .filter((path) => path.endsWith('.md'))
-    .map((path) => join(directory, path))
+  filesOf(directory).filter((path) => path.endsWith('.md'))
 
 const relativeLinkTargets = (markdown) =>
   [...markdown.matchAll(/\]\(([^)\s#]+)(?:#[^)]*)?\)/g)]
@@ -131,6 +134,16 @@ describe('skill frontmatter', () => {
           implicitInvocationDisabledForCodex(directory),
           manualOnlyForClaude,
         )
+      })
+
+      test('names bundled files by the skill directory, not an install path', () => {
+        for (const file of filesOf(directory)) {
+          assert.doesNotMatch(
+            readFileSync(join(root, file), 'utf8'),
+            /~\/\.claude\/skills/,
+            file,
+          )
+        }
       })
 
       test('links only to files it ships', () => {
