@@ -1,9 +1,10 @@
 ---
 name: wrap
-description:
-  Land the current branch. Use when the user says "/wrap", "wrap this up", or
-  "ship it". Commits remaining changes, rebases, pushes, and merges the PR once
-  all checks are green.
+description: >-
+  Lands the current branch: commits what's left, rebases, pushes, opens the PR
+  if there is none, and rebase-merges it once checks pass and GitHub reports it
+  ready. Use when asked to wrap up, ship or land the branch. Not for native
+  stacks (split-pr-stack) or Renovate queues (land-renovate).
 ---
 
 # Wrap
