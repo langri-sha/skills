@@ -1,6 +1,5 @@
 ---
 name: land-renovate
-user_invocable: true
 description: >-
   Batch-land open Renovate PRs in the current repo. Enumerate Renovate-authored
   PRs, classify each as GREEN / CONFLICTING / BEHIND / REAL_FAILURE / HOLD,
