@@ -35,6 +35,7 @@ const project = new Project({
     extends: ['github>langri-sha/renovate-config'],
   },
   typeScriptConfig: {},
+  worktrunk: {},
 })
 
 project.package?.addEngine('pnpm', '>= 11.0.0')

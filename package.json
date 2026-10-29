@@ -16,7 +16,9 @@
   "scripts": {
     "default": "projen default",
     "prepare": "husky",
-    "renovate": "projen renovate"
+    "renovate": "projen renovate",
+    "worktrunk:dry-run": "projen worktrunk:dry-run",
+    "worktrunk:show": "projen worktrunk:show"
   },
   "devDependencies": {
     "@langri-sha/lint-staged": "0.9.11",
