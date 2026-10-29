@@ -48,7 +48,8 @@ green. Run it from the feature worktree being landed — never from `main`.
    gh pr checks <number> --watch
    ```
 
-   Stop if any check failed or was skipped.
+   Stop if any check failed or was cancelled. Skipped and neutral checks count
+   as passing: path filters and conditional jobs skip by design.
 
 7. **Merge** — read the merge state GitHub reports, which also covers branch
    protection:
