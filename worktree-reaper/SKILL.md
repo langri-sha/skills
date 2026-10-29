@@ -7,10 +7,10 @@ description:
   the bare repo, dirty trees, or worktrees an agent is using. Use when the user
   says "/worktree-reaper", "clean up worktrees", "reap merged worktrees", "the
   garden is full", or wants a periodic disk-space pass over their worktrees.
+argument-hint: '[--apply]'
 metadata:
   author: langri-sha
   version: '1.2.0'
-  argument-hint: '[--apply]'
 ---
 
 # Worktree Reaper
