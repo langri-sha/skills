@@ -198,19 +198,10 @@ on the folder-trust dialog. Read it with
 them answer it. Seed the prompt once `herdr agent get "$AGENT_NAME"` reports
 `idle`.
 
-### 5. Output Summary
+### 5. Report
 
-```
-Elate launched!
-
-  Window:        <window>            (Herdr: tab <tab-id>)
-  Source pane:   <first-pane-id>     (Herdr: dispatcher pane)
-  Codex pane:    vertical split (right)   (Herdr: <codex-pane>, agent <name>)
-  Directory:     <cwd>
-```
-
-STOP after launching. Do not interact with the new pane — codex is now driving
-it independently.
+Report the codex pane, and in Herdr the agent name, then stop. Do not interact
+with the new pane — codex is now driving it independently.
 
 ## Edge Cases
 
