@@ -1,6 +1,5 @@
 ---
 name: notify-me
-user_invocable: true
 description: 'Play an audio notification when the current task is done.'
 ---
 
