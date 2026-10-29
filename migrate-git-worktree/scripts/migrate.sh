@@ -3,14 +3,14 @@
 # migrate.sh — Migrate git worktree layout from side-by-side to bare-repo.
 #
 # Before:
-#   ~/workspace/repo/                    (main worktree / regular clone)
-#   ~/workspace/repo.worktree/branch/    (feature worktrees)
+#   ~/src/repo/                    (main worktree / regular clone)
+#   ~/src/repo.worktree/branch/    (feature worktrees)
 #
 # After:
-#   ~/workspace/repo/.bare/              (bare repository)
-#   ~/workspace/repo/.git                (file: "gitdir: ./.bare")
-#   ~/workspace/repo/main/               (worktree for main branch)
-#   ~/workspace/repo/branch/             (feature worktrees as siblings)
+#   ~/src/repo/.bare/              (bare repository)
+#   ~/src/repo/.git                (file: "gitdir: ./.bare")
+#   ~/src/repo/main/               (worktree for main branch)
+#   ~/src/repo/branch/             (feature worktrees as siblings)
 #
 # Usage: migrate.sh [repo-path]
 #   repo-path: path to the main worktree (default: detected from cwd)
