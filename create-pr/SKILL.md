@@ -27,9 +27,10 @@ description: >-
      the default branch already contains
      (`git merge-base --is-ancestor origin/<head> origin/<default>`).
   2. Keep the heads this branch contains
-     (`git merge-base --is-ancestor origin/<head> HEAD`), take the nearest, and
-     ask when more than one fits. Basing on it makes the PR show only this
-     layer.
+     (`git merge-base --is-ancestor origin/<head> HEAD`), and base on the
+     closest: the one with the fewest
+     `git rev-list --count origin/<head>..HEAD`. Ask only on a tie. Basing on it
+     makes the PR show only this layer.
   3. With no such head, use the default branch
      (`gh repo view --json defaultBranchRef -q .defaultBranchRef.name`).
 - **State.** Uncommitted changes won't be in the PR, so ask whether to commit
