@@ -14,136 +14,33 @@ metadata:
 
 # Migrate Git Worktree Layout
 
-Migrate from the side-by-side worktree convention to a bare-repo layout where
-`.bare/` holds the repository and all branches are equal-status worktrees.
-
-## Layout Comparison
-
-**Before (side-by-side):**
+Convert a regular clone into the bare-repo layout: the repository moves to
+`<repo>/.bare/`, `<repo>/.git` points at it, and every branch, the clone's own
+included, is a worktree under `<repo>/`.
 
 ```
-~/src/myrepo/                    # main worktree (regular clone)
-~/src/myrepo.worktree/           # worktree container
-~/src/myrepo.worktree/feature-a/ # feature worktree
-~/src/myrepo.worktree/feature-b/ # feature worktree
+<repo>/.bare/       bare repository
+<repo>/.git         "gitdir: ./.bare"
+<repo>/main/        the clone's checkout, on whatever branch it had
+<repo>/<branch>/    worktrees that lived in <repo>.worktree/
 ```
 
-**After (bare-repo):**
+## Workflow
 
-```
-~/src/myrepo/                    # parent directory
-~/src/myrepo/.bare/              # bare repository (all objects, refs)
-~/src/myrepo/.git                # file: "gitdir: ./.bare"
-~/src/myrepo/main/               # worktree for main branch
-~/src/myrepo/feature-a/          # worktree
-~/src/myrepo/feature-b/          # worktree
-```
+1. **Show the plan.** List the clone's linked worktrees with
+   `git -C <repo> worktree list` and say where each ends up: worktrees under
+   `<repo>.worktree/` move next to `main/`, and any other linked worktree stays
+   where it is and is relinked. Wait for the user's go.
+2. **Run the bundled script,** relative to this skill's directory:
 
-## How It Works
+   ```bash
+   scripts/migrate.sh <repo>
+   ```
 
-The `.bare/` directory is a bare git repository containing all objects, refs,
-and history. The `.git` file at the repo root is a gitdir pointer that lets git
-commands work from the parent directory. Every branch — including main — is a
-linked worktree. No branch is special.
+   It stops before changing anything when a worktree has uncommitted changes.
+   Those changes survive the move, so with the user's agreement rerun it with
+   `--allow-dirty` before the path.
 
-Key properties:
-
-- `.bare/` contains the repository data (equivalent to a `.git/` directory)
-- `.git` is a file (not a directory) containing `gitdir: ./.bare`
-- All branches are worktrees, including `main`
-- Worktrees are siblings under the parent directory
-- `git worktree add/remove` works from any worktree
-
-Reference:
-https://morgan.cugerone.com/blog/how-to-use-git-worktree-and-in-a-clean-way/
-
-## Migration Workflow
-
-### 1. Detect Current Layout
-
-Determine the source repo path and any existing worktrees:
-
-```bash
-SOURCE_PATH=$(git worktree list | head -1 | awk '{print $1}')
-REPO_NAME=$(basename "$SOURCE_PATH")
-WORKSPACE_ROOT=$(dirname "$SOURCE_PATH")
-WORKTREE_DIR="${WORKSPACE_ROOT}/${REPO_NAME}.worktree"
-```
-
-### 2. Confirm with User
-
-Before proceeding, display the migration plan and confirm via AskUserQuestion:
-
-```
-Migration plan:
-
-  Current main:  ~/src/myrepo
-  Worktree dir:  ~/src/myrepo.worktree/
-
-  New layout:
-    ~/src/myrepo/.bare/             (bare repository)
-    ~/src/myrepo/.git               (gitdir pointer)
-    ~/src/myrepo/main/              (worktree — was ~/src/myrepo)
-    ~/src/myrepo/feature-a/         (worktree — was ~/src/myrepo.worktree/feature-a)
-
-  Proceed?
-```
-
-### 3. Run Migration Script
-
-Execute the migration script bundled with this skill (`scripts/migrate.sh`,
-resolved relative to this skill's base directory):
-
-```bash
-bash <skill-base-dir>/scripts/migrate.sh "$SOURCE_PATH"
-```
-
-Or run the steps manually if the script is not available — see the script source
-for the full procedure.
-
-### 4. Post-Migration
-
-After migration completes:
-
-1. Verify the layout with `git -C <repo>/main worktree list`
-2. Update any IDE workspace or shell aliases that reference the old paths
-3. The old `.worktree/` directory is removed if empty
-
-### 5. Adding New Worktrees
-
-After migrating, new worktrees are added from any existing worktree:
-
-```bash
-cd ~/src/myrepo/main
-git worktree add ../new-feature -b new-feature origin/main
-```
-
-## Edge Cases
-
-### Dirty Working Trees
-
-If any worktree has uncommitted changes, warn the user and ask whether to
-proceed. The migration moves directories — uncommitted work is preserved but
-paths change.
-
-### Worktree Path References
-
-Each worktree contains a `.git` file pointing to `.bare/worktrees/<name>`. The
-migration script updates these references. If migrating manually, update:
-
-- `<worktree>/.git` (points to `.bare/worktrees/<name>`)
-- `.bare/worktrees/<name>/gitdir` (points to worktree)
-
-### No Existing Worktrees
-
-If there is no `.worktree/` directory, convert the repo in place:
-
-1. Move `.git/` to `.bare/`
-2. Set `bare = true` in `.bare/config`
-3. Create `.git` file with `gitdir: ./.bare`
-4. Move working tree files into a `main/` worktree
-
-## Resources
-
-- **`scripts/migrate.sh`** — Migration script that handles the full conversion
-  from side-by-side to bare-repo layout
+3. **Verify** with `git -C <repo>/main worktree list` and
+   `git -C <repo>/main status`, then point the user at anything that named the
+   old paths: editor workspaces, shell aliases, symlinks.
