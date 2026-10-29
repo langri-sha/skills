@@ -116,6 +116,13 @@ describe('skill frontmatter', () => {
         )
       })
 
+      test('keeps angle brackets out of its description', () => {
+        assert.doesNotMatch(
+          fieldsOf(directory).get('description') ?? '',
+          /[<>]/,
+        )
+      })
+
       test('stops implicit invocation on both harnesses or on neither', () => {
         const manualOnlyForClaude =
           fieldsOf(directory).get('disable-model-invocation') === 'true'
