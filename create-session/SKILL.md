@@ -5,12 +5,12 @@ description: >-
   an assistant and a critique watcher. Use tmux lanes or Herdr's native worktree
   workspaces; also move existing tmux windows between lanes. Use when asked to
   launch a worktree session or park or resume existing work.
+argument-hint:
+  '[tmux|herdr] [lane|--workspace ID] [assistant] [continue] [prompt] | tmux
+  move <lane> [window]'
 metadata:
   author: langri-sha
   version: '3.1.0'
-  argument-hint:
-    '[tmux|herdr] [lane|--workspace ID] [assistant] [continue] [prompt] | tmux
-    move <lane> [window]'
 ---
 
 # Create session
