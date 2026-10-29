@@ -50,7 +50,7 @@ List open Renovate-authored PRs, oldest (lowest number) first:
 
 ```bash
 gh pr list -R "$REPO" --author "app/renovate" --state open --limit 30 \
-  --json number,title,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup
+  --json number,title,headRefOid,mergeable,mergeStateStatus,reviewDecision,statusCheckRollup
 ```
 
 Sort ascending by `number` and walk them in that order. If explicit PR numbers
@@ -118,8 +118,11 @@ Merge only when the approval left the merge state `CLEAN` or `HAS_HOOKS`;
 anything else goes back to step 3.
 
 ```bash
-gh pr merge "$PR" -R "$REPO" --rebase --delete-branch
+gh pr merge "$PR" -R "$REPO" --rebase --delete-branch --match-head-commit "$HEAD"
 ```
+
+`$HEAD` is the head SHA the PR was classified at. If Renovate or a bot pushed
+since, the merge fails instead of landing commits no check has passed.
 
 ### 5. Tick the rebase checkbox (CONFLICTING or BEHIND)
 
@@ -159,7 +162,8 @@ scripts/monitor-renovate-pr.sh <pr-number> <repo> <baseline-head-sha-short>
 - Emits a verdict once the head has moved **off** the baseline, no checks are
   pending, and the signature is stable across two consecutive polls.
 - Final stdout line is one of:
-  - `GREEN: #<n> ready to merge` → go back to step 4 and approve + merge.
+  - `GREEN: #<n> ready to merge at <sha>` → go back to step 4 and approve +
+    merge at that SHA.
   - `BEHIND: #<n> behind <base> by N commit(s), state=S` → step 5 again.
   - `NOT-GREEN: #<n> settled failures=X mergeable=Y state=Z` → re-classify; it
     is now a REAL_FAILURE or HOLD.

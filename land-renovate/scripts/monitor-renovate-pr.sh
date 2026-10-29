@@ -12,7 +12,7 @@
 #   * the signature is stable across two consecutive polls.
 #
 # Final line on stdout (the agent consumes this via the Monitor tool):
-#   GREEN:     #<n> ready to merge
+#   GREEN:     #<n> ready to merge at <head-sha>
 #   BEHIND:    #<n> behind <base> by N commit(s), state=S
 #   NOT-GREEN: #<n> settled failures=X mergeable=Y state=Z
 #
@@ -114,7 +114,7 @@ while true; do
       *) ready=0 ;;
     esac
     if [ "$failures" -eq 0 ] && [ "$mergeable" = "MERGEABLE" ] && [ "$ready" -eq 1 ]; then
-      echo "GREEN: #$PR ready to merge"
+      echo "GREEN: #$PR ready to merge at $head"
     else
       echo "NOT-GREEN: #$PR settled failures=$failures mergeable=$mergeable state=$state"
     fi
