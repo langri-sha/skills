@@ -8,12 +8,12 @@ description: >-
   independently, and never merges. Use when the user says "/split-pr-stack",
   "split this PR into a stack", "break this change into reviewable PRs", or
   wants to review a large PR one piece at a time.
+argument-hint: >-
+  [PR number | branch] [--base <branch>] [--plan-only | --materialize-local |
+  --publish-drafts]
 metadata:
   author: langri-sha
   version: '1.0.0'
-  argument-hint: >-
-    [PR number | branch] [--base <branch>] [--plan-only | --materialize-local |
-    --publish-drafts]
 ---
 
 # Split PR Stack
