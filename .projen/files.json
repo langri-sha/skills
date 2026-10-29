@@ -1,5 +1,6 @@
 {
   "files": [
+    ".editorconfig",
     ".gitattributes",
     ".gitignore",
     ".prettierignore",
