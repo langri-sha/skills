@@ -13,7 +13,6 @@ const project = new Project({
     repository: 'git+https://github.com/langri-sha/skills.git',
 
     type: 'module',
-    devDeps: ['@langri-sha/lint-staged@0.9.11', '@langri-sha/prettier@0.4.11'],
   },
   claude: {
     settings: {
