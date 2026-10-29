@@ -151,14 +151,14 @@ device".
 ### Analytics: PostHog (unless the flight plan has no analytics)
 
 - The app sends to the PostHog project meant for it, on the region host meant
-  for it (EU for the existing apps), through the shared first-party proxy where
-  one serves the app's domain. A project per app is fine.
+  for it, through a first-party proxy where one serves the app's domain. A
+  project per app is fine.
 - The browser only sees the project token, injected at build time from the
   environment. A build without a token doesn't load the SDK.
 - Capture is explicit, not left to project toggles: autocapture, session
   recording, heatmaps, exception capture, surveys and web vitals are each set
   on purpose. `person_profiles: 'identified_only'` unless people are identified
-  on purpose, and Do Not Track honored, as the existing apps do.
+  on purpose, and Do Not Track honored.
 - Preview, local and production events can be told apart, by property or by
   project.
 - Consent matches the data and the audience. Cookieless or memory-only
