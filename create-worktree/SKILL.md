@@ -2,7 +2,7 @@
 name: create-worktree
 description:
   Create or switch to a git worktree for feature development. Creates worktrees
-  as sibling directories next to main/ (e.g. ~/workspace/<repo>/<slug>). Copies
+  as sibling directories next to main/ (e.g. <repo>/<slug>). Copies
   .env.example files and runs pnpm install. Use when starting a new feature
   branch or switching between features.
 metadata:
@@ -18,11 +18,11 @@ Create or switch to a git worktree for isolated feature development.
 ## Path Convention
 
 ```
-~/workspace/<repo>/                    # Parent directory
-~/workspace/<repo>/.bare/              # Bare repository (all objects, refs)
-~/workspace/<repo>/.git                # File: "gitdir: ./.bare"
-~/workspace/<repo>/main/               # Worktree for main branch
-~/workspace/<repo>/<slug>/             # Feature worktree
+<repo>/                    # Parent directory
+<repo>/.bare/              # Bare repository (all objects, refs)
+<repo>/.git                # File: "gitdir: ./.bare"
+<repo>/main/               # Worktree for main branch
+<repo>/<slug>/             # Feature worktree
 ```
 
 The `.bare/` directory is a bare git repository. The `.git` file at the repo
@@ -50,10 +50,10 @@ echo "Main worktree: $MAIN_PATH"
 
 Example:
 
-- Running from: `~/workspace/my-app/add-login/`
-- Repo root: `~/workspace/my-app/`
-- Bare repo: `~/workspace/my-app/.bare/`
-- Main worktree: `~/workspace/my-app/main/`
+- Running from: `~/src/my-app/add-login/`
+- Repo root: `~/src/my-app/`
+- Bare repo: `~/src/my-app/.bare/`
+- Main worktree: `~/src/my-app/main/`
 
 ### 2. If Argument Provided - Check for Existing Worktree
 
@@ -100,7 +100,7 @@ When switching to an existing worktree:
    ```
    Switched to worktree: <slug>
 
-     Path:   ~/workspace/<repo>/<slug>
+     Path:   <repo>/<slug>
      Branch: <slug>
      Plan:   Found (.claude/PLAN.md) - 5/12 tasks complete
 
@@ -203,9 +203,9 @@ After creating, display:
 ```
 Worktree created successfully!
 
-  Path:   ~/workspace/<repo>/<slug>
+  Path:   <repo>/<slug>
   Branch: <slug>
-  Source: ~/workspace/<repo>/main
+  Source: <repo>/main
 
 Environment files copied:
   - .env
@@ -221,7 +221,7 @@ After switching to existing, display:
 ```
 Switched to worktree: <slug>
 
-  Path:   ~/workspace/<repo>/<slug>
+  Path:   <repo>/<slug>
   Branch: <slug>
 
 Run 'git status' to see current state.
@@ -260,7 +260,7 @@ usable.
 git worktree list
 
 # Remove a worktree (from main)
-git -C ~/workspace/<repo>/main worktree remove ~/workspace/<repo>/<slug>
+git -C <repo>/main worktree remove <repo>/<slug>
 
 # Prune stale worktree references
 git worktree prune
