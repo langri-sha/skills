@@ -21,8 +21,10 @@ It classifies every worktree, measures what the removable ones hold, and removes
 only the ones whose work has demonstrably landed on `origin/main`.
 
 Dry run is the default and the mode meant for periodic use: it reads, measures,
-and reports. Removal happens only under `--apply`, and only after a confirmation
-typed at the prompt.
+and reports, so it is safe to run on a schedule. Removal happens only under
+`--apply`, and only after a confirmation typed at the prompt. Never pipe a
+confirmation into `--apply` on the user's behalf: the prompt is the last human
+gate, so a scheduled or looped invocation stays in dry-run mode.
 
 Git objects live once in `.bare/`, so removing a worktree reclaims only its
 checked-out files: `node_modules`, build output, caches. `/create-worktree`
@@ -101,9 +103,6 @@ Before removing anything, apply re-reads `git worktree list`, re-scans for
 activity, and re-runs the **full classifier** on every candidate. A worktree
 that went dirty, got a tmux window or Herdr tab, gained a process, or stopped
 being landed while the report sat on screen is skipped with its fresh reason.
-
-Never pipe a confirmation into `--apply` on the user's behalf. The prompt is the
-last human gate; a scheduled or looped invocation must stay in dry-run mode.
 
 ## What "Landed" Means
 
@@ -198,11 +197,6 @@ Mechanics:
 | `--apply`          | Remove candidates after a typed confirmation                |
 
 Exit codes: `0` success, `1` usage or safety refusal, `2` a removal failed.
-
-## Periodic Use
-
-The dry report mutates nothing, so it is safe to run on a schedule. Wire nothing
-up automatically: removal stays a human decision each time.
 
 ## Edge Cases
 
