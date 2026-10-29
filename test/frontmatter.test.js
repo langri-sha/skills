@@ -92,6 +92,13 @@ describe('skill frontmatter', () => {
         }
       })
 
+      test('keeps argument-hint at the top level, where Claude Code reads it', () => {
+        assert.doesNotMatch(
+          frontmatterBlock(readSkill(directory)) ?? '',
+          /^[ \t]+argument-hint:/m,
+        )
+      })
+
       test('has a lowercase, hyphenated name of at most 64 characters', () => {
         const name = fieldsOf(directory).get('name') ?? ''
 
