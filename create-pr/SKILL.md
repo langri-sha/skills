@@ -89,6 +89,9 @@ git push -u origin <branch>
 gh pr create --base <base> --title "<title>" --body-file <file>
 ```
 
+Write the body to a file from `mktemp`, outside the repository, and pass its
+printed path literally: shell variables don't last between commands.
+
 Add `--label` for the kind of change (`bug`, `enhancement`, `documentation`,
 `dependencies`) only when `gh label list --limit 1000` shows it: `gh pr create`
 refuses a label the repository doesn't have. Request reviewers only when the
