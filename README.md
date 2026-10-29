@@ -4,8 +4,8 @@ General-purpose agent skills for Claude Code, Codex and other agents.
 
 ## Structure
 
-Each top-level directory is a self-contained skill with a `SKILL.md` entry
-point and optional `references/`, `scripts/` and `rules/` directories.
+Each top-level directory is a self-contained skill with a `SKILL.md` entry point
+and optional `references/`, `scripts/` and `rules/` directories.
 
 ## Usage
 
@@ -36,5 +36,6 @@ Edits made through the link land in this checkout.
 MIT, except `babysit-pr`, which is derived from [openai/codex] and stays under
 Apache-2.0; its `LICENSE.txt` and `NOTICE` travel with it.
 
-[projen-skills]: https://github.com/langri-sha/projen/tree/main/packages/projen-skills
+[projen-skills]:
+  https://github.com/langri-sha/projen/tree/main/packages/projen-skills
 [openai/codex]: https://github.com/openai/codex

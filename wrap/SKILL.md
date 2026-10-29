@@ -19,8 +19,8 @@ green. Run it from the feature worktree being landed — never from `main`.
    is part of a native GitHub stack: **stop**. Raw rebase/force-push corrupts
    the chain, merging a stacked PR pulls in every unmerged PR below it, and
    native stacks cannot be landed with `gh pr merge` or `--admin` at all.
-   Landing a stack is a separate human-driven step (see
-   the `split-pr-stack` skill); this skill does not support it yet.
+   Landing a stack is a separate human-driven step (see the `split-pr-stack`
+   skill); this skill does not support it yet.
 
 2. **Commit** — if the worktree is dirty, use `/create-commit`. Stop if there
    are unrelated changes that shouldn't be bundled in.

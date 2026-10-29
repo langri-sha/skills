@@ -14,7 +14,8 @@ Used to resolve PR number, URL, branch, head SHA, and closed/merged state.
 
 - `gh pr checks --json name,state,bucket,link,workflow,event,startedAt,completedAt`
 
-Used to compute pending/failed/passed counts and whether the current CI round is terminal.
+Used to compute pending/failed/passed counts and whether the current CI round is
+terminal.
 
 ### Workflow runs for head SHA
 
@@ -29,7 +30,12 @@ Used to discover failed workflow runs and rerunnable run IDs.
 - `gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/{job_id}/logs > "${TMPDIR:-/tmp}/gh-job-{job_id}.log"`
 - `gh run view <run-id> --log-failed`
 
-Used to classify branch-related vs flaky/unrelated failures. Prefer the direct job log endpoint as soon as a job has failed because `gh run view --log-failed` may not produce failed-job logs until the overall workflow run completes. The job log endpoint returns plain text (run-level logs are a zip); without `--allow-escape-sequences`, `gh` 2.102 exits 1 with empty output on logs containing ANSI colour codes.
+Used to classify branch-related vs flaky/unrelated failures. Prefer the direct
+job log endpoint as soon as a job has failed because `gh run view --log-failed`
+may not produce failed-job logs until the overall workflow run completes. The
+job log endpoint returns plain text (run-level logs are a zip); without
+`--allow-escape-sequences`, `gh` 2.102 exits 1 with empty output on logs
+containing ANSI colour codes.
 
 ### Retry failed jobs only
 
@@ -46,8 +52,9 @@ Reruns only failed jobs (and dependencies) for a workflow run.
 - Review submissions:
   - `gh api repos/{owner}/{repo}/pulls/<pr_number>/reviews?per_page=100`
 
-Use each inline comment's `pull_request_review_id` to find its parent review. Ignore parent reviews
-whose `state` is `PENDING`, along with their inline comments, until the review is submitted.
+Use each inline comment's `pull_request_review_id` to find its parent review.
+Ignore parent reviews whose `state` is `PENDING`, along with their inline
+comments, until the review is submitted.
 
 ## JSON fields consumed by the watcher
 

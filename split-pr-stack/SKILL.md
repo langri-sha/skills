@@ -158,8 +158,8 @@ propose independent PRs instead.
    `references/equivalence-proof.md`. Print the ref and its recovery command
    before continuing. For a clean, fully committed branch the safety ref simply
    pins `SOURCE_HEAD`.
-2. **Stack worktree.** Create one worktree for the whole stack as a sibling
-   of the main checkout (`<repo>/<stack-slug>/`), following `/create-worktree`
+2. **Stack worktree.** Create one worktree for the whole stack as a sibling of
+   the main checkout (`<repo>/<stack-slug>/`), following `/create-worktree`
    conventions — env files seeded, dependencies installed — so hooks and
    validation commands actually run.
 3. **Reference replay.** From the pinned `TRUNK_SHA`, apply the complete source

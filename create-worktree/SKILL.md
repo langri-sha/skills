@@ -2,9 +2,9 @@
 name: create-worktree
 description:
   Create or switch to a git worktree for feature development. Creates worktrees
-  as sibling directories next to main/ (e.g. <repo>/<slug>). Copies
-  .env.example files and runs pnpm install. Use when starting a new feature
-  branch or switching between features.
+  as sibling directories next to main/ (e.g. <repo>/<slug>). Copies .env.example
+  files and runs pnpm install. Use when starting a new feature branch or
+  switching between features.
 metadata:
   author: langri-sha
   version: '2.0.0'
