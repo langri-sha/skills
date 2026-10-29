@@ -10,7 +10,7 @@ description:
 
 Create a GitHub pull request from the current branch: determine the base,
 analyze commits and diff, fill the repo's PR template, and open the PR with
-`gh`. Handles stacked branches (Git Town), detached HEAD, and custom bases.
+`gh`. Handles stacked branches, detached HEAD, and custom bases.
 
 ## Workflow
 
@@ -28,10 +28,7 @@ stacks and the official `gh-stack` skill for command semantics.
 Otherwise, in priority order:
 
 1. **User-specified** — "create a PR to develop" → `develop`.
-2. **Git Town parent** — `python3 scripts/detect_stacked_branch.py`; exit 0
-   prints the parent branch (stacked), 1 means not stacked, 2 means Git Town
-   unavailable.
-3. **Default branch** — `main`/`master` per `git remote show origin`.
+2. **Default branch** — `main`/`master` per `git remote show origin`.
 
 ### 2. Verify Workspace State
 
@@ -148,18 +145,14 @@ Return the PR URL to the user.
 ## Stacked Branches
 
 A stack splits a feature into dependent PRs, each based on its parent branch
-rather than main. Git Town stacks are detected through
-`scripts/detect_stacked_branch.py` (Git Town stores parent relationships in git
-config); native GitHub stacks are caught by the guard in step 1. For a stacked
-PR, the base is the parent branch, and the title and description cover this
-layer only. GitHub renders the stack natively, so never add a stack section, PR
-list, position marker, or "builds on #123" note — a hand-kept copy only goes
-stale.
+rather than main. Native GitHub stacks are caught by the guard in step 1. For a
+stacked PR, the base is the parent branch, and the title and description cover
+this layer only. GitHub renders the stack natively, so never add a stack
+section, PR list, position marker, or "builds on #123" note — a hand-kept copy
+only goes stale.
 
 ## Helper Scripts
 
-- **`scripts/detect_stacked_branch.py`** — prints the Git Town parent branch;
-  exit codes 0 (stacked), 1 (not stacked), 2 (Git Town unavailable).
 - **`scripts/generate_branch_name.py [base]`** — derives a dasherized branch
   name from commits/changes; used for detached HEAD.
 
