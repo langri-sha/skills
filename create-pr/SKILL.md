@@ -114,7 +114,9 @@ headings.
 ### 7. Infer Metadata
 
 - **Labels**: from the nature of the change — bug fixes → `bug`, features →
-  `enhancement`, docs-only → `documentation`, dependency bumps → `dependencies`.
+  `enhancement`, docs-only → `documentation`, dependency bumps → `dependencies`
+  — but only labels `gh label list --limit 1000` shows. `gh pr create` refuses a
+  label the repository doesn't have.
 - **Reviewers**: only when the user names one, or CODEOWNERS clearly applies.
 
 User input always overrides inference — explicit titles verbatim, explicit base
