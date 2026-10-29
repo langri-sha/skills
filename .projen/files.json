@@ -8,6 +8,7 @@
     ".projen/files.json",
     ".projen/tasks.json",
     "CODEOWNERS",
+    "lint-staged.config.js",
     "pnpm-workspace.yaml",
     "prettier.config.js",
     "renovate.json5"
