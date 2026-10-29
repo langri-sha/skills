@@ -15,11 +15,10 @@ finish your current task.
 
 ## How to play the notification
 
-Resolve the absolute path to `notify.sh` in this skill's base directory by
-expanding `$HOME`, then run:
+Run `notify.sh`, where `<skill-dir>` is the directory holding this file:
 
-```
-~/.claude/skills/notify-me/notify.sh "<short summary of what was accomplished>"
+```bash
+bash <skill-dir>/notify.sh "<short summary of what was accomplished>"
 ```
 
 Keep the summary to one or two sentences. If the task failed or was blocked, say
