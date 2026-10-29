@@ -1,10 +1,10 @@
 ---
 name: create-session
 description: >-
-  Create a development session for the current worktree in tmux or Herdr, with
-  an assistant and a critique watcher. Use tmux lanes or Herdr's native worktree
-  workspaces; also move existing tmux windows between lanes. Use when asked to
-  launch a worktree session or park or resume existing work.
+  Opens a development session for the current worktree, an assistant beside a
+  critique watcher, in a tmux lane or the worktree's Herdr workspace, and moves
+  tmux windows between lanes. Use when asked to launch a session for a worktree,
+  or to park or resume work. Not for creating the worktree (create-worktree).
 argument-hint:
   '[tmux|herdr] [lane|--workspace ID] [assistant] [continue] [prompt] | tmux
   move <lane> [window]'
