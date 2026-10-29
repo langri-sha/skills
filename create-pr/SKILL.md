@@ -43,7 +43,8 @@ description: >-
 
 Compare against the remote base, since local refs go stale:
 `git fetch origin <base>`, then `git log origin/<base>..HEAD` and
-`git diff origin/<base>...HEAD`.
+`git diff --stat origin/<base>...HEAD`. Read the full diff for the files that
+matter, skipping lockfiles and generated output.
 
 ## Title
 
