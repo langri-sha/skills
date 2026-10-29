@@ -60,6 +60,8 @@ Enforce all of these, in every mode:
    two worktrees anyway).
 10. **No merging, ever.** Not with `gh pr merge`, not with `gh stack merge`, not
     via auto-merge or admin bypass. Landing belongs to a human.
+11. **Non-interactive stack commands only.** Never `gh stack modify`, `switch`,
+    or a bare `init`, `submit` or `view`; always the forms with explicit flags.
 
 ## Arguments and modes
 
@@ -315,19 +317,6 @@ Stop, preserve all refs and worktrees, and report when:
 - **`/lights-out` / handoff** — before closing a stack worktree, report dirty
   state, unpushed branches, `gh stack view --json`, PR URLs, and the next human
   gate.
-
-## Never
-
-- Never merge anything, by any mechanism.
-- Never force-push, retarget, close, or comment on the original PR/branch
-  without a named, explicit approval.
-- Never push, create PRs, delete branches, or mutate GitHub state before Gate C
-  — and then only the actions approved there.
-- Never install `gh-stack` (or any other tool) without explicit approval.
-- Never run interactive stack commands (`gh stack modify`, `switch`, bare
-  `init`/`submit`/`view`); always the non-interactive forms with explicit flags.
-- Never create one worktree per layer.
-- Never guess through a conflict, an ambiguous hunk, or a failing layer.
 
 ## Examples
 
