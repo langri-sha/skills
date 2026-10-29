@@ -41,15 +41,26 @@ green. Run it from the feature worktree being landed — never from `main`.
 5. **PR** — if no open PR exists, use `/create-pr` (skip the interactive
    confirmation step). If one already exists, leave it as-is.
 
-6. **Watch checks and merge** — wait for all checks to finish:
+6. **Watch checks** — wait for all checks to finish:
 
    ```bash
    gh pr checks <number> --watch
    ```
 
-   **Do not proceed if any check failed or was skipped.** Only run the merge
-   when every check reports success:
+   Stop if any check failed or was skipped.
+
+7. **Merge** — read the merge state GitHub reports, which also covers branch
+   protection:
 
    ```bash
-   gh pr merge <number> --admin --rebase
+   gh pr view <number> --json mergeStateStatus
    ```
+
+   - `CLEAN` or `HAS_HOOKS`: merge.
+
+     ```bash
+     gh pr merge <number> --rebase
+     ```
+
+   - `BEHIND`: the base moved while checks ran; go back to step 3.
+   - Anything else: stop and report the state.
