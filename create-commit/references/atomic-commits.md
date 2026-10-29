@@ -56,7 +56,11 @@ Current: Add password breach checking via external API
 ```
 
 Create a fixup with `git commit --fixup <commit>`, and fold fixups into their
-targets with `git rebase -i --autosquash <base>`.
+targets without moving the branch onto a newer default branch:
+
+```bash
+GIT_SEQUENCE_EDITOR=: git rebase -i --autosquash "$(git merge-base HEAD origin/<default>)"
+```
 
 ## Examples
 
