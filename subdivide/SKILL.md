@@ -62,7 +62,7 @@ Capture the resulting:
 
 ### 3. Ask Whether to Start Immediately
 
-Use AskUserQuestion to ask:
+Ask the user:
 
 > Issue created: **<REPO>#<NUMBER>**
 >
