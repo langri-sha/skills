@@ -223,8 +223,8 @@ dispatcher pane is halved; other panes keep their size.
 
 The argument is brief text, not codex settings. To override the model or effort
 for one launch, add `-m <model>` or `-c model_reasoning_effort="<effort>"` to
-the codex command: after `--` in `herdr agent start`, or before the prompt in the
-tmux `codex` command.
+the codex command: after `--` in `herdr agent start`, or before the prompt in
+the tmux `codex` command.
 
 ### Codex Not on PATH
 
