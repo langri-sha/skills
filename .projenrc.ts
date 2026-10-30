@@ -47,7 +47,7 @@ const project = new Project({
 project.testTask.exec('node --test test/*.test.js')
 
 project.package?.addEngine('pnpm', '>= 11.0.0')
-project.package?.addField('packageManager', 'pnpm@12.16.0')
+project.package?.addField('packageManager', 'pnpm@12.16.1')
 project.package?.addField('private', true)
 
 // `LICENSE` is maintained by hand, so the license is declared here rather
