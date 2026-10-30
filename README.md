@@ -10,14 +10,15 @@ directories. `test/` checks that each one is discoverable by its directory name.
 
 ## Usage
 
-Declare the skills a repository uses with [projen-skills], pinned to a commit:
+Declare the skills a repository uses with [projen-skills], pinned to a release
+tag, which Renovate bumps:
 
 ```ts
 new Skills(project, {
   skills: [
     {
       source: 'langri-sha/skills',
-      ref: '<40-character commit SHA>',
+      ref: 'v1.0.0',
       skills: ['create-commit', 'create-pr'],
     },
   ],
