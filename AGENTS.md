@@ -44,9 +44,12 @@ both.
 
 ## Repository policy
 
-Never commit on `main`. Work on a branch in its own worktree, a sibling of the
-`main/` checkout, and land it through a pull request that merges by rebase. The
-repository ruleset keeps `main` linear and refuses force pushes and deletions.
+Every change starts from its own issue and lands in its own pull request, which
+closes that one issue with `Closes #N` in its body. Never commit on `main`. Each
+branch gets its own worktree, a sibling of the `main/` checkout made with the
+`create-worktree` skill, so worktrunk applies `.config/wt.toml`. The pull
+request merges by rebase; the repository ruleset keeps `main` linear and refuses
+force pushes and deletions.
 
 ## Releases
 
