@@ -11,7 +11,7 @@ argument-hint:
   [prompt] | tmux move <lane> [window]'
 metadata:
   author: langri-sha
-  version: '3.2.0'
+  version: '3.2.1'
 ---
 
 # Create session
