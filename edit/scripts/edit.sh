@@ -68,14 +68,14 @@ tmux)
 app)
   PANE=$(herdr-app ls | jq -r --arg t "${HC_TERMINAL_ID:?}" \
     '.spaces[].tabs[].terminals[] | select(.terminal == $t) | .pane // empty')
-  : "${PANE:?this terminal has no pane in the Herdr app}"
+  : "${PANE:?no pane for this terminal, or the Herdr app window is closed}"
   # pane.split has no directory argument and would use the pane's current
   # folder, so env -C pins the worktree. The program runs bare, with no shell,
   # and the pane closes when it exits.
-  EDITOR_TERMINAL=$(herdr-app do pane.split --pane "$PANE" --direction right \
-    --argv "$(jq -cn --arg d "$PWD" '["env", "-C", $d, "nvim"]')" |
-    jq -r '.terminal // empty')
-  : "${EDITOR_TERMINAL:?split failed}"
+  SPLIT=$(herdr-app do pane.split --pane "$PANE" --direction right \
+    --argv "$(jq -cn --arg d "$PWD" '["env", "-C", $d, "nvim"]')")
+  EDITOR_TERMINAL=$(jq -r '.terminal // empty' <<<"$SPLIT")
+  : "${EDITOR_TERMINAL:?split failed: $SPLIT}"
   echo "editor terminal=$EDITOR_TERMINAL dir=$PWD"
   ;;
 herdr)
