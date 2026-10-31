@@ -2,29 +2,32 @@
 name: create-session
 description: >-
   Opens a development session for the current worktree, an assistant beside a
-  critique watcher, in a tmux lane or the worktree's Herdr workspace, and moves
-  tmux windows between lanes. Use when asked to launch a session for a worktree,
-  or to park or resume work. Not for creating the worktree (create-worktree).
+  critique watcher, in a tmux lane, the worktree's Herdr TUI workspace or its
+  Herdr app space, and moves tmux windows between lanes. Use when asked to
+  launch a session for a worktree, or to park or resume work. Not for creating
+  the worktree (create-worktree).
 argument-hint:
-  '[tmux|herdr] [lane|--workspace ID] [assistant] [continue] [prompt] | tmux
-  move <lane> [window]'
+  '[tmux|herdr|app] [lane|--workspace ID|--space ID] [assistant] [continue]
+  [prompt] | tmux move <lane> [window]'
 metadata:
   author: langri-sha
-  version: '3.1.0'
+  version: '3.2.0'
 ---
 
 # Create session
 
 Create an assistant pane on the left and `critique --watch origin/main` on the
 right, both in the invocation's working directory. Keep the caller's focus.
-Arguments are recognized by value: backend (`tmux`, `herdr`), tmux lane (`dev`,
-`proposals`, `archive`), assistant (`claude`, `letta`), `continue`, and an
-optional initial prompt. Herdr accepts an optional `--workspace <id-or-label>`
-destination. `tmux move <lane> [window]` operates on existing windows; its
-destination lane is required.
+Arguments are recognized by value: backend (`tmux`, `herdr` for the Herdr TUI,
+`app` for the Herdr app), tmux lane (`dev`, `proposals`, `archive`), assistant
+(`claude`, `letta`), `continue`, and an optional initial prompt. The Herdr TUI
+accepts an optional `--workspace <id-or-label>` destination, the Herdr app an
+optional `--space <id-or-name>`. `tmux move <lane> [window]` operates on
+existing windows; its destination lane is required.
 
 Examples: `/create-session`, `/create-session herdr --workspace wM`,
-`/create-session tmux claude continue`, `/create-session tmux move archive @12`.
+`/create-session app --space skills`, `/create-session tmux claude continue`,
+`/create-session tmux move archive @12`.
 
 ## Resolve the backend
 
@@ -91,6 +94,9 @@ directory, including any subdirectory. Stop if creation is requested outside a
 Git worktree. Moves use the existing window and do not require the caller to be
 in a repository.
 
+Match names, labels and IDs exactly; ask for an ID if multiple objects match.
+Never derive IDs from indexes or sidebar positions.
+
 ### tmux: session lanes
 
 | Lane        | Holds                      |
@@ -101,13 +107,14 @@ in a repository.
 
 An explicit lane wins. Otherwise, when the caller is in tmux, inherit its tmux
 session name if it exactly matches a lane; otherwise use `dev`. Reject unknown
-lanes and Herdr workspace arguments. `letta` selects the assistant and never a
-lane; do not put worktree sessions in the long-lived `letta` session.
+lanes and `--workspace` or `--space` arguments. `letta` selects the assistant
+and never a lane; do not put worktree sessions in the long-lived `letta`
+session.
 
 Create missing lanes on demand, reusing the first window returned by session
 creation. Do not leave a placeholder shell behind.
 
-### Herdr: worktree workspaces
+### Herdr TUI: worktree workspaces
 
 Default to Herdr's native workspace for the target Git worktree. Open or reuse
 it with `herdr worktree open`, preserving repository/worktree grouping. Reuse
@@ -115,19 +122,32 @@ the initial tab only when the workspace is newly opened; otherwise create a new
 tab so existing work is untouched. An explicit workspace destination overrides
 that placement and receives a new tab in the requested directory.
 
-Herdr has no lane argument in this skill. If a lane or `move` is requested with
-Herdr, explain that it applies to tmux and ask for the intended workspace or
+The TUI has no lane argument in this skill. If a lane or `move` is requested
+with it, explain that it applies to tmux and ask for the intended workspace or
 operation before mutation. Do not synthesize dev/proposals/archive workspaces or
 translate lanes into workspace labels.
 
-Match names and labels exactly; ask for an ID if multiple objects match. Never
-derive IDs from indexes or sidebar positions.
+### Herdr app: worktree spaces
+
+Default to the space opened in the target Git worktree: the one whose folder in
+`herdr-app ls` is the worktree root. When none is, the procedure creates one
+named after the slug, without moving the caller's focus; when several spaces
+hold the worktree, the procedure's derived space is used. Either way the session
+is a new tab named after the slug, so existing work is untouched. An explicit
+`--space <id-or-name>` names an existing space to receive that tab instead; a
+destination that matches nothing is reported, not created.
+
+The app has no lane argument in this skill either, and no whole-tab transfer
+between spaces. If a lane or `move` is requested with it, explain that it
+applies to tmux and ask for the intended space or operation before mutation. Do
+not synthesize dev/proposals/archive spaces or translate lanes into space names.
 
 ## Build the assistant command
 
-Default to `claude`. Construct an argv list, then shell-quote every argument
-with a proper quoting routine such as Python's `shlex.join` before submitting
-the command to a shell:
+Default to `claude`. Construct an argv list. For tmux and the Herdr TUI,
+shell-quote every argument with a proper quoting routine such as Python's
+`shlex.join` before submitting the command to a shell; the Herdr app takes the
+argv as it is, since no shell parses it there:
 
 - Claude: `claude --name <slug> --permission-mode bypassPermissions`, plus
   `--continue` when requested and the optional prompt after `--` as one
@@ -148,8 +168,11 @@ Read only the reference for the resolved backend:
 
 - [tmux](references/tmux.md): create the lane/window/panes or move a whole
   window.
-- [Herdr](references/herdr.md): open or reuse the worktree workspace, then
+- [Herdr TUI](references/herdr.md): open or reuse the worktree workspace, then
   create the assistant and critique panes in an available tab.
+- [Herdr app](references/app.md): place the assistant's terminal in a new tab of
+  the worktree's space, creating the space when none holds the worktree, then
+  split critique beside it.
 
 Target all commands by captured IDs. When using separate shell tool calls, carry
 the captured values explicitly; shell variables do not persist across calls.
@@ -157,7 +180,8 @@ Inspect each mutation's result before proceeding. On a partial failure, report
 the created IDs and what started; do not retry by creating duplicates or close
 running work automatically.
 
-Report the backend, tmux lane or Herdr workspace, window/tab ID and label,
-directory, assistant and critique pane IDs, and commands started. For a detached
-tmux lane, include `tmux attach -t <lane>`. For a move, report the source and
-destination lanes.
+Report the backend, tmux lane, Herdr TUI workspace or Herdr app space (ID and
+name), window/tab ID and label, directory, assistant and critique pane IDs, and
+commands started. In the Herdr app, add the assistant and critique terminals'
+addresses. For a detached tmux lane, include `tmux attach -t <lane>`. For a
+move, report the source and destination lanes.
