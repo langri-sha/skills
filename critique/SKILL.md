@@ -7,7 +7,7 @@ description: >-
   watcher (create-session).
 metadata:
   author: langri-
-  version: '1.2.0'
+  version: '1.2.1'
 ---
 
 # critique
@@ -32,20 +32,20 @@ while [ "${pid:-1}" -gt 1 ]; do
   t=$(ps -o tty= -p "$pid" | tr -d ' ')
   case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
 done
-MUX=none PANE= TERMINAL=
+MUX=none PANE= MUX_TERMINAL=
 if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
   [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
   MUX=tmux PANE=$TMUX_PANE
 elif [ -n "$tty" ] && [ -n "${HC_TERMINAL_ID:-}" ] &&
   INFO=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null) &&
   [ "/dev/$(ps -o tty= -p "$(jq -r '.pid // empty' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=app TERMINAL=$HC_TERMINAL_ID
+  MUX=app MUX_TERMINAL=$HC_TERMINAL_ID
 elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
   INFO=$(herdr pane process-info --current 2>/dev/null) &&
   [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
   MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
 fi
-echo "multiplexer=$MUX pane=$PANE terminal=$TERMINAL"
+echo "multiplexer=$MUX pane=$PANE terminal=$MUX_TERMINAL"
 ```
 
 A match proves the variable names this agent's own pane or terminal, so later
