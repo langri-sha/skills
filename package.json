@@ -1,6 +1,6 @@
 {
   "name": "skills",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "General-purpose agent skills for Claude Code, Codex and other agents",
   "homepage": "https://github.com/langri-sha/skills#readme",
