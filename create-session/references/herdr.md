@@ -1,4 +1,4 @@
-# Herdr procedure
+# Herdr TUI procedure
 
 Require the managed caller context validated in `SKILL.md`. Discover the
 installed syntax with `herdr --help`, then `herdr workspace`, `herdr worktree`,
