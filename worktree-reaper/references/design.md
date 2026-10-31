@@ -71,8 +71,9 @@ candidates — and mutates nothing, so it is safe to run on a schedule.
 A standalone fixture harness builds a throwaway garden in a temp directory and
 covers every classification branch — rebase-merged, patch-equivalent, empty
 retrigger commit, unmerged, dirty, untracked, ignored-only, detached, locked,
-in-use (a Herdr pane, tab or workspace through a stub `herdr`), nested,
-out-of-garden, stale, and the protected trio:
+in-use (a Herdr TUI pane, tab or workspace, and an hc terminal, tab or space,
+through stub `herdr` and `hc` binaries), nested, out-of-garden, stale, and the
+protected trio:
 
 ```bash
 tests/run-tests.sh

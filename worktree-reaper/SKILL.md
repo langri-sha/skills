@@ -9,7 +9,7 @@ description: >-
 argument-hint: '[--apply]'
 metadata:
   author: langri-sha
-  version: '1.2.0'
+  version: '1.3.0'
 ---
 
 # Worktree Reaper
@@ -65,7 +65,7 @@ Worktree reaper — /home/user/src/my-app
   primary      origin/main @ b17c2b19 (2026-07-27 02:47, 1d old)
   worktrees    65
   pr evidence  gh pr list on owner/my-app
-  in-use scan  25 tmux window(s), 9 herdr tab(s), process cwds
+  in-use scan  25 tmux window(s), 9 herdr tab(s), 3 hc terminal(s), process cwds
   mode         dry run
 
   reap   929-reconcile-cache-state-drift               2.1 GiB  merged via PR #930 (no unique commits, 1 empty commit(s) ignored)
@@ -98,8 +98,9 @@ Remove 2 worktree(s) and reclaim 3.9 GiB? Type y to confirm:
 
 Before removing anything, apply re-reads `git worktree list`, re-scans for
 activity, and re-runs the **full classifier** on every candidate. A worktree
-that went dirty, got a tmux window or Herdr tab, gained a process, or stopped
-being landed while the report sat on screen is skipped with its fresh reason.
+that went dirty, got a tmux window, Herdr tab or hc terminal, gained a process,
+or stopped being landed while the report sat on screen is skipped with its fresh
+reason.
 
 ## What "Landed" Means
 
@@ -160,16 +161,19 @@ Skipped with a stated reason:
 - a worktree HEAD that disagrees with its branch tip
 - branches not confidently landed on the primary ref
 - worktrees in use: a tmux pane whose `pane_current_path` is inside them, a tmux
-  window named exactly the slug, a Herdr pane whose `cwd` is inside them, a
-  Herdr tab or workspace labelled exactly the slug, or any process whose cwd is
-  inside them
+  window named exactly the slug, a Herdr TUI pane whose `cwd` is inside them, a
+  Herdr TUI tab or workspace labelled exactly the slug, an hc terminal whose
+  `cwd` is inside them, a Herdr app tab or space named exactly the slug, or any
+  process whose cwd is inside them
 
 The header's `in-use scan` line names which of those detections actually ran, so
-a run with no tmux, no Herdr server, or no `/proc` says so rather than quietly
-checking less than you think. Each multiplexer scan reaches one server: tmux's
-from `$TMUX` or its default socket, Herdr's from `HERDR_SOCKET_PATH` or its
-default session. Herdr clears `TMUX` in its panes, so a run inside Herdr nested
-in tmux sees the outer tmux only when that runs on the default socket.
+a run with no tmux, no Herdr TUI server, no hc core, or no `/proc` says so
+rather than quietly checking less than you think. Each multiplexer scan reaches
+one server: tmux's from `$TMUX` or its default socket, the Herdr TUI's from
+`HERDR_SOCKET_PATH` or its default session, hc's from `HC_SOCKET` or its default
+socket under `$XDG_RUNTIME_DIR`. Herdr clears `TMUX` in its panes, so a run
+inside Herdr nested in tmux sees the outer tmux only when that runs on the
+default socket.
 
 Mechanics:
 

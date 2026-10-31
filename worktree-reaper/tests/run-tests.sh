@@ -53,6 +53,7 @@ export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 mkdir -p "$HOME"
 export PATH="$TMP/bin:$PATH"
 export HERDR_STUB_STATE=up
+export HC_STUB_STATE=up
 
 PASSED=0
 FAILED=0
@@ -193,7 +194,8 @@ build_fixture() {
 
   local idle
   for idle in wtr-no-unique wtr-ignored wtr-dirty wtr-untracked wtr-locked wtr-active wtr-ghost \
-    wtr-herdr-pane wtr-herdr-tab wtr-herdr-workspace; do
+    wtr-herdr-pane wtr-herdr-tab wtr-herdr-workspace \
+    wtr-hc-terminal wtr-hc-tab wtr-hc-space wtr-hc-finished wtr-hc-remote; do
     git -C "$BARE" branch "$idle" origin/main >/dev/null 2>&1
     git -C "$BARE" worktree add "$GARDEN/$idle" "$idle" >/dev/null 2>&1
   done
@@ -232,6 +234,22 @@ STUB
   chmod +x "$TMP/bin/herdr"
 }
 
+write_hc_stub() {
+  mkdir -p "$TMP/bin"
+  cat >"$TMP/bin/hc" <<STUB
+#!/usr/bin/env bash
+if [[ \$HC_STUB_STATE == down ]]; then
+  printf '%s\n' '{"error":{"kind":"no_core","message":"no herdr core is running"}}' >&2
+  exit 1
+fi
+case "\$1" in
+  ls) printf '%s\n' '{"hidden_finished":0,"terminals":[{"address":"t1","agent":"claude-code","cwd":"$GARDEN/wtr-hc-terminal/src","state":"live","status":"working","turn":3,"where":"Garden / 1"},{"address":"t2","agent":"bash","cwd":"$HOME","state":"live","turn":0,"where":"wtr-hc-space / 1"},{"address":"t3","agent":"bash","cwd":"$HOME","state":"live","turn":0,"where":"Garden / wtr-hc-tab"},{"address":"t4","agent":"bash","cwd":"$GARDEN/wtr-hc-finished","state":"finished","turn":0,"where":"Garden / 2"},{"address":"box/t2","agent":"bash","cwd":"$GARDEN/wtr-hc-remote","state":"live","turn":0,"where":"Garden / 3"}]}' ;;
+  *) exit 2 ;;
+esac
+STUB
+  chmod +x "$TMP/bin/hc"
+}
+
 garden_state() {
   git -C "$BARE" worktree list --porcelain
   find "$GARDEN" -maxdepth 1 -mindepth 1 | sort
@@ -241,6 +259,7 @@ printf 'worktree-reaper fixture tests\n\n'
 printf 'Building fixture garden in %s\n' "$TMP"
 build_fixture
 write_herdr_stub
+write_hc_stub
 
 printf 'Holding wtr-active busy with a process whose cwd is inside it\n'
 (cd "$GARDEN/wtr-active" && exec sleep 300) &
@@ -270,6 +289,11 @@ expect_verdict "$DRY" "wtr-active" skip
 expect_verdict "$DRY" "wtr-herdr-pane" skip
 expect_verdict "$DRY" "wtr-herdr-tab" skip
 expect_verdict "$DRY" "wtr-herdr-workspace" skip
+expect_verdict "$DRY" "wtr-hc-terminal" skip
+expect_verdict "$DRY" "wtr-hc-tab" skip
+expect_verdict "$DRY" "wtr-hc-space" skip
+expect_verdict "$DRY" "wtr-hc-finished" reap
+expect_verdict "$DRY" "wtr-hc-remote" reap
 expect_verdict "$DRY" "wtr-detached" skip
 expect_verdict "$DRY" "wtr-ghost" skip
 expect_verdict "$DRY" ".claude/worktrees/wtr-agent" skip
@@ -286,6 +310,9 @@ expect_reason "$DRY" "wtr-active" "in use by"
 expect_reason "$DRY" "wtr-herdr-pane" "herdr pane"
 expect_reason "$DRY" "wtr-herdr-tab" "herdr tab 'wtr-herdr-tab'"
 expect_reason "$DRY" "wtr-herdr-workspace" "herdr workspace 'wtr-herdr-workspace'"
+expect_reason "$DRY" "wtr-hc-terminal" "hc terminal"
+expect_reason "$DRY" "wtr-hc-tab" "hc tab 'wtr-hc-tab'"
+expect_reason "$DRY" "wtr-hc-space" "hc space 'wtr-hc-space'"
 expect_reason "$DRY" "wtr-detached" "detached HEAD"
 expect_reason "$DRY" "wtr-ghost" "directory is missing"
 expect_reason "$DRY" ".claude/worktrees/wtr-agent" "agent-managed nested worktree"
@@ -297,6 +324,7 @@ expect_output "$DRY" "Git objects live once in .bare/"
 expect_output "$DRY" "in-use scan"
 expect_output "$DRY" "process cwds"
 expect_output "$DRY" "1 herdr tab(s)"
+expect_output "$DRY" "3 hc terminal(s)"
 expect_output "$DRY" "Dry run — nothing was touched"
 expect_missing "$DRY" "Pruned stale worktree metadata"
 
@@ -311,6 +339,13 @@ expect_output "$HERDR_DOWN" "no herdr server"
 expect_verdict "$HERDR_DOWN" "wtr-herdr-pane" reap
 expect_verdict "$HERDR_DOWN" "wtr-herdr-tab" reap
 expect_verdict "$HERDR_DOWN" "wtr-herdr-workspace" reap
+
+printf '\nAn hc core that is not running holds nothing\n'
+HC_DOWN=$(HC_STUB_STATE=down "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_DOWN" "no hc core"
+expect_verdict "$HC_DOWN" "wtr-hc-terminal" reap
+expect_verdict "$HC_DOWN" "wtr-hc-tab" reap
+expect_verdict "$HC_DOWN" "wtr-hc-space" reap
 
 printf '\nBranch name that differs from the directory name\n'
 git -C "$BARE" branch -m wtr-no-unique wtr-renamed >/dev/null 2>&1
@@ -373,14 +408,15 @@ check "unconfirmed apply removed nothing" \
 printf '\nApply\n'
 APPLIED=$(printf 'y\n' | "$REAP" --garden "$GARDEN" --apply 2>&1)
 
-for gone in wtr-landed-rebase wtr-no-unique wtr-ignored wtr-revert-victim wtr-empty-retrigger; do
+for gone in wtr-landed-rebase wtr-no-unique wtr-ignored wtr-revert-victim wtr-empty-retrigger \
+  wtr-hc-finished wtr-hc-remote; do
   check "$gone was removed" \
     "$([[ ! -e $GARDEN/$gone ]] && printf true || printf false)" \
     "$GARDEN/$gone still exists"
 done
 
 for kept in main wtr-unmerged wtr-dirty wtr-untracked wtr-locked wtr-active wtr-detached \
-  wtr-herdr-pane wtr-herdr-tab wtr-herdr-workspace; do
+  wtr-herdr-pane wtr-herdr-tab wtr-herdr-workspace wtr-hc-terminal wtr-hc-tab wtr-hc-space; do
   check "$kept survived apply" \
     "$([[ -d $GARDEN/$kept ]] && printf true || printf false)" \
     "$GARDEN/$kept is gone"
@@ -401,7 +437,7 @@ for branch in wtr-landed-rebase wtr-no-unique wtr-ignored wtr-revert-victim; do
     "branch $branch was deleted"
 done
 
-expect_output "$APPLIED" "Removed 5 worktree(s)"
+expect_output "$APPLIED" "Removed 7 worktree(s)"
 expect_output "$APPLIED" "Pruned stale worktree metadata."
 expect_output "$APPLIED" "Branches were kept."
 check "the stale ghost entry was pruned after removals" \

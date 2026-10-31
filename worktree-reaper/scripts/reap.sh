@@ -207,6 +207,7 @@ if ((PR_EVIDENCE)); then
 fi
 
 declare -a ACTIVE_DIRS=() ACTIVE_LABELS=() TMUX_WINDOWS=() HERDR_TABS=() HERDR_WORKSPACES=()
+declare -a HC_TABS=() HC_SPACES=()
 ACTIVITY_NOTE=""
 
 note_activity_source() {
@@ -214,12 +215,14 @@ note_activity_source() {
 }
 
 collect_activity() {
-  local pane name pid cwd comm panes
+  local pane name pid cwd comm panes terminals
   ACTIVE_DIRS=()
   ACTIVE_LABELS=()
   TMUX_WINDOWS=()
   HERDR_TABS=()
   HERDR_WORKSPACES=()
+  HC_TABS=()
+  HC_SPACES=()
   ACTIVITY_NOTE=""
   if command -v tmux >/dev/null 2>&1; then
     while IFS= read -r pane; do
@@ -259,6 +262,29 @@ collect_activity() {
     note_activity_source "no herdr server"
   fi
 
+  if ! command -v hc >/dev/null 2>&1; then
+    note_activity_source "no hc"
+  elif ! command -v jq >/dev/null 2>&1; then
+    note_activity_source "hc UNAVAILABLE (no jq)"
+  elif terminals=$(hc ls --json 2>/dev/null); then
+    while IFS= read -r cwd; do
+      [[ -n $cwd ]] || continue
+      ACTIVE_DIRS+=("$cwd")
+      ACTIVE_LABELS+=("hc terminal")
+    done < <(jq -r '.terminals[] | select(.state == "live" and (.address | contains("/") | not)) | .cwd // empty' <<<"$terminals" 2>/dev/null || true)
+    while IFS= read -r name; do
+      [[ -n $name ]] || continue
+      HC_TABS+=("$name")
+    done < <(jq -r '[.terminals[] | select(.state == "live") | .where // empty | select(contains(" / ")) | sub("^.* / "; "")] | unique[]' <<<"$terminals" 2>/dev/null || true)
+    while IFS= read -r name; do
+      [[ -n $name ]] || continue
+      HC_SPACES+=("$name")
+    done < <(jq -r '[.terminals[] | select(.state == "live") | .where // empty | select(contains(" / ")) | sub(" / .*$"; "")] | unique[]' <<<"$terminals" 2>/dev/null || true)
+    note_activity_source "$(jq -r '[.terminals[] | select(.state == "live" and (.address | contains("/") | not))] | length' <<<"$terminals" 2>/dev/null || printf 0) hc terminal(s)"
+  else
+    note_activity_source "no hc core"
+  fi
+
   if [[ ! -d /proc ]]; then
     note_activity_source "process cwds UNAVAILABLE (no /proc)"
     return 0
@@ -278,7 +304,7 @@ collect_activity() {
 }
 
 activity_for() {
-  local target=$1 slug=$2 i dir label seen="" hits="" window tab workspace
+  local target=$1 slug=$2 i dir label seen="" hits="" window tab workspace space
   for i in "${!ACTIVE_DIRS[@]}"; do
     dir=${ACTIVE_DIRS[$i]}
     [[ $dir == "$target" || $dir == "$target"/* ]] || continue
@@ -304,6 +330,18 @@ activity_for() {
   for workspace in ${HERDR_WORKSPACES[@]+"${HERDR_WORKSPACES[@]}"}; do
     if [[ $workspace == "$slug" ]]; then
       hits=${hits:+$hits, }"herdr workspace '$slug'"
+      break
+    fi
+  done
+  for tab in ${HC_TABS[@]+"${HC_TABS[@]}"}; do
+    if [[ $tab == "$slug" ]]; then
+      hits=${hits:+$hits, }"hc tab '$slug'"
+      break
+    fi
+  done
+  for space in ${HC_SPACES[@]+"${HC_SPACES[@]}"}; do
+    if [[ $space == "$slug" ]]; then
+      hits=${hits:+$hits, }"hc space '$slug'"
       break
     fi
   done
