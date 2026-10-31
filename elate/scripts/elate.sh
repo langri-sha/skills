@@ -205,9 +205,9 @@ if [ "$MUX" = app ]; then
   }
   AGENT_TERMINAL=$(jq -r '.address // empty' <<<"$OUT")
   echo "$AGENT terminal=$AGENT_TERMINAL $PICKED agent=$AGENT_NAME brief=$MUX_TERMINAL dir=$CWD"
-  # A status proves the agent is running. None within the wait means op is
-  # still waiting for its approval, or the agent never started and the
-  # wrapper's shell sits there; the screen says which.
+  # A status other than error proves the agent is running. None within the
+  # wait means op is still waiting for its approval, or the agent never started
+  # and the wrapper's shell sits there; the screen says which.
   WAIT=$(timeout 30 hc wait "$AGENT_TERMINAL" --timeout 10 --json) || {
     [ -n "$WAIT" ] && echo "$WAIT" >&2
     exit 1
@@ -220,8 +220,8 @@ if [ "$MUX" = app ]; then
     echo "hc send $AGENT_NAME \"\$(cat $PROMPT_FILE)\"" >&2
     exit 3
   fi
-  if [ -z "$STATUS" ]; then
-    echo "$AGENT has not reported a status; its screen:" >&2
+  if [ -z "$STATUS" ] || [ "$STATUS" = error ]; then
+    echo "$AGENT reported ${STATUS:-no status}; its screen:" >&2
     hc read "$AGENT_TERMINAL" --lines 20 >&2
     exit 1
   fi
