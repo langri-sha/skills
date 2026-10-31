@@ -125,18 +125,23 @@ Additional context from the dispatcher:
 $EXTRA"
 fi
 
+# The wrapper runs codex in an interactive shell, so the user's functions
+# apply, and leaves that shell behind when codex exits. The prompt travels as
+# one argument, so no shell re-parses it. shortcut: it reaches only a bash
+# user's functions; use $SHELL if a zsh or fish user needs theirs.
+WRAP=("$BASH" -ic '"$@"; exec "$0" -i' "$BASH")
+
 if [ "$MUX" = tmux ]; then
-  # The pane's shell runs codex without the caller's functions or aliases.
+  # This checks the caller's PATH; the pane resolves codex after ~/.bashrc.
   command -v codex >/dev/null || {
     echo "codex is not on PATH." >&2
     exit 1
   }
-  # The prompt travels in the environment and expands in the new pane, so no
-  # shell re-parses its backticks, $(...) or quotes.
-  CODEX=codex
-  [ "$#" -gt 0 ] && CODEX="codex $(printf '%q ' "$@")"
-  CODEX_PANE=$(tmux split-window -t "$WINDOW_ID" -h -c "$CWD" -P -F '#{pane_id}' \
-    -e "ELATE_PROMPT=$ELATE_PROMPT" "$CODEX \"\$ELATE_PROMPT\"") || exit 1
+  # tmux execs a command of several words as given, without a shell.
+  # shortcut: nothing waits for a status here, so a pending op approval or a
+  # failed start still prints success; add a wait if quiet failures show up.
+  CODEX_PANE=$(tmux split-window -t "$WINDOW_ID" -h -c "$CWD" -P -F '#{pane_id}' -- \
+    "${WRAP[@]}" codex "$@" "$ELATE_PROMPT") || exit 1
   tmux select-layout -t "$WINDOW_ID" even-horizontal
   echo "codex pane=$CODEX_PANE brief=$BRIEF_PANE window=$WINDOW_ID dir=$CWD"
   exit 0
@@ -144,16 +149,13 @@ fi
 
 if [ "$MUX" = app ]; then
   # The labels place the terminal in this tab without moving focus; with no
-  # parent, codex neither ends with the dispatcher nor types notes into it. The
-  # wrapper runs codex in an interactive shell, so the user's functions apply,
-  # and leaves that shell behind when codex exits. The prompt travels as one
-  # argument, so no shell re-parses it. --no-daemon keeps codex's commands in
-  # its own terminal; it goes before the user's flags so none can displace it.
+  # parent, codex neither ends with the dispatcher nor types notes into it.
+  # --no-daemon keeps codex's commands in its own terminal; it goes before the
+  # user's flags so none can displace it.
   OUT=$(hc run --bg --no-parent --keep --json \
     --name "$AGENT_NAME" --cwd "$CWD" \
     --label herdr.space="$SPACE" --label herdr.tab="$TAB" -- \
-    /usr/bin/bash -ic '"$@"; exec "$0" -i' /usr/bin/bash \
-    codex --no-daemon "$@" "$ELATE_PROMPT") || {
+    "${WRAP[@]}" codex --no-daemon "$@" "$ELATE_PROMPT") || {
     [ -n "$OUT" ] && echo "$OUT" >&2
     exit 1
   }
