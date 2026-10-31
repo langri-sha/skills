@@ -86,10 +86,11 @@ would take the prompt as one more.
   answer it. The agent keeps the prompt it was started with, and its composer
   empties when it submits, so run the seed command the script printed only if
   `hc get <name> --json` still shows `turn: 0` once the agent is idle.
-- **No status in the Herdr app, exit 1:** the agent reported nothing within the
-  wait. The screen printed after the launch line says why: an `op` approval
-  still pending, or a start that failed and left a bare shell. Show it to the
-  user; the terminal stays, and an approved agent goes on with its prompt.
+- **No status or `error` in the Herdr app, exit 1:** the agent reported nothing
+  within the wait, or an error. The screen printed after the launch line says
+  why: an `op` approval still pending, a start that failed and left a bare
+  shell, or the agent's own error, such as a model it doesn't know. Show it to
+  the user; the terminal stays, and an approved agent goes on with its prompt.
 - **`agent_not_ready` in the Herdr TUI, exit 3:** the agent is blocked at
   startup, usually on the folder-trust dialog. Read it with
   `herdr agent read <name> --source visible`, show it to the user and let them
