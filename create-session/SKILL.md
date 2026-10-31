@@ -28,11 +28,11 @@ Examples: `/create-session`, `/create-session herdr --workspace wM`,
 
 ## Resolve the backend
 
-Herdr sets `HERDR_ENV` and `HERDR_PANE_ID`, tmux sets `TMUX` and `TMUX_PANE`,
-and when one runs inside the other the caller inherits both sets, so the markers
-only name candidates. The caller belongs to the multiplexer whose pane terminal
-is its controlling terminal. A tool shell often has no terminal of its own, so
-take the nearest ancestor's:
+tmux sets `TMUX` and `TMUX_PANE`, the Herdr app sets `HC_TERMINAL_ID`, and the
+Herdr TUI sets `HERDR_ENV` and `HERDR_PANE_ID`. When one runs inside another the
+caller inherits every set. The variables only name candidates: the caller
+belongs to the multiplexer whose terminal is its controlling terminal. A tool
+shell often has no terminal of its own, so take the nearest ancestor's:
 
 ```bash
 tty=
@@ -41,37 +41,46 @@ while [ "${pid:-1}" -gt 1 ]; do
   t=$(ps -o tty= -p "$pid" | tr -d ' ')
   case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
 done
-MUX=none PANE=
+MUX=none PANE= MUX_TERMINAL=
 if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
   [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
   MUX=tmux PANE=$TMUX_PANE
+elif [ -n "$tty" ] && [ -n "${HC_TERMINAL_ID:-}" ] &&
+  INFO=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null) &&
+  [ "/dev/$(ps -o tty= -p "$(jq -r '.pid // empty' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
+  MUX=app MUX_TERMINAL=$HC_TERMINAL_ID
 elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
   INFO=$(herdr pane process-info --current 2>/dev/null) &&
   [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
   MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
 fi
-echo "caller=$MUX pane=$PANE"
+echo "multiplexer=$MUX pane=$PANE terminal=$MUX_TERMINAL"
 ```
 
-A match proves the marker names the caller's own pane. Without an explicit
-backend, use the detected one. With `none`, say the caller is in neither and
-stop; an explicit `tmux` can still create a detached lane. A sandbox that hides
-parent processes or the multiplexer's socket also ends in `none`; rerun the step
-outside it.
+A match proves the variable names the caller's own pane or terminal. Without an
+explicit backend, use the detected one. With `none`, say the caller is not in a
+tmux, Herdr app or Herdr TUI pane and stop; an explicit `tmux` can still create
+a detached lane. A sandbox that hides parent processes or a multiplexer's socket
+also ends in `none`; rerun the step outside it.
 
 Never infer the runtime from installed executables, `TERM`, running servers, or
 UI focus, and never fall back to focus when detection fails.
 
 An explicit `tmux` request outside a tmux caller may create a detached session
-or move an explicitly named window. Herdr requires a Herdr caller even when
-explicitly selected; when detection finds tmux or none, the Herdr markers belong
-to an outer pane, so report that and stop rather than control Herdr from outside
-it. Check the selected CLI is available before mutation.
+or move an explicitly named window. The Herdr app and the Herdr TUI each require
+a caller of their own even when explicitly selected: when detection finds
+another multiplexer or none, an inherited `HC_TERMINAL_ID` or the TUI markers
+belong to an outer terminal, so report that and stop rather than control either
+from outside it. Check the selected CLI is available before mutation.
 
-For Herdr, take the live tab and workspace IDs from
+For the Herdr TUI, take the live tab and workspace IDs from
 `herdr pane current --current`. Inherited `HERDR_TAB_ID` and
 `HERDR_WORKSPACE_ID` go stale after pane moves, while the inherited pane ID
 stays an alias that `--current` resolves.
+
+In the Herdr app, `MUX_TERMINAL` is an hc address, not a pane. Never run a
+`herdr …` command from the app: it belongs to the TUI, and acts on the user's
+focused TUI pane.
 
 ## Resolve the work and destination
 
