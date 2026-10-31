@@ -209,9 +209,68 @@ fi
 declare -a ACTIVE_DIRS=() ACTIVE_LABELS=() TMUX_WINDOWS=() HERDR_TABS=() HERDR_WORKSPACES=()
 declare -a HC_TABS=() HC_SPACES=()
 ACTIVITY_NOTE=""
+HC_SOCKET_PATH=""
+HC_SOCKET_NOTE=""
+HC_LISTEN_NOTE=""
 
 note_activity_source() {
   ACTIVITY_NOTE=${ACTIVITY_NOTE:+$ACTIVITY_NOTE, }$1
+}
+
+# hc reads HC_SOCKET, else `socket` in its config.toml, else
+# $XDG_RUNTIME_DIR/herdr-core/<HC_SESSION>.sock. Without XDG_RUNTIME_DIR it
+# falls back to /run/user/<uid> on Linux; unverified elsewhere, so call that
+# unavailable.
+resolve_hc_socket() {
+  local config=${XDG_CONFIG_HOME:-${HOME:-}/.config}/herdr-core/config.toml line value
+  local quoted='^"([^"]+)"[[:space:]]*(#.*)?$' literal="^'([^']+)'[[:space:]]*(#.*)?\$"
+  HC_SOCKET_PATH=""
+  HC_SOCKET_NOTE=""
+  if [[ -n ${HC_SOCKET:-} ]]; then
+    HC_SOCKET_PATH=$HC_SOCKET
+    return 0
+  fi
+  if [[ -f $config ]]; then
+    line=$(awk '/^[[:space:]]*\[/ { exit } /^[[:space:]]*socket[[:space:]]*=/ { print; exit }' "$config")
+    if [[ -n $line ]]; then
+      value=${line#*=}
+      value=${value#"${value%%[![:space:]]*}"}
+      if [[ $value =~ $quoted || $value =~ $literal ]] && [[ ${BASH_REMATCH[1]} == /* ]]; then
+        HC_SOCKET_PATH=${BASH_REMATCH[1]}
+      else
+        HC_SOCKET_NOTE="hc UNAVAILABLE (socket in config.toml not understood)"
+      fi
+      return 0
+    fi
+  fi
+  if [[ -n ${XDG_RUNTIME_DIR:-} ]]; then
+    HC_SOCKET_PATH=${XDG_RUNTIME_DIR%/}/herdr-core/${HC_SESSION:-default}.sock
+  else
+    HC_SOCKET_NOTE="hc UNAVAILABLE (no HC_SOCKET or XDG_RUNTIME_DIR)"
+  fi
+}
+
+# shortcut: ss is Linux-only and lists one network namespace; elsewhere the hc
+# scan reads as unavailable, as the /proc scan already does
+hc_socket_listening() {
+  local socket=$1 real listeners path
+  HC_LISTEN_NOTE="hc UNAVAILABLE (nothing listens at $socket)"
+  if ! command -v ss >/dev/null 2>&1; then
+    HC_LISTEN_NOTE="hc UNAVAILABLE (no ss to check $socket)"
+    return 1
+  fi
+  if ! listeners=$(ss -xlH 2>/dev/null); then
+    HC_LISTEN_NOTE="hc UNAVAILABLE (ss failed)"
+    return 1
+  fi
+  real=$(readlink -f -- "$socket") || return 1
+  while IFS= read -r path; do
+    [[ $path == /* ]] || continue
+    if [[ $(readlink -f -- "$path" 2>/dev/null) == "$real" ]]; then
+      return 0
+    fi
+  done < <(awk '$1 ~ /^u_/ { print $5 }' <<<"$listeners")
+  return 1
 }
 
 collect_activity() {
@@ -262,11 +321,25 @@ collect_activity() {
     note_activity_source "no herdr server"
   fi
 
+  # Every hc command, hc server status included, starts a core when nothing
+  # answers at its socket, a stale socket file included, so ask ss whether a core
+  # listens there before calling hc.
+  resolve_hc_socket
   if ! command -v hc >/dev/null 2>&1; then
     note_activity_source "no hc"
   elif ! command -v jq >/dev/null 2>&1; then
     note_activity_source "hc UNAVAILABLE (no jq)"
-  elif terminals=$(hc ls --json 2>/dev/null); then
+  elif [[ -n $HC_SOCKET_NOTE ]]; then
+    note_activity_source "$HC_SOCKET_NOTE"
+  elif [[ ! -e $HC_SOCKET_PATH ]]; then
+    note_activity_source "no hc socket at $HC_SOCKET_PATH"
+  elif ! hc_socket_listening "$HC_SOCKET_PATH"; then
+    note_activity_source "$HC_LISTEN_NOTE"
+  elif ! terminals=$(hc ls --json 2>/dev/null); then
+    note_activity_source "hc UNAVAILABLE (hc ls failed)"
+  elif ! jq -e '.terminals | type == "array" and all(.[]; (.address | type) == "string")' <<<"$terminals" >/dev/null 2>&1; then
+    note_activity_source "hc UNAVAILABLE (unreadable hc ls reply)"
+  else
     while IFS= read -r cwd; do
       [[ -n $cwd ]] || continue
       ACTIVE_DIRS+=("$cwd")
@@ -280,9 +353,7 @@ collect_activity() {
       [[ -n $name ]] || continue
       HC_SPACES+=("$name")
     done < <(jq -r '[.terminals[] | select(.state == "live") | .where // empty | select(contains(" / ")) | sub(" / .*$"; "")] | unique[]' <<<"$terminals" 2>/dev/null || true)
-    note_activity_source "$(jq -r '[.terminals[] | select(.state == "live" and (.address | contains("/") | not))] | length' <<<"$terminals" 2>/dev/null || printf 0) hc terminal(s)"
-  else
-    note_activity_source "no hc core"
+    note_activity_source "$(jq -r '[.terminals[] | select(.state == "live" and (.address | contains("/") | not))] | length' <<<"$terminals") hc terminal(s)"
   fi
 
   if [[ ! -d /proc ]]; then

@@ -9,7 +9,7 @@ description: >-
 argument-hint: '[--apply]'
 metadata:
   author: langri-sha
-  version: '1.3.0'
+  version: '1.3.1'
 ---
 
 # Worktree Reaper
@@ -167,13 +167,23 @@ Skipped with a stated reason:
   process whose cwd is inside them
 
 The header's `in-use scan` line names which of those detections actually ran, so
-a run with no tmux, no Herdr TUI server, no hc core, or no `/proc` says so
+a run with no tmux, no Herdr TUI server, no hc socket, or no `/proc` says so
 rather than quietly checking less than you think. Each multiplexer scan reaches
 one server: tmux's from `$TMUX` or its default socket, the Herdr TUI's from
-`HERDR_SOCKET_PATH` or its default session, hc's from `HC_SOCKET` or its default
-socket under `$XDG_RUNTIME_DIR`. Herdr clears `TMUX` in its panes, so a run
-inside Herdr nested in tmux sees the outer tmux only when that runs on the
-default socket.
+`HERDR_SOCKET_PATH` or its default session, hc's from `HC_SOCKET`, else the
+`socket` key in `~/.config/herdr-core/config.toml`, else
+`$XDG_RUNTIME_DIR/herdr-core/<HC_SESSION>.sock` with `default` as the session.
+Herdr clears `TMUX` in its panes, so a run inside Herdr nested in tmux sees the
+outer tmux only when that runs on the default socket.
+
+`hc ls` starts a core when nothing answers at that socket, a stale socket file
+left by a crashed core included, so the hc scan first checks that the socket
+exists and, with `ss`, that a process listens on it, and only then calls `hc`. A
+dry run therefore leaves no daemon behind. A missing socket reads as
+`no hc socket at <path>`; a core started under another runtime directory looks
+the same, with the path as the clue. A socket nothing listens on, no `ss`, a
+`socket` config value the scan cannot read, a failed `hc ls` and an unreadable
+reply all read as `hc UNAVAILABLE`, never as zero terminals.
 
 Mechanics:
 

@@ -52,8 +52,12 @@ export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME"
 export GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
 mkdir -p "$HOME"
 export PATH="$TMP/bin:$PATH"
+export XDG_CONFIG_HOME="$HOME/.config"
 export HERDR_STUB_STATE=up
 export HC_STUB_STATE=up
+export HC_SOCKET="$TMP/hc.sock"
+HC_CONFIG="$XDG_CONFIG_HOME/herdr-core/config.toml"
+HC_CORE_STARTED="$TMP/hc-core-started"
 
 PASSED=0
 FAILED=0
@@ -238,16 +242,43 @@ write_hc_stub() {
   mkdir -p "$TMP/bin"
   cat >"$TMP/bin/hc" <<STUB
 #!/usr/bin/env bash
-if [[ \$HC_STUB_STATE == down ]]; then
-  printf '%s\n' '{"error":{"kind":"no_core","message":"no herdr core is running"}}' >&2
-  exit 1
+sock=\${HC_SOCKET:-\$(sed -n 's/^socket = "\\(.*\\)"\$/\\1/p' "$HC_CONFIG" 2>/dev/null)}
+if [[ \$HC_STUB_STATE == stale || -z \$sock || ! -e \$sock ]]; then
+  : >"$HC_CORE_STARTED"
+  [[ -n \$sock ]] && : >"\$sock"
+  printf '%s\n' '{"hidden_finished":0,"terminals":[]}'
+  exit 0
 fi
+case "\$HC_STUB_STATE" in
+  unavailable)
+    printf '%s\n' '{"error":{"kind":"unavailable","message":"the core is stopping"}}' >&2
+    exit 5
+    ;;
+  garbled)
+    printf 'hc: terminals\n'
+    exit 0
+    ;;
+esac
 case "\$1" in
   ls) printf '%s\n' '{"hidden_finished":0,"terminals":[{"address":"t1","agent":"claude-code","cwd":"$GARDEN/wtr-hc-terminal/src","state":"live","status":"working","turn":3,"where":"Garden / 1"},{"address":"t2","agent":"bash","cwd":"$HOME","state":"live","turn":0,"where":"wtr-hc-space / 1"},{"address":"t3","agent":"bash","cwd":"$HOME","state":"live","turn":0,"where":"Garden / wtr-hc-tab"},{"address":"t4","agent":"bash","cwd":"$GARDEN/wtr-hc-finished","state":"finished","turn":0,"where":"Garden / 2"},{"address":"box/t2","agent":"bash","cwd":"$GARDEN/wtr-hc-remote","state":"live","turn":0,"where":"Garden / 3"}]}' ;;
   *) exit 2 ;;
 esac
 STUB
   chmod +x "$TMP/bin/hc"
+  : >"$HC_SOCKET"
+}
+
+write_ss_stub() {
+  mkdir -p "$TMP/bin"
+  cat >"$TMP/bin/ss" <<STUB
+#!/usr/bin/env bash
+[[ \$HC_STUB_STATE == stale ]] && exit 0
+for sock in "$TMP"/*.sock; do
+  [[ -e \$sock ]] && printf 'u_str LISTEN 0 4096 %s 1 * 0\n' "\$sock"
+done
+exit 0
+STUB
+  chmod +x "$TMP/bin/ss"
 }
 
 garden_state() {
@@ -260,6 +291,7 @@ printf 'Building fixture garden in %s\n' "$TMP"
 build_fixture
 write_herdr_stub
 write_hc_stub
+write_ss_stub
 
 printf 'Holding wtr-active busy with a process whose cwd is inside it\n'
 (cd "$GARDEN/wtr-active" && exec sleep 300) &
@@ -340,12 +372,69 @@ expect_verdict "$HERDR_DOWN" "wtr-herdr-pane" reap
 expect_verdict "$HERDR_DOWN" "wtr-herdr-tab" reap
 expect_verdict "$HERDR_DOWN" "wtr-herdr-workspace" reap
 
-printf '\nAn hc core that is not running holds nothing\n'
-HC_DOWN=$(HC_STUB_STATE=down "$REAP" --garden "$GARDEN" 2>&1)
-expect_output "$HC_DOWN" "no hc core"
+printf '\nWithout an hc socket the scan skips hc and starts no core\n'
+rm -f -- "$HC_SOCKET"
+HC_DOWN=$("$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_DOWN" "no hc socket at $HC_SOCKET"
+expect_missing "$HC_DOWN" "hc terminal(s)"
+check "hc was not called without a socket" \
+  "$([[ ! -e $HC_CORE_STARTED ]] && printf true || printf false)" \
+  "the hc stub ran and started a core"
+check "no hc socket appeared during the run" \
+  "$([[ ! -e $HC_SOCKET ]] && printf true || printf false)" \
+  "$HC_SOCKET was created"
 expect_verdict "$HC_DOWN" "wtr-hc-terminal" reap
 expect_verdict "$HC_DOWN" "wtr-hc-tab" reap
 expect_verdict "$HC_DOWN" "wtr-hc-space" reap
+: >"$HC_SOCKET"
+
+printf '\nThe default hc socket follows XDG_RUNTIME_DIR and HC_SESSION\n'
+HC_SESSION_RUN=$(env -u HC_SOCKET XDG_RUNTIME_DIR="$TMP/run" HC_SESSION=wtr "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_SESSION_RUN" "no hc socket at $TMP/run/herdr-core/wtr.sock"
+HC_DEFAULT_SESSION=$(env -u HC_SOCKET -u HC_SESSION XDG_RUNTIME_DIR="$TMP/run" "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_DEFAULT_SESSION" "no hc socket at $TMP/run/herdr-core/default.sock"
+HC_NOWHERE=$(env -u HC_SOCKET -u XDG_RUNTIME_DIR "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_NOWHERE" "hc UNAVAILABLE (no HC_SOCKET or XDG_RUNTIME_DIR)"
+check "hc was not called without a socket path" \
+  "$([[ ! -e $HC_CORE_STARTED ]] && printf true || printf false)" \
+  "the hc stub ran and started a core"
+
+printf '\nAn hc failure or an unreadable reply reads as unavailable, never as no activity\n'
+HC_UNAVAILABLE=$(HC_STUB_STATE=unavailable "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_UNAVAILABLE" "hc UNAVAILABLE (hc ls failed)"
+expect_missing "$HC_UNAVAILABLE" "no hc core"
+expect_missing "$HC_UNAVAILABLE" "hc terminal(s)"
+HC_GARBLED=$(HC_STUB_STATE=garbled "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_GARBLED" "hc UNAVAILABLE (unreadable hc ls reply)"
+expect_missing "$HC_GARBLED" "0 hc terminal(s)"
+
+printf '\nA stale hc socket that nothing listens on reads as unavailable and starts no core\n'
+HC_STALE=$(HC_STUB_STATE=stale "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_STALE" "hc UNAVAILABLE (nothing listens at $HC_SOCKET)"
+expect_missing "$HC_STALE" "hc terminal(s)"
+check "hc was not called on a stale socket" \
+  "$([[ ! -e $HC_CORE_STARTED ]] && printf true || printf false)" \
+  "the hc stub ran and started a core"
+
+printf '\nA socket set in hc config.toml is scanned like the default one\n'
+mkdir -p "$(dirname "$HC_CONFIG")"
+printf 'socket = "%s"\n' "$TMP/cfg.sock" >"$HC_CONFIG"
+: >"$TMP/cfg.sock"
+HC_CONFIGURED=$(env -u HC_SOCKET "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_CONFIGURED" "3 hc terminal(s)"
+expect_verdict "$HC_CONFIGURED" "wtr-hc-terminal" skip
+HC_ENV_WINS=$(HC_STUB_STATE=stale "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_ENV_WINS" "hc UNAVAILABLE (nothing listens at $HC_SOCKET)"
+rm -f -- "$TMP/cfg.sock"
+HC_CONFIGURED_DOWN=$(env -u HC_SOCKET "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_CONFIGURED_DOWN" "no hc socket at $TMP/cfg.sock"
+printf 'socket = relative.sock\n' >"$HC_CONFIG"
+HC_CONFIG_ODD=$(env -u HC_SOCKET "$REAP" --garden "$GARDEN" 2>&1)
+expect_output "$HC_CONFIG_ODD" "hc UNAVAILABLE (socket in config.toml not understood)"
+check "hc was not called on a configured socket it could not find" \
+  "$([[ ! -e $HC_CORE_STARTED ]] && printf true || printf false)" \
+  "the hc stub ran and started a core"
+rm -f -- "$HC_CONFIG"
 
 printf '\nBranch name that differs from the directory name\n'
 git -C "$BARE" branch -m wtr-no-unique wtr-renamed >/dev/null 2>&1
