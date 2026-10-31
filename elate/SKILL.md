@@ -29,19 +29,19 @@ appended while a live agent already holds the name.
 
 Turn the named agent or model into options for the script:
 
-| Named                                              | Options                                |
-| -------------------------------------------------- | -------------------------------------- |
-| `claude` or Claude Code alone                      | `--agent claude`                       |
-| `codex`, or nothing                                | none: codex, with its configured model |
-| any other model, such as `opus` or `gpt-5.6-terra` | `--model <model>`                      |
+| Named                                              | Options                      |
+| -------------------------------------------------- | ---------------------------- |
+| `claude` or Claude Code alone                      | `--agent claude`             |
+| `codex`, `sol`, or nothing                         | none: codex on `gpt-6.1-sol` |
+| any other model, such as `opus` or `gpt-5.6-terra` | `--model <model>`            |
 
 The script starts claude for a Claude model, such as `opus` or `claude-…`, and
 codex for any other, and prints the model and effort it picked.
 
 An effort word, `low`, `medium`, `high`, `xhigh` or `max`, or `ultra` for codex,
 becomes `--effort <word>` when it follows the agent or model, or is the whole
-argument. Without one, each agent uses its configured effort. So "opus xhigh" is
-`--model opus --effort xhigh`.
+argument. Without one, codex runs at `xhigh` and claude at its configured
+effort. So "opus xhigh" is `--model opus --effort xhigh`.
 
 ## Launch
 
