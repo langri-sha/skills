@@ -31,8 +31,8 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 if [ -z "$AGENT" ]; then
-  case $MODEL in
-  opus* | sonnet* | haiku* | fable* | best | opusplan | claude-*) AGENT=claude ;;
+  case $(printf '%s' "$MODEL" | tr '[:upper:]' '[:lower:]') in
+  opus* | sonnet* | haiku* | fable* | best | claude-*) AGENT=claude ;;
   *) AGENT=codex ;;
   esac
 fi
