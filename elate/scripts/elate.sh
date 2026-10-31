@@ -8,8 +8,9 @@
 #                 [-] [-- agent-args...]
 #   --agent   the CLI to start; without it, claude for a Claude model name and
 #             codex otherwise
-#   --model   its model
-#   --effort  claude's --effort, or codex's model_reasoning_effort
+#   --model   its model, gpt-6.1-sol for codex by default
+#   --effort  claude's --effort, or codex's model_reasoning_effort, xhigh for
+#             codex by default
 #   -         append extra context from stdin to the seed prompt
 
 set -u
@@ -37,7 +38,10 @@ if [ -z "$AGENT" ]; then
 fi
 case $AGENT in
 claude) LEVELS='low medium high xhigh max' ;;
-codex) LEVELS='low medium high xhigh max ultra' ;;
+codex)
+  LEVELS='low medium high xhigh max ultra'
+  MODEL=${MODEL:-gpt-6.1-sol} EFFORT=${EFFORT:-xhigh}
+  ;;
 *)
   echo "--agent is claude or codex, not '$AGENT'." >&2
   exit 2
