@@ -158,6 +158,9 @@ Steps:
    attention to recent prompts, plans, file paths, and error output.
 3. Operate from the working directory \`$CWD\`.
 
+The latest /elate request on that screen is the one that started you: don't run
+elate or start other agents unless the brief asks for that explicitly.
+
 If the captured pane is ambiguous, ask one clarifying question before acting."
 
 if [ -n "$EXTRA" ]; then
