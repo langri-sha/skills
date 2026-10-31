@@ -1,20 +1,59 @@
 #!/usr/bin/env bash
-# Starts a parallel codex agent beside this agent's own tmux, Herdr app or
-# Herdr TUI pane, seeded to read the brief: the window's first pane in tmux,
-# this agent's own terminal in the app, its own pane in the TUI. Run it from
-# the directory codex should work in.
+# Starts a parallel claude or codex agent beside this agent's own tmux, Herdr
+# app or Herdr TUI pane, seeded to read the brief: the window's first pane in
+# tmux, this agent's own terminal in the app, its own pane in the TUI. Run it
+# from the directory the agent should work in.
 #
-# Usage: elate.sh [-] [-- codex-args...]
-#   -   append extra context from stdin to the seed prompt
+# Usage: elate.sh [--agent claude|codex] [--model <model>] [--effort <level>]
+#                 [-] [-- agent-args...]
+#   --agent   the CLI to start; without it, claude for a Claude model name and
+#             codex otherwise
+#   --model   its model
+#   --effort  claude's --effort, or codex's model_reasoning_effort
+#   -         append extra context from stdin to the seed prompt
 
 set -u
 
-EXTRA=
-if [ "${1:-}" = - ]; then
-  EXTRA=$(cat)
+AGENT='' MODEL='' EFFORT='' EXTRA=''
+while [ "$#" -gt 0 ]; do
+  case $1 in
+  --agent) AGENT=${2:?--agent needs a value} && shift ;;
+  --model) MODEL=${2:?--model needs a value} && shift ;;
+  --effort) EFFORT=${2:?--effort needs a value} && shift ;;
+  -) EXTRA=$(cat) ;;
+  --) shift && break ;;
+  *)
+    echo "Unknown option: $1" >&2
+    exit 2
+    ;;
+  esac
   shift
+done
+if [ -z "$AGENT" ]; then
+  case $MODEL in
+  opus* | sonnet* | haiku* | fable* | best | opusplan | claude-*) AGENT=claude ;;
+  *) AGENT=codex ;;
+  esac
 fi
-[ "${1:-}" = -- ] && shift
+case $AGENT in
+claude) LEVELS='low medium high xhigh max' ;;
+codex) LEVELS='low medium high xhigh max ultra' ;;
+*)
+  echo "--agent is claude or codex, not '$AGENT'." >&2
+  exit 2
+  ;;
+esac
+if [ -n "$EFFORT" ] && [[ " $LEVELS " != *" $EFFORT "* ]]; then
+  echo "--effort for $AGENT is one of: $LEVELS." >&2
+  exit 2
+fi
+if [ -n "$EFFORT" ] && [ "$AGENT" = claude ]; then
+  set -- --effort "$EFFORT" "$@"
+elif [ -n "$EFFORT" ]; then
+  set -- -c "model_reasoning_effort=\"$EFFORT\"" "$@"
+fi
+[ -n "$MODEL" ] && set -- --model "$MODEL" "$@"
+PICKED="model=${MODEL:-default} effort=${EFFORT:-default}"
 
 # The variables only name candidates: when one multiplexer runs inside another,
 # every set is inherited, and HERDR_* goes stale when a pane moves. Herdr's own
@@ -102,7 +141,7 @@ else
   done
 fi
 
-ELATE_PROMPT="You are a parallel codex agent launched via the /elate skill.
+ELATE_PROMPT="You are a parallel agent launched via the /elate skill.
 
 Another agent (Claude Code, or a human) is working in $BRIEF_WHERE.
 That pane is your brief.
@@ -125,46 +164,47 @@ Additional context from the dispatcher:
 $EXTRA"
 fi
 
-# The wrapper runs codex in an interactive shell, so the user's functions
-# apply, and leaves that shell behind when codex exits. The prompt travels as
-# one argument, so no shell re-parses it. shortcut: it reaches only a bash
+# The wrapper runs the agent in an interactive shell, so the user's functions
+# apply, and leaves that shell behind when the agent exits. The prompt travels
+# as one argument, so no shell re-parses it. shortcut: it reaches only a bash
 # user's functions; use $SHELL if a zsh or fish user needs theirs.
 WRAP=("$BASH" -ic '"$@"; exec "$0" -i' "$BASH")
 
 if [ "$MUX" = tmux ]; then
-  # This checks the caller's PATH; the pane resolves codex after ~/.bashrc.
-  command -v codex >/dev/null || {
-    echo "codex is not on PATH." >&2
+  # This checks the caller's PATH; the pane resolves the agent after ~/.bashrc.
+  command -v "$AGENT" >/dev/null || {
+    echo "$AGENT is not on PATH." >&2
     exit 1
   }
   # tmux execs a command of several words as given, without a shell.
   # shortcut: nothing waits for a status here, so a pending op approval or a
   # failed start still prints success; add a wait if quiet failures show up.
-  CODEX_PANE=$(tmux split-window -t "$WINDOW_ID" -h -c "$CWD" -P -F '#{pane_id}' -- \
-    "${WRAP[@]}" codex "$@" "$ELATE_PROMPT") || exit 1
+  AGENT_PANE=$(tmux split-window -t "$WINDOW_ID" -h -c "$CWD" -P -F '#{pane_id}' -- \
+    "${WRAP[@]}" "$AGENT" "$@" "$ELATE_PROMPT") || exit 1
   tmux select-layout -t "$WINDOW_ID" even-horizontal
-  echo "codex pane=$CODEX_PANE brief=$BRIEF_PANE window=$WINDOW_ID dir=$CWD"
+  echo "$AGENT pane=$AGENT_PANE $PICKED brief=$BRIEF_PANE window=$WINDOW_ID dir=$CWD"
   exit 0
 fi
 
 if [ "$MUX" = app ]; then
   # The labels place the terminal in this tab without moving focus; with no
-  # parent, codex neither ends with the dispatcher nor types notes into it.
+  # parent, the agent neither ends with the dispatcher nor types notes into it.
   # --no-daemon keeps codex's commands in its own terminal; it goes before the
   # user's flags so none can displace it.
+  [ "$AGENT" = codex ] && set -- --no-daemon "$@"
   OUT=$(hc run --bg --no-parent --keep --json \
     --name "$AGENT_NAME" --cwd "$CWD" \
     --label herdr.space="$SPACE" --label herdr.tab="$TAB" -- \
-    "${WRAP[@]}" codex --no-daemon "$@" "$ELATE_PROMPT") || {
+    "${WRAP[@]}" "$AGENT" "$@" "$ELATE_PROMPT") || {
     [ -n "$OUT" ] && echo "$OUT" >&2
     exit 1
   }
-  CODEX_TERMINAL=$(jq -r '.address // empty' <<<"$OUT")
-  echo "codex terminal=$CODEX_TERMINAL agent=$AGENT_NAME brief=$MUX_TERMINAL dir=$CWD"
-  # A status proves codex is running. None within the wait means op is still
-  # waiting for its approval, or codex never started and the wrapper's shell
-  # sits there; the screen says which.
-  WAIT=$(timeout 30 hc wait "$CODEX_TERMINAL" --timeout 10 --json) || {
+  AGENT_TERMINAL=$(jq -r '.address // empty' <<<"$OUT")
+  echo "$AGENT terminal=$AGENT_TERMINAL $PICKED agent=$AGENT_NAME brief=$MUX_TERMINAL dir=$CWD"
+  # A status proves the agent is running. None within the wait means op is
+  # still waiting for its approval, or the agent never started and the
+  # wrapper's shell sits there; the screen says which.
+  WAIT=$(timeout 30 hc wait "$AGENT_TERMINAL" --timeout 10 --json) || {
     [ -n "$WAIT" ] && echo "$WAIT" >&2
     exit 1
   }
@@ -172,35 +212,35 @@ if [ "$MUX" = app ]; then
   if [ "$STATUS" = blocked ]; then
     PROMPT_FILE=$(mktemp "${TMPDIR:-/tmp}/elate-prompt-XXXXXX")
     printf '%s' "$ELATE_PROMPT" >"$PROMPT_FILE"
-    echo "codex is blocked at startup; if \`hc get $AGENT_NAME --json\` still shows turn 0 once it is idle, seed it with:" >&2
+    echo "$AGENT is blocked at startup; if \`hc get $AGENT_NAME --json\` still shows turn 0 once it is idle, seed it with:" >&2
     echo "hc send $AGENT_NAME \"\$(cat $PROMPT_FILE)\"" >&2
     exit 3
   fi
   if [ -z "$STATUS" ]; then
-    echo "codex has not reported a status; its screen:" >&2
-    hc read "$CODEX_TERMINAL" --lines 20 >&2
+    echo "$AGENT has not reported a status; its screen:" >&2
+    hc read "$AGENT_TERMINAL" --lines 20 >&2
     exit 1
   fi
   exit 0
 fi
 
-CODEX_PANE=$(herdr pane split --pane "$BRIEF_PANE" --direction right \
+AGENT_PANE=$(herdr pane split --pane "$BRIEF_PANE" --direction right \
   --cwd "$CWD" --no-focus | jq -r '.result.pane.pane_id // empty')
-[ -n "$CODEX_PANE" ] || {
+[ -n "$AGENT_PANE" ] || {
   echo "Split failed." >&2
   exit 1
 }
-echo "codex pane=$CODEX_PANE agent=$AGENT_NAME brief=$BRIEF_PANE dir=$CWD"
+echo "$AGENT pane=$AGENT_PANE $PICKED agent=$AGENT_NAME brief=$BRIEF_PANE dir=$CWD"
 
 # agent start needs the shell prompt a fresh split provides.
 [ "$#" -gt 0 ] && set -- -- "$@"
-if ! OUT=$(herdr agent start "$AGENT_NAME" --kind codex --pane "$CODEX_PANE" \
+if ! OUT=$(herdr agent start "$AGENT_NAME" --kind "$AGENT" --pane "$AGENT_PANE" \
   --timeout 60000 "$@" 2>&1); then
   echo "$OUT" >&2
   if [ "$(jq -r '.error.code // empty' <<<"$OUT" 2>/dev/null)" = agent_not_ready ]; then
     PROMPT_FILE=$(mktemp "${TMPDIR:-/tmp}/elate-prompt-XXXXXX")
     printf '%s' "$ELATE_PROMPT" >"$PROMPT_FILE"
-    echo "codex is blocked at startup; seed it once it is idle with:" >&2
+    echo "$AGENT is blocked at startup; seed it once it is idle with:" >&2
     echo "herdr agent prompt $AGENT_NAME \"\$(cat $PROMPT_FILE)\"" >&2
     exit 3
   fi
