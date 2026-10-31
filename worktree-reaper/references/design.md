@@ -64,7 +64,11 @@ is no second, weaker set of checks to drift out of sync.
 ## Cost of a Dry Run
 
 The dry report is cheap — about 4 seconds over 65 worktrees, plus `du` on the
-candidates — and mutates nothing, so it is safe to run on a schedule.
+candidates — and mutates nothing, so it is safe to run on a schedule. That
+includes the in-use scan: `hc ls` starts a core when none answers, a stale
+socket file included, so the scan checks with `ss` that a core listens on its
+socket and skips `hc` otherwise, rather than letting a scheduled dry run leave a
+daemon running.
 
 ## Tests
 
@@ -72,8 +76,11 @@ A standalone fixture harness builds a throwaway garden in a temp directory and
 covers every classification branch — rebase-merged, patch-equivalent, empty
 retrigger commit, unmerged, dirty, untracked, ignored-only, detached, locked,
 in-use (a Herdr TUI pane, tab or workspace, and an hc terminal, tab or space,
-through stub `herdr` and `hc` binaries), nested, out-of-garden, stale, and the
-protected trio:
+through stub `herdr`, `hc` and `ss` binaries), nested, out-of-garden, stale, and
+the protected trio. The `hc` stub behaves like the real one: it starts a core
+when its socket is missing or stale, so the harness can prove the scan never
+calls it then, and it models a socket set in `config.toml`, a failing core and
+an unreadable reply:
 
 ```bash
 tests/run-tests.sh
