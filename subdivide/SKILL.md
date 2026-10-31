@@ -8,7 +8,7 @@ description: >-
 argument-hint: '<prompt describing the work> [lane]'
 metadata:
   author: langri-sha
-  version: '1.1.1'
+  version: '1.2.0'
 ---
 
 # Subdivide
@@ -104,15 +104,18 @@ where it is invoked, and a `cd` doesn't last between commands. Invoke it with:
   requested. Resolve ambiguous context through `/create-session`.
 - **tmux lane**: for tmux, pass the lane the user asked for; `proposals` for
   proposal or design-doc work; otherwise `dev`. Pass it explicitly rather than
-  inheriting the current conversation's lane. For Herdr, omit the lane and use
-  the new worktree's native workspace; forward an explicit workspace request. If
-  the user supplied a lane with Herdr, clarify the destination before launch.
+  inheriting the current conversation's lane. For the Herdr TUI, omit the lane
+  and use the new worktree's native workspace; forward an explicit workspace
+  request. For the Herdr app, omit the lane as well and use the new worktree's
+  space; forward an explicit space request as `--space <id-or-name>`. If the
+  user supplied a lane with the Herdr TUI or the Herdr app, clarify the
+  destination before launch.
 - **assistant**: `claude`
 - **prompt**: the constructed prompt above
 
-This creates a tmux window in the chosen lane or opens the worktree's Herdr
-workspace, with Claude on the left pane (fully briefed) and critique on the
-right.
+This creates a tmux window in the chosen lane, or opens the worktree's Herdr TUI
+workspace or Herdr app space, with Claude on the left pane (fully briefed) and
+critique on the right.
 
 ### 6. Report
 
@@ -124,11 +127,11 @@ user is ready.
 
 ### Session Creation Fails
 
-`/create-session` creates missing tmux lanes or opens the Herdr worktree
-workspace on demand. tmux can start detached when explicitly selected; Herdr
-requires a validated managed caller pane. If session creation fails, report the
-error and any partially created session IDs — the issue and worktree are still
-created successfully.
+`/create-session` creates missing tmux lanes or opens the worktree's Herdr TUI
+workspace or Herdr app space on demand. tmux can start detached when explicitly
+selected; the Herdr TUI and the Herdr app require a validated caller pane or
+terminal. If session creation fails, report the error and any partially created
+session IDs — the issue and worktree are still created successfully.
 
 ### Issue Creation Fails
 
