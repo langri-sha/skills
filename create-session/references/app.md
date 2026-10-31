@@ -94,14 +94,19 @@ Split the assistant's pane to the right with critique as the new pane's program.
 `pane.split` has no directory argument and would use the pane's current folder,
 so `env -C` pins the invocation directory. The program runs bare, with no shell,
 so there is nothing to wait for before it starts; the pane closes when critique
-exits, and the split does not move the user's focus.
+exits, and the split does not move the user's focus. It prints
+`{"pane": …, "terminal": …}` on success, or `{"error": …}` and exits 1, and the
+guard repeats that reply when the split fails. The `--pane` guard stops an empty
+id, one not carried into this call or looked up while the app window was closed,
+before a split that would otherwise land on the focused pane.
 
 ```bash
-SESSION_SPLIT=$(herdr-app do pane.split --direction right --pane "$SESSION_LEFT_PANE" \
+SESSION_SPLIT=$(herdr-app do pane.split --direction right \
+  --pane "${SESSION_LEFT_PANE:?no pane for the assistant, or the Herdr app window is closed}" \
   --argv "$(jq -cn --arg c "$SESSION_CWD" '["env", "-C", $c, "critique", "--watch", "origin/main"]')")
 SESSION_RIGHT=$(jq -r '.terminal // empty' <<<"$SESSION_SPLIT")
 SESSION_RIGHT_PANE=$(jq -r '.pane // empty' <<<"$SESSION_SPLIT")
-: "${SESSION_RIGHT:?split failed}" "${SESSION_RIGHT_PANE:?}"
+: "${SESSION_RIGHT:?split failed: $SESSION_SPLIT}" "${SESSION_RIGHT_PANE:?}"
 ```
 
 ## Read the start
