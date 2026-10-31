@@ -8,7 +8,7 @@ description: >-
 argument-hint: '<prompt describing the work> [lane]'
 metadata:
   author: langri-sha
-  version: '1.1.0'
+  version: '1.1.1'
 ---
 
 # Subdivide
@@ -96,7 +96,9 @@ Implement issue #<ISSUE_NUMBER>. Read it with: gh issue view <ISSUE_NUMBER>.
 <original user prompt>
 ```
 
-Invoke `/create-session` with:
+Run every `/create-session` command with `WORKTREE_PATH` as its working
+directory: create-session resolves the worktree, slug and session directory from
+where it is invoked, and a `cd` doesn't last between commands. Invoke it with:
 
 - **backend**: use the caller context, or the backend the user explicitly
   requested. Resolve ambiguous context through `/create-session`.
