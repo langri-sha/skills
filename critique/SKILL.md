@@ -7,7 +7,7 @@ description: >-
   watcher (create-session).
 metadata:
   author: langri-
-  version: '1.2.1'
+  version: '1.2.2'
 ---
 
 # critique
@@ -81,20 +81,19 @@ to the right with critique as the new pane's program:
 ```bash
 PANE=$(herdr-app ls | jq -r --arg t "${HC_TERMINAL_ID:?}" \
   '.spaces[].tabs[].terminals[] | select(.terminal == $t) | .pane // empty')
-: "${PANE:?this terminal has no pane in the Herdr app}"
-CRITIQUE_TERMINAL=$(herdr-app do pane.split --pane "$PANE" --direction right \
-  --argv "$(jq -cn --arg d "$PWD" '["env", "-C", $d, "critique", "--watch", "origin/main"]')" |
-  jq -r '.terminal // empty')
-: "${CRITIQUE_TERMINAL:?split failed}"
+herdr-app do pane.split --direction right \
+  --pane "${PANE:?no pane for this terminal, or the Herdr app window is closed}" \
+  --argv "$(jq -cn --arg d "$PWD" '["env", "-C", $d, "critique", "--watch", "origin/main"]')"
 ```
 
-The split lands beside this agent's own pane and does not move the user's focus.
-`env -C "$PWD"` starts critique in the worktree: `pane.split` has no directory
-argument and would otherwise use the pane's current folder. The program runs
-directly, with no shell, so there is nothing to wait for before it starts, and
-the pane closes when critique exits, as in tmux. An agent whose terminal has no
-pane, such as a hidden sub-agent, stops at the `PANE` guard. `herdr-app ls` and
-`herdr-app do` need the app window to be open.
+The split does not move the user's focus. It prints `{"pane": …, "terminal": …}`
+on success, or `{"error": …}` and exits 1. `env -C "$PWD"` starts critique in
+the worktree: `pane.split` has no directory argument and would otherwise use the
+pane's current folder. The program runs directly, with no shell, so there is
+nothing to wait for before it starts, and the pane closes when critique exits,
+as in tmux. An agent whose terminal has no pane, such as a hidden sub-agent,
+stops at the `PANE` guard; so does one whose app window is closed, since
+`herdr-app ls` and `herdr-app do` need it open.
 
 **Herdr TUI.** Split to the right without moving the user's focus, wait for the
 new shell to draw its prompt so the command isn't typed into a shell still
