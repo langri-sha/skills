@@ -2,19 +2,20 @@
 name: edit
 description: >-
   Opens an editor on the current worktree: nvim in a split beside this agent's
-  tmux or Herdr pane, or a named editor such as zed, code or cursor as its own
-  process. Use when asked to open the worktree in an editor. Not for watching
-  the diff (critique).
+  tmux, Herdr app or Herdr TUI pane, or a named editor such as zed, code or
+  cursor as its own process. Use when asked to open the worktree in an editor.
+  Not for watching the diff (critique).
 metadata:
   author: langri-
-  version: '1.1.0'
+  version: '1.2.0'
 ---
 
 # edit
 
 Open an editor in the current worktree.
 
-- **`/edit`** (no args) — open `nvim` in a right-hand tmux or Herdr split pane.
+- **`/edit`** (no args) — open `nvim` in a right-hand tmux, Herdr app or Herdr
+  TUI split pane.
 - **`/edit <command>`** — launch `<command> .` as a standalone process (e.g.
   `/edit zed`, `/edit code`, `/edit cursor`).
 
@@ -31,13 +32,16 @@ With no argument:
 bash <skill-dir>/scripts/edit.sh
 ```
 
-It splits this agent's own pane to the right, in whichever of tmux or Herdr owns
-this agent's terminal, and starts nvim there. When neither does, it says so and
-exits 1; a named editor still works. A sandbox that hides parent processes or
-the multiplexer's socket ends the same way, so rerun it outside the sandbox. The
-tmux pane closes when nvim exits; the Herdr pane keeps its shell.
+It splits this agent's own pane to the right, in whichever of tmux, the Herdr
+app or the Herdr TUI owns this agent's terminal, and starts nvim there. When
+none does, it says so and exits 1; a named editor still works. A sandbox that
+hides parent processes or a multiplexer's socket ends the same way, so rerun it
+outside the sandbox. In the Herdr app the split does not move the user's focus
+and needs the app window to be open. The tmux and Herdr app panes close when
+nvim exits; the Herdr TUI pane keeps its shell.
 
-Report the directory and, in Herdr, the new pane's ID.
+Report the directory and, in the Herdr app, the new terminal's address, or in
+the Herdr TUI, the new pane's ID.
 
 ### A named editor
 
