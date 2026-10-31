@@ -9,7 +9,7 @@ description: >-
 disable-model-invocation: true
 metadata:
   author: langri-sha
-  version: '1.2.0'
+  version: '1.2.1'
 ---
 
 # elate
@@ -35,8 +35,9 @@ Turn the named agent or model into options for the script:
 | `codex`, `sol`, or nothing                         | none: codex on `gpt-6.1-sol` |
 | any other model, such as `opus` or `gpt-5.6-terra` | `--model <model>`            |
 
-The script starts claude for a Claude model, such as `opus` or `claude-…`, and
-codex for any other, and prints the model and effort it picked.
+The script starts claude for a Claude model, such as `opus` or `claude-…`,
+matched regardless of case, and codex for any other, and prints the model and
+effort it picked.
 
 An effort word, `low`, `medium`, `high`, `xhigh` or `max`, or `ultra` for codex,
 becomes `--effort <word>` when it follows the agent or model, or is the whole
