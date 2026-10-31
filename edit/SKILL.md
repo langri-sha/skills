@@ -7,7 +7,7 @@ description: >-
   Not for watching the diff (critique).
 metadata:
   author: langri-
-  version: '1.2.0'
+  version: '1.2.1'
 ---
 
 # edit
@@ -37,8 +37,9 @@ app or the Herdr TUI owns this agent's terminal, and starts nvim there. When
 none does, it says so and exits 1; a named editor still works. A sandbox that
 hides parent processes or a multiplexer's socket ends the same way, so rerun it
 outside the sandbox. In the Herdr app the split does not move the user's focus
-and needs the app window to be open. The tmux and Herdr app panes close when
-nvim exits; the Herdr TUI pane keeps its shell.
+and needs the app window to be open; a failed split prints the app's
+`{"error": …}` reply and exits 1. The tmux and Herdr app panes close when nvim
+exits; the Herdr TUI pane keeps its shell.
 
 Report the directory and, in the Herdr app, the new terminal's address, or in
 the Herdr TUI, the new pane's ID.
