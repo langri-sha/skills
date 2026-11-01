@@ -67,22 +67,24 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 | Make a space for a mission                                                                               | `space NAME`, with `--folder`, `--tab`, `--keep-focus`            |
 | Start an agent in an idle shell                                                                          | `launch --in T --agent claude --model M`                          |
 | Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent` | `launch --space S --tab T --name N` or `--worker-of T` (app only) |
+| Brief an agent                                                                                           | `deliver T "text"` or `deliver T --file path`                     |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
 
 ## Exit codes
 
-| Code | Meaning                                                                                 |
-| ---- | --------------------------------------------------------------------------------------- |
-| 0    | Done                                                                                    |
-| 1    | A Herdr command failed; `reason` carries its message                                    |
-| 2    | Usage error                                                                             |
-| 3    | `not_found`: no such terminal, pane or agent                                            |
-| 4    | `no_seat`: this process is not in a Herdr app or TUI terminal                           |
-| 5    | `space_exists`: a space of that name is open; ask the user                              |
-| 6    | `launcher_failed`: the launch line failed, or the shell prompt came back                |
-| 7    | `timeout`: not ready in time; `status` and `footer` show where it stopped               |
-| 8    | The terminal is not in the state the verb needs, such as a shell running a program      |
-| 9    | `blocked`: a dialog is open; `dialog` has its `kind`, `msg` and `options`. Ask the user |
-| 11   | `finished`: the terminal ended                                                          |
+| Code | Meaning                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------- |
+| 0    | Done                                                                                                        |
+| 1    | A Herdr command failed; `reason` carries its message                                                        |
+| 2    | Usage error                                                                                                 |
+| 3    | `not_found`: no such terminal, pane or agent                                                                |
+| 4    | `no_seat`: this process is not in a Herdr app or TUI terminal                                               |
+| 5    | `space_exists`: a space of that name is open; ask the user                                                  |
+| 6    | `launcher_failed`: the launch line failed, or the shell prompt came back                                    |
+| 7    | `timeout`: not ready in time; `status` and `footer` show where it stopped                                   |
+| 8    | The terminal is not in the state the verb needs, such as a shell running a program                          |
+| 9    | `blocked`: a dialog is open; `dialog` has its `kind`, `msg` and `options`. Ask the user                     |
+| 10   | `unconfirmed`: sent, but the agent did not start working; it may have arrived, so read before sending again |
+| 11   | `finished`: the terminal ended                                                                              |
