@@ -1024,7 +1024,11 @@ def resume_command(kind, session, model, effort, permission, backend):
 
 def cmd_whois(system, args):
     backend = pick_backend(system, args)
-    who = backend.identity(args.target)
+    return whois_report(system, backend, args.target, args.permission_flag)
+
+
+def whois_report(system, backend, target, permission_flag):
+    who = backend.identity(target)
     degraded = []
     kinds = [who["agent"]] if who["agent"] in DEFAULT_PERMISSION else list(
         DEFAULT_PERMISSION
@@ -1061,7 +1065,7 @@ def cmd_whois(system, args):
         flag_value(tokens, "--effort") if kind == "claude" else codex_effort(tokens)
     )
     command = resume_command(
-        kind, session, model, effort, args.permission_flag, backend.name
+        kind, session, model, effort, permission_flag, backend.name
     )
     return {
         "target": who["target"],
@@ -1302,6 +1306,54 @@ def await_launch(system, backend, address, spec):
         backend.pace(address, spec["needle"], max(1, math.ceil(min(left, SLICE_SECONDS))))
 
 
+def plan_launch(backend, agent, head, model, effort, name, permission, patterns, timeout):
+    argv = agent_argv(
+        agent,
+        head,
+        permission,
+        model,
+        effort,
+        backend.name,
+        name if agent == "claude" else None,
+    )
+    mode = expected_mode(agent, permission)
+    return {
+        "argv": argv,
+        "line": shlex.join(argv),
+        "spec": {
+            "kind": agent,
+            "model": model,
+            "mode": mode,
+            "needle": {"bypass": "bypass permissions on"}.get(mode),
+            "patterns": [*LAUNCH_FAILURES, *patterns],
+            "timeout": timeout,
+            "baseline": {},
+        },
+    }
+
+
+def launch_in(system, backend, target, plan, cwd):
+    backend.shell_for_launch(target)
+    spec = plan["spec"]
+    spec["baseline"] = failure_counts(spec["patterns"], backend.screen(target))
+    prefix = f"cd {shlex.quote(cwd)} && " if cwd else ""
+    backend.type_line(target, prefix + plan["line"])
+    return await_launch(system, backend, target, spec)
+
+
+def launch_result(address, args, plan, ready, placed):
+    return {
+        "address": address,
+        "name": args.name,
+        "agent": args.agent,
+        "model": args.model,
+        "effort": args.effort,
+        "command": plan["line"],
+        "placed": placed,
+        **{k: v for k, v in ready.items() if k != "target"},
+    }
+
+
 def cmd_launch(system, args):
     if args.name and not args.target and not AGENT_NAME.match(args.name):
         raise Fail(USAGE, "usage", "--name is 1-32 of a-z 0-9 - _")
@@ -1310,59 +1362,34 @@ def cmd_launch(system, args):
             USAGE, "usage", "give --in, --space or --worker-of to say where to launch"
         )
     backend = pick_backend(system, args)
-    argv = agent_argv(
+    plan = plan_launch(
+        backend,
         args.agent,
         [],
-        args.permission_flag,
         args.model,
         args.effort,
-        backend.name,
-        args.name if args.agent == "claude" else None,
+        args.name,
+        args.permission_flag,
+        args.fail_pattern,
+        args.timeout,
     )
-    line = shlex.join(argv)
-    mode = expected_mode(args.agent, args.permission_flag)
-    patterns = [*LAUNCH_FAILURES, *args.fail_pattern]
-    needle = {"bypass": "bypass permissions on"}.get(mode)
-    spec = {
-        "kind": args.agent,
-        "model": args.model,
-        "mode": mode,
-        "needle": needle,
-        "patterns": patterns,
-        "timeout": args.timeout,
-        "baseline": {},
-    }
-    placed = None
     if args.target:
-        backend.shell_for_launch(args.target)
-        spec["baseline"] = failure_counts(patterns, backend.screen(args.target))
-        prefix = f"cd {shlex.quote(args.cwd)} && " if args.cwd else ""
-        backend.type_line(args.target, prefix + line)
-        address = args.target
-    else:
-        if backend.name != "app":
-            raise Fail(
-                USAGE,
-                "usage",
-                "placing a new terminal is app-only; use --in with a TUI pane",
-            )
-        placement = backend.place(args)
-        parent = None if args.no_parent else backend.caller
-        address = backend.spawn(
-            argv, args.name, args.cwd, parent, placement["labels"]
+        ready = launch_in(system, backend, args.target, plan, args.cwd)
+        return launch_result(args.target, args, plan, ready, None)
+    if backend.name != "app":
+        raise Fail(
+            USAGE,
+            "usage",
+            "placing a new terminal is app-only; use --in with a TUI pane",
         )
-        placed = backend.adopt(address, placement)
-    ready = await_launch(system, backend, address, spec)
-    return {
-        "address": address,
-        "name": args.name,
-        "agent": args.agent,
-        "model": args.model,
-        "effort": args.effort,
-        "command": line,
-        "placed": placed,
-        **{k: v for k, v in ready.items() if k != "target"},
-    }
+    placement = backend.place(args)
+    parent = None if args.no_parent else backend.caller
+    address = backend.spawn(
+        plan["argv"], args.name, args.cwd, parent, placement["labels"]
+    )
+    placed = backend.adopt(address, placement)
+    ready = await_launch(system, backend, address, plan["spec"])
+    return launch_result(address, args, plan, ready, placed)
 
 
 def cmd_deliver(system, args):
