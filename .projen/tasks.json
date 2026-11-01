@@ -52,6 +52,9 @@
       "steps": [
         {
           "exec": "node --test test/*.test.js"
+        },
+        {
+          "exec": "python3 -B -m unittest discover -s herdr/tests"
         }
       ]
     },
