@@ -49,12 +49,13 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 
 ## Task to verb
 
-| Task                                            | Verb                                    |
-| ----------------------------------------------- | --------------------------------------- |
-| Where am I, and in which Herdr?                 | `seat`                                  |
-| Who runs in terminal T, and how do I resume it? | `whois T`                               |
-| What is on terminal T's screen?                 | `read T`, with `--tail N` or `--footer` |
-| Who is running, blocked, or missing bypass?     | `roster`, with `--label k=v` (app only) |
+| Task                                            | Verb                                                   |
+| ----------------------------------------------- | ------------------------------------------------------ |
+| Where am I, and in which Herdr?                 | `seat`                                                 |
+| Who runs in terminal T, and how do I resume it? | `whois T`                                              |
+| What is on terminal T's screen?                 | `read T`, with `--tail N` or `--footer`                |
+| Who is running, blocked, or missing bypass?     | `roster`, with `--label k=v` (app only)                |
+| Make a space for a mission                      | `space NAME`, with `--folder`, `--tab`, `--keep-focus` |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
@@ -68,3 +69,4 @@ Failures, with what to tell the user:
 | 2    | Usage error                                                   |
 | 3    | `not_found`: no such terminal, pane or agent                  |
 | 4    | `no_seat`: this process is not in a Herdr app or TUI terminal |
+| 5    | `space_exists`: a space of that name is open; ask the user    |

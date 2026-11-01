@@ -18,6 +18,7 @@ FAILED = 1
 USAGE = 2
 NOT_FOUND = 3
 NO_SEAT = 4
+SPACE_EXISTS = 5
 
 Result = namedtuple("Result", "code out err")
 
@@ -276,6 +277,56 @@ class AppBackend:
             cwd=labels.get("claude.cwd") or listed.get("cwd"),
         )
 
+    def create_space(self, name, folder, tab, keep_focus):
+        layout = self.layout()
+        if layout is None:
+            raise Fail(FAILED, "no_window", "the Herdr app window is not open")
+        spaces = layout.get("spaces") or []
+        clashes = [
+            {"id": space.get("id"), "name": space.get("name")}
+            for space in spaces
+            if (space.get("name") or "").casefold() == name.casefold()
+        ]
+        if clashes:
+            raise Fail(
+                SPACE_EXISTS,
+                "space_exists",
+                f"a space named {name} already exists",
+                existing=clashes,
+            )
+        previous = next((s.get("id") for s in spaces if s.get("active")), None)
+        args = ["do", "space.new", "--name", name, "--folder", folder]
+        if tab:
+            args += ["--tab", tab]
+        data, result = self.system.json(["herdr-app", *args])
+        if result.code != 0 or (isinstance(data, dict) and "error" in data):
+            raise Fail(
+                FAILED,
+                "space_failed",
+                (data or {}).get("error") or error_of(result).get("message"),
+            )
+        created = next(
+            (
+                space
+                for space in (self.layout() or {}).get("spaces", [])
+                if space.get("name") == name
+            ),
+            {},
+        )
+        first = (created.get("tabs") or [{}])[0]
+        restored = False
+        if keep_focus and previous:
+            _, back = self.system.json(
+                ["herdr-app", "do", "space.select", "--id", previous]
+            )
+            restored = back.code == 0
+        return {
+            "backend": "app",
+            "space": {"id": created.get("id"), "name": name},
+            "tab": {"id": first.get("id"), "name": first.get("name")},
+            "focus_restored": restored,
+        }
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -490,6 +541,43 @@ class TuiBackend:
             cwd=pane.get("cwd"),
         )
 
+    def create_space(self, name, folder, tab, keep_focus):
+        existing = [
+            {"id": item.get("workspace_id"), "name": item.get("label")}
+            for item in self.listing("workspace", "workspaces")
+            if (item.get("label") or "").casefold() == name.casefold()
+        ]
+        if existing:
+            raise Fail(
+                SPACE_EXISTS,
+                "space_exists",
+                f"a workspace named {name} already exists",
+                existing=existing,
+            )
+        data, result = self.herdr(
+            "workspace",
+            "create",
+            "--label",
+            name,
+            "--cwd",
+            folder,
+            "--no-focus" if keep_focus else "--focus",
+        )
+        found = (data or {}).get("result") or {}
+        workspace, first = found.get("workspace"), found.get("tab")
+        if result.code != 0 or not workspace or not first:
+            raise fail_from(result, "herdr workspace create")
+        if tab:
+            _, renamed = self.herdr("tab", "rename", first["tab_id"], tab)
+            if renamed.code != 0:
+                raise fail_from(renamed, "herdr tab rename", first["tab_id"])
+        return {
+            "backend": "tui",
+            "space": {"id": workspace.get("workspace_id"), "name": name},
+            "tab": {"id": first.get("tab_id"), "name": tab or first.get("label")},
+            "focus_restored": keep_focus,
+        }
+
     def label_of(self, noun, identifier):
         if not identifier:
             return None
@@ -692,6 +780,12 @@ def cmd_roster(system, args):
     return {"count": len(rows), "terminals": rows}
 
 
+def cmd_space(system, args):
+    backend = pick_backend(system, args)
+    folder = args.folder or os.getcwd()
+    return backend.create_space(args.name, folder, args.tab, args.keep_focus)
+
+
 def tmux_seat(system, tty):
     pane = system.env("TMUX_PANE")
     if not pane:
@@ -775,6 +869,7 @@ COMMANDS = {
     "whois": cmd_whois,
     "read": cmd_read,
     "roster": cmd_roster,
+    "space": cmd_space,
 }
 
 
@@ -800,6 +895,11 @@ def build_parser():
     read.add_argument("--wait-timeout", type=int, default=30)
     roster = sub.add_parser("roster", help="list every terminal and its state")
     roster.add_argument("--label", action="append", default=[], metavar="K=V")
+    space = sub.add_parser("space", help="make a space (app) or workspace (TUI)")
+    space.add_argument("name")
+    space.add_argument("--folder")
+    space.add_argument("--tab")
+    space.add_argument("--keep-focus", action="store_true")
     return parser
 
 
