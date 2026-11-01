@@ -26,6 +26,7 @@ LAUNCH_FAILED = 6
 TIMEOUT = 7
 WRONG_STATE = 8
 BLOCKED = 9
+UNCONFIRMED = 10
 FINISHED = 11
 
 Result = namedtuple("Result", "code out err")
@@ -463,6 +464,57 @@ class AppBackend:
             tab = {"id": found["id"], "name": placement["new_tab_name"] or found.get("name")}
         return {"space": placement["space"], "tab": tab}
 
+    def deliver(self, target, text):
+        record = self.record(target)
+        if record.get("state") == "finished":
+            raise Fail(FINISHED, "finished", f"{target} has ended", target=target)
+        status = record.get("status") or {}
+        if status.get("state") == "blocked":
+            raise self.blocked(target, status)
+        data, result = self.hc("send", target, text, "--json")
+        if result.code == 9:
+            raise self.blocked(target, (self.record(target).get("status") or {}))
+        if result.code != 0 or not isinstance(data, dict):
+            raise fail_from(result, "hc send", target)
+        turn = data.get("turn") or 0
+        if data.get("started") is not True:
+            raise self.unconfirmed(target, data)
+        for attempt in range(2):
+            now = self.record(target)
+            state = (now.get("status") or {}).get("state")
+            if state == "working" or (now.get("turn") or 0) > turn:
+                return {
+                    "target": target,
+                    "started": True,
+                    "status": state,
+                    "turn": now.get("turn"),
+                    "confirmed": "working" if state == "working" else "turn",
+                }
+            if attempt == 0:
+                self.hc("wait", target, "--timeout", "15", "--json", timeout=25)
+        raise self.unconfirmed(target, data)
+
+    def blocked(self, target, status):
+        return Fail(
+            BLOCKED,
+            "blocked",
+            "the terminal is waiting on a dialog; nothing was sent",
+            target=target,
+            dialog=open_dialog(dialog_of(status) or {}, self.screen(target)),
+        )
+
+    def unconfirmed(self, target, sent):
+        return Fail(
+            UNCONFIRMED,
+            "unconfirmed",
+            "the text was sent but the agent did not start working; it may still "
+            "have arrived, so read the screen before sending again",
+            target=target,
+            started=sent.get("started"),
+            status_at_send=sent.get("status"),
+            screen=non_blank(self.screen(target))[-SCREEN_TAIL:],
+        )
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -760,6 +812,49 @@ class TuiBackend:
             str(seconds * 1000),
             timeout=seconds + 10,
         )
+
+    def deliver(self, target, text):
+        data, result = self.herdr("agent", "prompt", target, text)
+        code = error_of(result).get("code")
+        if code == "agent_blocked":
+            screen = self.visible(target)
+            raise Fail(
+                BLOCKED,
+                "blocked",
+                "the agent is waiting on a dialog; nothing was sent",
+                target=target,
+                dialog={
+                    "kind": None,
+                    "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:]),
+                    "options": [
+                        option["label"] for option in dialog_options(None, screen)
+                    ],
+                },
+            )
+        if code == "agent_prompt_stalled":
+            raise Fail(
+                UNCONFIRMED,
+                "unconfirmed",
+                "herdr saw no change after the prompt; it may still have arrived, "
+                "so read the screen before sending again",
+                target=target,
+                screen=non_blank(self.visible(target))[-SCREEN_TAIL:],
+            )
+        if result.code != 0:
+            raise fail_from(result, "herdr agent prompt", target)
+        agent = ((data or {}).get("result") or {}).get("agent") or {}
+        return {
+            "target": target,
+            "started": True,
+            "status": agent.get("agent_status"),
+            "turn": None,
+            "confirmed": "herdr",
+        }
+
+    def visible(self, target):
+        data, result = self.herdr("agent", "read", target, "--source", "visible")
+        read = ((data or {}).get("result") or {}).get("read") or {}
+        return read.get("text") or "" if result.code == 0 else ""
 
     def label_of(self, noun, identifier):
         if not identifier:
@@ -1226,6 +1321,20 @@ def cmd_launch(system, args):
     }
 
 
+def cmd_deliver(system, args):
+    if (args.text is None) == (args.file is None):
+        raise Fail(USAGE, "usage", "give the text, or --file, but not both")
+    text = args.text
+    if args.file is not None:
+        try:
+            text = Path(args.file).read_text()
+        except OSError as problem:
+            raise Fail(USAGE, "usage", f"cannot read {args.file}: {problem.strerror}")
+    if not text.strip():
+        raise Fail(USAGE, "usage", "nothing to send")
+    return pick_backend(system, args).deliver(args.target, text)
+
+
 def cmd_space(system, args):
     backend = pick_backend(system, args)
     folder = args.folder or os.getcwd()
@@ -1321,6 +1430,7 @@ COMMANDS = {
     "roster": cmd_roster,
     "space": cmd_space,
     "launch": cmd_launch,
+    "deliver": cmd_deliver,
 }
 
 
@@ -1365,6 +1475,10 @@ def build_parser():
     launch.add_argument("--permission-flag")
     launch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
     launch.add_argument("--timeout", type=int, default=180)
+    deliver = sub.add_parser("deliver", help="send text to an agent and confirm it started")
+    deliver.add_argument("target")
+    deliver.add_argument("text", nargs="?")
+    deliver.add_argument("--file")
     return parser
 
 
