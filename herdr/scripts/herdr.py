@@ -515,6 +515,10 @@ class AppBackend:
             screen=non_blank(self.screen(target))[-SCREEN_TAIL:],
         )
 
+    def dialog_state(self, target):
+        record = self.record(target)
+        return dialog_of(record.get("status") or {}), self.screen(target)
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -855,6 +859,21 @@ class TuiBackend:
         data, result = self.herdr("agent", "read", target, "--source", "visible")
         read = ((data or {}).get("result") or {}).get("read") or {}
         return read.get("text") or "" if result.code == 0 else ""
+
+    def dialog_state(self, target):
+        status = self.status_of(target)
+        screen = self.visible(target)
+        if status != "blocked":
+            return None, screen
+        msg = "\n".join(non_blank(screen)[-FOOTER_LINES:])
+        return {"kind": None, "msg": msg}, screen
+
+    def status_of(self, target):
+        data, result = self.herdr("agent", "get", target)
+        agent = ((data or {}).get("result") or {}).get("agent")
+        if result.code != 0 or not isinstance(agent, dict):
+            raise fail_from(result, "herdr agent get", target)
+        return agent.get("agent_status")
 
     def label_of(self, noun, identifier):
         if not identifier:
@@ -1335,6 +1354,12 @@ def cmd_deliver(system, args):
     return pick_backend(system, args).deliver(args.target, text)
 
 
+def cmd_dialog(system, args):
+    dialog, screen = pick_backend(system, args).dialog_state(args.target)
+    shown = open_dialog(dialog, screen) if dialog else None
+    return {"target": args.target, "dialog": shown}
+
+
 def cmd_space(system, args):
     backend = pick_backend(system, args)
     folder = args.folder or os.getcwd()
@@ -1431,6 +1456,7 @@ COMMANDS = {
     "space": cmd_space,
     "launch": cmd_launch,
     "deliver": cmd_deliver,
+    "dialog": cmd_dialog,
 }
 
 
@@ -1479,6 +1505,8 @@ def build_parser():
     deliver.add_argument("target")
     deliver.add_argument("text", nargs="?")
     deliver.add_argument("--file")
+    dialog = sub.add_parser("dialog", help="show a terminal's open dialog")
+    dialog.add_argument("target")
     return parser
 
 

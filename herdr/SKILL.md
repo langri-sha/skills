@@ -68,6 +68,7 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 | Start an agent in an idle shell                                                                          | `launch --in T --agent claude --model M`                          |
 | Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent` | `launch --space S --tab T --name N` or `--worker-of T` (app only) |
 | Brief an agent                                                                                           | `deliver T "text"` or `deliver T --file path`                     |
+| What dialog is a blocked terminal showing?                                                               | `dialog T`                                                        |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
