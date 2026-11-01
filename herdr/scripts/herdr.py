@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import shlex
+import shutil
 import subprocess
+import time
 import sys
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
@@ -19,6 +22,11 @@ USAGE = 2
 NOT_FOUND = 3
 NO_SEAT = 4
 SPACE_EXISTS = 5
+LAUNCH_FAILED = 6
+TIMEOUT = 7
+WRONG_STATE = 8
+BLOCKED = 9
+FINISHED = 11
 
 Result = namedtuple("Result", "code out err")
 
@@ -49,8 +57,12 @@ def subprocess_runner(argv, timeout):
 
 
 class System:
-    def __init__(self, runner=None, environ=None, pid=None, home=None):
+    def __init__(
+        self, runner=None, environ=None, pid=None, home=None, clock=None, which=None
+    ):
         self.runner = runner or subprocess_runner
+        self.now = clock or time.monotonic
+        self.which = which or shutil.which
         self.environ = os.environ if environ is None else environ
         self.pid = os.getpid() if pid is None else pid
         self.home = Path(home) if home else Path.home()
@@ -327,6 +339,51 @@ class AppBackend:
             "focus_restored": restored,
         }
 
+    def shell_for_launch(self, target):
+        record = self.record(target)
+        if record.get("state") == "finished":
+            raise Fail(FINISHED, "finished", f"{target} has ended", target=target)
+        idle, why = shell_is_idle(process_table(self.system), record.get("pid"))
+        if not idle:
+            raise Fail(WRONG_STATE, "not_idle_shell", why, target=target)
+        if record.get("reported"):
+            raise Fail(
+                WRONG_STATE,
+                "reported_shell",
+                "the terminal once reported an agent status, so hc would wrap "
+                "the typed line in hc tags that bash cannot run; launch into a "
+                "new terminal instead",
+                target=target,
+            )
+
+    def screen(self, target):
+        data, result = self.hc("read", target, "--lines", "0", "--json")
+        if result.code != 0 or not isinstance(data, dict):
+            return ""
+        return data.get("text") or ""
+
+    def type_line(self, target, line):
+        _, result = self.hc("send", target, line, "--json")
+        if result.code != 0:
+            raise fail_from(result, "hc send", target)
+
+    def observe(self, target):
+        record = self.record(target)
+        status = record.get("status") or {}
+        idle, _ = shell_is_idle(process_table(self.system), record.get("pid"))
+        return Observation(
+            state=record.get("state"),
+            status=status.get("state"),
+            dialog=dialog_of(status),
+            screen=self.screen(target),
+            shell_idle=idle,
+        )
+
+    def pace(self, target, needle, seconds):
+        args = ["wait", target, "--timeout", str(seconds), "--json"]
+        args += ["--output", needle or PACE_SENTINEL]
+        self.hc(*args, timeout=seconds + 10)
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -578,6 +635,53 @@ class TuiBackend:
             "focus_restored": keep_focus,
         }
 
+    def shell_for_launch(self, target):
+        data, result = self.herdr("pane", "process-info", "--pane", target)
+        info = ((data or {}).get("result") or {}).get("process_info")
+        if result.code != 0 or not isinstance(info, dict):
+            raise fail_from(result, "herdr pane process-info", target)
+        idle, why = shell_is_idle(process_table(self.system), info.get("shell_pid"))
+        if not idle:
+            raise Fail(WRONG_STATE, "not_idle_shell", why, target=target)
+
+    def type_line(self, target, line):
+        _, result = self.herdr("pane", "run", target, line)
+        if result.code != 0:
+            raise fail_from(result, "herdr pane run", target)
+
+    def screen(self, target):
+        data, result = self.herdr("pane", "read", target, "--source", "visible")
+        read = ((data or {}).get("result") or {}).get("read") or {}
+        return read.get("text") or "" if result.code == 0 else ""
+
+    def observe(self, target):
+        data, result = self.herdr("pane", "get", target)
+        info = ((data or {}).get("result") or {}).get("pane")
+        if result.code != 0 or not isinstance(info, dict):
+            raise fail_from(result, "herdr pane get", target)
+        status = info.get("agent_status")
+        status = status if status in ("idle", "working", "blocked", "done") else None
+        screen = self.screen(target)
+        process, _ = self.herdr("pane", "process-info", "--pane", target)
+        process = ((process or {}).get("result") or {}).get("process_info") or {}
+        idle, _ = shell_is_idle(process_table(self.system), process.get("shell_pid"))
+        dialog = None
+        if status == "blocked":
+            dialog = {"kind": None, "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:])}
+        return Observation("live", status, dialog, screen, idle)
+
+    def pace(self, target, needle, seconds):
+        self.herdr(
+            "pane",
+            "wait-output",
+            target,
+            "--match",
+            needle or PACE_SENTINEL,
+            "--timeout",
+            str(seconds * 1000),
+            timeout=seconds + 10,
+        )
+
     def label_of(self, noun, identifier):
         if not identifier:
             return None
@@ -789,6 +893,239 @@ def cmd_roster(system, args):
     return {"count": len(rows), "terminals": rows}
 
 
+@dataclass(frozen=True)
+class Observation:
+    state: str
+    status: str
+    dialog: dict
+    screen: str
+    shell_idle: bool
+
+
+SHELLS = {"bash", "zsh", "fish", "sh", "dash"}
+SLICE_SECONDS = 5
+PACE_SENTINEL = "herdr-pace-sentinel"
+SCREEN_TAIL = 12
+LAUNCH_FAILURES = (
+    r"authorization prompt dismissed",
+    r"authorization timeout",
+    r"connecting to desktop app timed out",
+)
+MODE_OF_FLAG = {
+    "bypassPermissions": "bypass",
+    "acceptEdits": "accept-edits",
+    "plan": "plan",
+    "auto": "auto",
+}
+OPTION_LINE = re.compile(r"^\s*([❯>›]?)\s*(\d+)[.)]\s+(.+?)\s*$")
+
+
+def shell_is_idle(procs, root):
+    proc = procs.get(root)
+    if proc is None:
+        return False, "the terminal's process is gone"
+    tokens = command_tokens(proc.args)
+    executable = os.path.basename(tokens[0]).lstrip("-") if tokens else ""
+    if executable not in SHELLS:
+        return False, f"the terminal runs {executable or 'something'}, not a shell"
+    busy = descendants(procs, root)[1:]
+    if busy:
+        running = os.path.basename(command_tokens(busy[0].args)[0])
+        return False, f"the shell is running {running}"
+    return True, ""
+
+
+def expected_mode(kind, permission):
+    if kind != "claude":
+        return None
+    flags = shlex.split(permission) if permission else DEFAULT_PERMISSION[kind]
+    if "--dangerously-skip-permissions" in flags:
+        return "bypass"
+    return MODE_OF_FLAG.get(flag_value(flags, "--permission-mode"))
+
+
+def model_shown(model, screen):
+    if not model:
+        return True
+    lowered = screen.lower()
+    family = model.lower().removeprefix("claude-").split("-")[0]
+    return model.lower() in lowered or family in lowered
+
+
+def failure_hit(patterns, screen, baseline):
+    for pattern in patterns:
+        found = [
+            line
+            for line in screen.splitlines()
+            if re.search(pattern, line, re.IGNORECASE)
+        ]
+        if len(found) > baseline.get(pattern, 0):
+            return found[-1].strip()
+    return None
+
+
+def failure_counts(patterns, screen):
+    return {
+        pattern: sum(
+            1
+            for line in screen.splitlines()
+            if re.search(pattern, line, re.IGNORECASE)
+        )
+        for pattern in patterns
+    }
+
+
+DIALOG_CONTEXT = 6
+DIALOG_AFTER = 2
+
+
+def option_run(screen):
+    lines = non_blank(screen)
+    runs, current = [], []
+    for index, line in enumerate(lines):
+        if OPTION_LINE.match(line):
+            current.append(index)
+        elif current:
+            runs.append(current)
+            current = []
+    if current:
+        runs.append(current)
+    return lines, (runs[-1] if runs else [])
+
+
+def dialog_block(screen):
+    lines, run = option_run(screen)
+    if not run:
+        return lines[-FOOTER_LINES:]
+    return lines[max(0, run[0] - DIALOG_CONTEXT) : run[-1] + 1 + DIALOG_AFTER]
+
+
+def dialog_options(msg, screen):
+    lines, run = option_run(screen)
+    numbered = [OPTION_LINE.match(lines[index]) for index in run]
+    if numbered:
+        return [
+            {"number": int(m.group(2)), "label": m.group(3), "selected": bool(m.group(1))}
+            for m in numbered
+        ]
+    tail = re.search(r"\(([^()]+)\)\s*$", msg or "")
+    if not tail:
+        return []
+    labels = [part.strip() for part in re.split(r"\s+[·|]\s+|,\s*", tail.group(1))]
+    return [
+        {"number": None, "label": label, "selected": index == 0}
+        for index, label in enumerate(labels)
+        if label
+    ]
+
+
+def open_dialog(dialog, screen):
+    options = dialog_options(dialog.get("msg"), screen)
+    return {
+        "kind": dialog.get("kind"),
+        "msg": dialog.get("msg"),
+        "options": [option["label"] for option in options],
+    }
+
+
+def await_launch(system, backend, address, spec):
+    start = system.now()
+    deadline = start + spec["timeout"]
+    returned = 0
+    while True:
+        obs = backend.observe(address)
+        tail = non_blank(obs.screen)[-SCREEN_TAIL:]
+        footer = tail[-FOOTER_LINES:]
+        mode = permission_mode(spec["kind"], "\n".join(footer))
+        shown = model_shown(spec["model"], obs.screen)
+        context = {
+            "target": address,
+            "status": obs.status,
+            "permission_mode": mode,
+            "model_shown": shown,
+            "footer": footer,
+            "elapsed_s": round(system.now() - start),
+        }
+        if obs.state == "finished":
+            raise Fail(
+                FINISHED, "finished", "the terminal ended before the agent was ready", **context
+            )
+        if obs.dialog:
+            raise Fail(
+                BLOCKED,
+                "blocked",
+                "the agent opened a dialog",
+                dialog=open_dialog(obs.dialog, obs.screen),
+                **context,
+            )
+        hit = failure_hit(spec["patterns"], obs.screen, spec["baseline"])
+        if hit:
+            raise Fail(LAUNCH_FAILED, "launcher_failed", hit, **context)
+        mode_ok = spec["mode"] is None or mode == spec["mode"]
+        if obs.status in ("idle", "done") and mode_ok and not obs.shell_idle:
+            return context
+        returned = returned + 1 if obs.shell_idle else 0
+        if returned >= 2:
+            raise Fail(
+                LAUNCH_FAILED,
+                "shell_returned",
+                "the shell prompt came back without an agent",
+                **context,
+            )
+        left = deadline - system.now()
+        if left <= 0:
+            raise Fail(
+                TIMEOUT,
+                "timeout",
+                f"the agent was not ready after {spec['timeout']}s",
+                **context,
+            )
+        backend.pace(address, spec["needle"], max(1, math.ceil(min(left, SLICE_SECONDS))))
+
+
+def cmd_launch(system, args):
+    if not args.target:
+        raise Fail(USAGE, "usage", "give --in to say where to launch")
+    backend = pick_backend(system, args)
+    argv = agent_argv(
+        args.agent,
+        [],
+        args.permission_flag,
+        args.model,
+        args.effort,
+        backend.name,
+        args.name if args.agent == "claude" else None,
+    )
+    line = shlex.join(argv)
+    mode = expected_mode(args.agent, args.permission_flag)
+    patterns = [*LAUNCH_FAILURES, *args.fail_pattern]
+    needle = {"bypass": "bypass permissions on"}.get(mode)
+    spec = {
+        "kind": args.agent,
+        "model": args.model,
+        "mode": mode,
+        "needle": needle,
+        "patterns": patterns,
+        "timeout": args.timeout,
+        "baseline": {},
+    }
+    backend.shell_for_launch(args.target)
+    spec["baseline"] = failure_counts(patterns, backend.screen(args.target))
+    prefix = f"cd {shlex.quote(args.cwd)} && " if args.cwd else ""
+    backend.type_line(args.target, prefix + line)
+    address = args.target
+    ready = await_launch(system, backend, address, spec)
+    return {
+        "address": address,
+        "name": args.name,
+        "agent": args.agent,
+        "model": args.model,
+        "effort": args.effort,
+        "command": line,
+        **{k: v for k, v in ready.items() if k != "target"},
+    }
+
+
 def cmd_space(system, args):
     backend = pick_backend(system, args)
     folder = args.folder or os.getcwd()
@@ -879,6 +1216,7 @@ COMMANDS = {
     "read": cmd_read,
     "roster": cmd_roster,
     "space": cmd_space,
+    "launch": cmd_launch,
 }
 
 
@@ -909,6 +1247,16 @@ def build_parser():
     space.add_argument("--folder")
     space.add_argument("--tab")
     space.add_argument("--keep-focus", action="store_true")
+    launch = sub.add_parser("launch", help="start an agent and wait until it is ready")
+    launch.add_argument("--in", dest="target", metavar="TERMINAL")
+    launch.add_argument("--agent", choices=["claude", "codex"], default="claude")
+    launch.add_argument("--model")
+    launch.add_argument("--effort")
+    launch.add_argument("--name")
+    launch.add_argument("--cwd")
+    launch.add_argument("--permission-flag")
+    launch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
+    launch.add_argument("--timeout", type=int, default=180)
     return parser
 
 

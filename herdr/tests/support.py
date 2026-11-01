@@ -36,14 +36,36 @@ def processes(*rows):
     )
 
 
+class FakeClock:
+    def __init__(self):
+        self.seconds = 0.0
+
+    def __call__(self):
+        return self.seconds
+
+    def advance(self, seconds):
+        self.seconds += seconds
+
+
+def waited_seconds(key):
+    if key[:2] == ("hc", "wait") and "--timeout" in key:
+        return float(key[key.index("--timeout") + 1])
+    if key[:3] == ("herdr", "pane", "wait-output") and "--timeout" in key:
+        return float(key[key.index("--timeout") + 1]) / 1000
+    return 0.0
+
+
 class FakeRunner:
-    def __init__(self, responses):
+    def __init__(self, responses, clock=None):
         self.responses = dict(responses)
         self.calls = []
+        self.clock = clock
 
     def __call__(self, argv, timeout):
         key = tuple(argv)
         self.calls.append(key)
+        if self.clock:
+            self.clock.advance(waited_seconds(key))
         if key not in self.responses:
             raise AssertionError(f"unexpected command: {key}")
         reply = self.responses[key]
@@ -55,9 +77,14 @@ class FakeRunner:
         return [call for call in self.calls if call[: len(prefix)] == prefix]
 
 
-def run_verb(argv, runner, environ=None, pid=902, home=None):
+def run_verb(argv, runner, environ=None, pid=902, home=None, clock=None):
     system = herdr.System(
-        runner=runner, environ=environ or {}, pid=pid, home=home or "/nonexistent"
+        runner=runner,
+        environ=environ or {},
+        pid=pid,
+        home=home or "/nonexistent",
+        clock=clock,
+        which=lambda name: f"/usr/bin/{name}",
     )
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
