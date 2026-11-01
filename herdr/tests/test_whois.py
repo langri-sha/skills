@@ -183,9 +183,32 @@ class WhoisWithoutLabels(unittest.TestCase):
         self.assertEqual(out["effort"], "xhigh")
         self.assertEqual(
             out["resume"]["command"],
-            f"codex resume {SESSION} --dangerously-bypass-approvals-and-sandbox "
-            "--no-daemon --model gpt-x -c 'model_reasoning_effort=\"xhigh\"'",
+            f"codex resume {SESSION} --no-daemon "
+            "--dangerously-bypass-approvals-and-sandbox "
+            "--model gpt-x -c 'model_reasoning_effort=\"xhigh\"'",
         )
+
+
+class WhoisCodexInTheTui(unittest.TestCase):
+    def test_resume_command_leaves_out_the_app_only_flag(self):
+        agent = {
+            "pane_id": "w1:p2",
+            "agent": "codex",
+            "agent_status": "idle",
+            "agent_session": {"agent": "codex", "value": SESSION},
+        }
+        runner = FakeRunner(
+            {
+                PS: processes((800, 1, "pts/3", "-bash")),
+                ("herdr", "agent", "get", "w1:p2"): ok({"result": {"agent": agent}}),
+                ("herdr", "pane", "process-info", "--pane", "w1:p2"): ok(
+                    {"result": {"process_info": {"shell_pid": 800}}}
+                ),
+            }
+        )
+        code, out = run_verb(["--backend", "tui", "whois", "w1:p2"], runner)
+        self.assertEqual(code, 0)
+        self.assertNotIn("--no-daemon", out["resume"]["command"])
 
 
 class WhoisOutsideHerdr(unittest.TestCase):
