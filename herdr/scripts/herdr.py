@@ -206,6 +206,37 @@ class AppBackend:
             "terminal_args": record.get("argv") or [],
         }
 
+    def read(self, target, lines, wait_timeout):
+        def fetch():
+            data, result = self.hc(
+                "read", target, "--lines", str(lines), "--json"
+            )
+            if result.code != 0 or not isinstance(data, dict):
+                raise fail_from(result, "hc read", target)
+            return data
+
+        data = fetch()
+        waited = False
+        if data.get("complete") is False and data.get("why") == "working":
+            self.hc(
+                "wait",
+                target,
+                "--timeout",
+                str(wait_timeout),
+                "--json",
+                timeout=wait_timeout + 10,
+            )
+            waited = True
+            data = fetch()
+        return {
+            "text": data.get("text") or "",
+            "complete": data.get("complete"),
+            "screen_only": data.get("complete") is False
+            and data.get("why") == "working",
+            "waited": waited,
+            "fallback": None,
+        }
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -331,6 +362,28 @@ class TuiBackend:
             "model": None,
             "effort": None,
             "terminal_args": [],
+        }
+
+    def read(self, target, lines, wait_timeout):
+        attempts = [("recent-unwrapped", None), ("visible", "visible")]
+        if lines == 0:
+            attempts = [("visible", None)]
+        for source, fallback in attempts:
+            args = ["--source", source] + (["--lines", str(lines)] if lines else [])
+            data, result = self.herdr("agent", "read", target, *args)
+            if result.code == 0 or error_of(result).get("code") != "agent_not_idle":
+                break
+        if result.code != 0:
+            data, pane = self.herdr("pane", "read", target, *args)
+            if pane.code != 0:
+                raise fail_from(result, "herdr agent read", target)
+        read = ((data or {}).get("result") or {}).get("read") or {}
+        return {
+            "text": read.get("text") or "",
+            "complete": not read.get("truncated"),
+            "screen_only": fallback == "visible",
+            "waited": False,
+            "fallback": fallback,
         }
 
     def label_of(self, noun, identifier):
@@ -549,6 +602,25 @@ def cmd_seat(system, args):
     return seat
 
 
+def non_blank(text):
+    return [line for line in text.splitlines() if line.strip()]
+
+
+FOOTER_LINES = 5
+
+
+def cmd_read(system, args):
+    backend = pick_backend(system, args)
+    lines = 0 if args.footer else args.lines
+    result = backend.read(args.target, lines, args.wait_timeout)
+    text = result.pop("text").rstrip("\n")
+    if args.footer:
+        text = "\n".join(non_blank(text)[-FOOTER_LINES:])
+    elif args.tail:
+        text = "\n".join(non_blank(text)[-args.tail :])
+    return {"target": args.target, "text": text, **result}
+
+
 def pick_backend(system, args):
     if args.backend:
         return {"app": AppBackend, "tui": TuiBackend}[args.backend](system)
@@ -563,7 +635,7 @@ def pick_backend(system, args):
     return {"app": AppBackend, "tui": TuiBackend}[seat["backend"]](system)
 
 
-COMMANDS = {"seat": cmd_seat, "whois": cmd_whois}
+COMMANDS = {"seat": cmd_seat, "whois": cmd_whois, "read": cmd_read}
 
 
 class Parser(argparse.ArgumentParser):
@@ -580,11 +652,17 @@ def build_parser():
     whois = sub.add_parser("whois", help="identify the agent in a terminal")
     whois.add_argument("target")
     whois.add_argument("--permission-flag")
+    read = sub.add_parser("read", help="print a terminal's screen and history")
+    read.add_argument("target")
+    read.add_argument("--lines", type=int, default=400)
+    read.add_argument("--tail", type=int)
+    read.add_argument("--footer", action="store_true")
+    read.add_argument("--wait-timeout", type=int, default=30)
     return parser
 
 
 def emit(payload):
-    sys.stdout.write(json.dumps(payload, sort_keys=False) + "\n")
+    sys.stdout.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
 def run(argv, system=None):
@@ -608,6 +686,8 @@ def run(argv, system=None):
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     sys.exit(run(sys.argv[1:]))
 
 
