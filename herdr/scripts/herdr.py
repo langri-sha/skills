@@ -384,6 +384,85 @@ class AppBackend:
         args += ["--output", needle or PACE_SENTINEL]
         self.hc(*args, timeout=seconds + 10)
 
+    def place(self, args):
+        layout = self.layout()
+        if layout is None:
+            raise Fail(FAILED, "no_window", "the Herdr app window is not open")
+        spaces = layout.get("spaces") or []
+        tab_name = args.tab
+        if args.worker_of:
+            labels = self.record(args.worker_of).get("labels") or {}
+            query = labels.get("herdr.space")
+            tab_name = tab_name or "Worker"
+            if not query:
+                raise Fail(
+                    NOT_FOUND,
+                    "no_space",
+                    f"{args.worker_of} has no herdr.space label",
+                    target=args.worker_of,
+                )
+        else:
+            query = args.space
+        space = next(
+            (s for s in spaces if query in (s.get("id"), s.get("name"))), None
+        )
+        if space is None:
+            raise Fail(NOT_FOUND, "no_space", f"no space {query}", target=query)
+        tab = next(
+            (
+                t
+                for t in space.get("tabs") or []
+                if tab_name and tab_name in (t.get("id"), t.get("name"))
+            ),
+            None,
+        )
+        labels = [f"herdr.space={space['id']}"]
+        if tab:
+            labels.append(f"herdr.tab={tab['id']}")
+        return {
+            "space": {"id": space["id"], "name": space.get("name")},
+            "tab": {"id": tab["id"], "name": tab.get("name")} if tab else None,
+            "new_tab_name": None if tab else tab_name,
+            "labels": labels,
+        }
+
+    def spawn(self, argv, name, cwd, parent, labels):
+        args = ["run", "--bg", "--no-notify", "--keep", "--json"]
+        args += ["--name", name] if name else []
+        args += ["--cwd", cwd] if cwd else []
+        args += ["--parent", parent, "--outlive-parent"] if parent else ["--no-parent"]
+        for label in labels:
+            args += ["--label", label]
+        shell = self.system.which("bash") or "/usr/bin/bash"
+        args += ["--", shell, "-ic", '"$@"; exec "$0" -i', shell, *argv]
+        data, result = self.hc(*args)
+        if result.code != 0 or not isinstance(data, dict) or not data.get("address"):
+            raise fail_from(result, "hc run")
+        return data["address"]
+
+    def adopt(self, address, placement):
+        tab = placement["tab"]
+        for _ in range(5):
+            _, found = tab_of_terminal(self.layout(), address)
+            if found:
+                break
+            self.hc("wait", address, "--timeout", "2", "--json", timeout=12)
+        if found and placement["new_tab_name"]:
+            self.system.json(
+                [
+                    "herdr-app",
+                    "do",
+                    "tab.rename",
+                    "--id",
+                    found["id"],
+                    "--name",
+                    placement["new_tab_name"],
+                ]
+            )
+        if found:
+            tab = {"id": found["id"], "name": placement["new_tab_name"] or found.get("name")}
+        return {"space": placement["space"], "tab": tab}
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -917,6 +996,7 @@ MODE_OF_FLAG = {
     "plan": "plan",
     "auto": "auto",
 }
+AGENT_NAME = re.compile(r"^[a-z0-9_-]{1,32}$")
 OPTION_LINE = re.compile(r"^\s*([❯>›]?)\s*(\d+)[.)]\s+(.+?)\s*$")
 
 
@@ -1084,8 +1164,12 @@ def await_launch(system, backend, address, spec):
 
 
 def cmd_launch(system, args):
-    if not args.target:
-        raise Fail(USAGE, "usage", "give --in to say where to launch")
+    if args.name and not args.target and not AGENT_NAME.match(args.name):
+        raise Fail(USAGE, "usage", "--name is 1-32 of a-z 0-9 - _")
+    if not (args.target or args.space or args.worker_of):
+        raise Fail(
+            USAGE, "usage", "give --in, --space or --worker-of to say where to launch"
+        )
     backend = pick_backend(system, args)
     argv = agent_argv(
         args.agent,
@@ -1109,11 +1193,26 @@ def cmd_launch(system, args):
         "timeout": args.timeout,
         "baseline": {},
     }
-    backend.shell_for_launch(args.target)
-    spec["baseline"] = failure_counts(patterns, backend.screen(args.target))
-    prefix = f"cd {shlex.quote(args.cwd)} && " if args.cwd else ""
-    backend.type_line(args.target, prefix + line)
-    address = args.target
+    placed = None
+    if args.target:
+        backend.shell_for_launch(args.target)
+        spec["baseline"] = failure_counts(patterns, backend.screen(args.target))
+        prefix = f"cd {shlex.quote(args.cwd)} && " if args.cwd else ""
+        backend.type_line(args.target, prefix + line)
+        address = args.target
+    else:
+        if backend.name != "app":
+            raise Fail(
+                USAGE,
+                "usage",
+                "placing a new terminal is app-only; use --in with a TUI pane",
+            )
+        placement = backend.place(args)
+        parent = None if args.no_parent else backend.caller
+        address = backend.spawn(
+            argv, args.name, args.cwd, parent, placement["labels"]
+        )
+        placed = backend.adopt(address, placement)
     ready = await_launch(system, backend, address, spec)
     return {
         "address": address,
@@ -1122,6 +1221,7 @@ def cmd_launch(system, args):
         "model": args.model,
         "effort": args.effort,
         "command": line,
+        "placed": placed,
         **{k: v for k, v in ready.items() if k != "target"},
     }
 
@@ -1198,7 +1298,9 @@ def cmd_read(system, args):
 
 def pick_backend(system, args):
     if args.backend:
-        return {"app": AppBackend, "tui": TuiBackend}[args.backend](system)
+        backend = {"app": AppBackend, "tui": TuiBackend}[args.backend](system)
+        backend.caller = None
+        return backend
     seat = find_seat(system)
     if seat["backend"] not in ("app", "tui"):
         raise Fail(
@@ -1207,7 +1309,9 @@ def pick_backend(system, args):
             seat.get("reason")
             or f"the seat is {seat['backend']}, which has no Herdr backend",
         )
-    return {"app": AppBackend, "tui": TuiBackend}[seat["backend"]](system)
+    backend = {"app": AppBackend, "tui": TuiBackend}[seat["backend"]](system)
+    backend.caller = seat["target"]
+    return backend
 
 
 COMMANDS = {
@@ -1249,11 +1353,15 @@ def build_parser():
     space.add_argument("--keep-focus", action="store_true")
     launch = sub.add_parser("launch", help="start an agent and wait until it is ready")
     launch.add_argument("--in", dest="target", metavar="TERMINAL")
+    launch.add_argument("--space")
+    launch.add_argument("--tab")
+    launch.add_argument("--worker-of", metavar="TERMINAL")
     launch.add_argument("--agent", choices=["claude", "codex"], default="claude")
     launch.add_argument("--model")
     launch.add_argument("--effort")
     launch.add_argument("--name")
     launch.add_argument("--cwd")
+    launch.add_argument("--no-parent", action="store_true")
     launch.add_argument("--permission-flag")
     launch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
     launch.add_argument("--timeout", type=int, default=180)
