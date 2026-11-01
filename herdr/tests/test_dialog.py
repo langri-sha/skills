@@ -50,6 +50,7 @@ class ShowTheDialog(unittest.TestCase):
         self.assertEqual(out["dialog"]["kind"], "question")
         self.assertEqual(out["dialog"]["msg"], "Trust this folder?")
         self.assertEqual(out["dialog"]["options"], ["Yes, I trust this folder", "No, exit"])
+        self.assertEqual(out["answerable"], "folder-trust")
 
     def test_options_come_from_the_message_when_the_screen_lists_none(self):
         _, _, out = dialog({GET: blocked("Sign in? (Yes · Not now)"), READ: screen("")})
@@ -60,21 +61,139 @@ class ShowTheDialog(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIsNone(out["dialog"])
 
+    def test_other_dialogs_are_not_answerable(self):
+        _, _, out = dialog({GET: blocked("Allow edit?", "permission"), READ: screen(EDIT)})
+        self.assertIsNone(out["answerable"])
+
+
+class AnswerTheDialog(unittest.TestCase):
+    def test_answers_the_folder_trust_dialog_with_the_listed_option(self):
+        keys = ("hc", "keys", "t7", "enter", "--json")
+        runner, code, out = dialog(
+            {GET: [blocked("Trust this folder?"), idle()], READ: screen(TRUST), keys: ok({})},
+            "--answer",
+            "1",
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(out["answered"], "Yes, I trust this folder")
+        self.assertEqual(out["status"], "idle")
+        self.assertEqual(runner.ran("hc", "keys"), [keys])
+
+    def test_moves_down_to_a_later_option_before_pressing_enter(self):
+        keys = ("hc", "keys", "t7", "down", "enter", "--json")
+        runner, code, out = dialog(
+            {GET: [blocked("Trust this folder?"), idle()], READ: screen(TRUST), keys: ok({})},
+            "--answer",
+            "no, exit",
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(out["answered"], "No, exit")
+
+    def test_refuses_a_permission_dialog_and_presses_nothing(self):
+        runner, code, out = dialog(
+            {GET: blocked("Allow edit?", "permission"), READ: screen(EDIT)},
+            "--answer",
+            "1",
+        )
+        self.assertEqual(code, 9)
+        self.assertEqual(out["error"], "not_allowed")
+        self.assertEqual(out["dialog"]["options"][0], "Yes")
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_refuses_a_dialog_that_only_mentions_the_folder_in_a_tool_prompt(self):
+        text = "Do you want to proceed?\n Bash command in this folder\n ❯ 1. Yes\n   2. No\n"
+        runner, code, _ = dialog(
+            {GET: blocked("Run it?", "permission"), READ: screen(text)}, "--answer", "1"
+        )
+        self.assertEqual(code, 9)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_refuses_a_permission_dialog_whatever_the_screen_says(self):
+        runner, code, out = dialog(
+            {GET: blocked("Trust this folder?", "permission"), READ: screen(TRUST)},
+            "--answer",
+            "1",
+        )
+        self.assertEqual(code, 9)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_trust_words_in_the_scrollback_do_not_make_a_permission_dialog_trusted(self):
+        text = (
+            "I will trust this folder and run the build.\n"
+            + "output line\n" * 12
+            + "Would you like to run the following command?\n"
+            " ❯ 1. Yes, proceed\n   2. No\n"
+        )
+        runner, code, _ = dialog(
+            {GET: blocked("Run it?", "permission"), READ: screen(text)}, "--answer", "1"
+        )
+        self.assertEqual(code, 9)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_trust_words_in_the_scrollback_do_not_make_a_question_trusted(self):
+        text = (
+            "Do you trust the files in this folder? yes, I trust this folder\n"
+            + "output line\n" * 12
+            + "Which branch should I push?\n ❯ 1. main\n   2. feature\n"
+        )
+        runner, code, out = dialog(
+            {GET: blocked("Which branch?"), READ: screen(text)}, "--answer", "1"
+        )
+        self.assertEqual(code, 9)
+        self.assertEqual(out["error"], "not_allowed")
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_the_trust_dialog_is_still_answered_with_old_output_above_it(self):
+        text = (
+            "1. earlier list item\n2. another one\n"
+            + "output line\n" * 12
+            + TRUST
+        )
+        keys = ("hc", "keys", "t7", "down", "enter", "--json")
+        runner, code, out = dialog(
+            {GET: [blocked("Trust?"), idle()], READ: screen(text), keys: ok({})},
+            "--answer",
+            "2",
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(out["answered"], "No, exit")
+
+    def test_refuses_any_other_question(self):
+        runner, code, _ = dialog(
+            {GET: blocked("Sign in?"), READ: screen(SIGN_IN)}, "--answer", "1"
+        )
+        self.assertEqual(code, 9)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_an_answer_that_matches_no_option_is_a_usage_error(self):
+        runner, code, out = dialog(
+            {GET: blocked("Trust this folder?"), READ: screen(TRUST)}, "--answer", "maybe"
+        )
+        self.assertEqual(code, 2)
+        self.assertEqual(out["options"], ["Yes, I trust this folder", "No, exit"])
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_an_answer_with_no_dialog_open_exits_eight(self):
+        _, code, out = dialog({GET: idle(), READ: screen("")}, "--answer", "1")
+        self.assertEqual(code, 8)
+        self.assertEqual(out["error"], "no_dialog")
+
 
 class DialogInTheTui(unittest.TestCase):
-    def test_returns_the_visible_screen_of_a_blocked_agent(self):
-        agent = ok({"result": {"agent": {"agent_status": "blocked"}}})
+    def test_answers_a_folder_trust_dialog_through_agent_keys(self):
+        agent = lambda state: ok({"result": {"agent": {"agent_status": state}}})
         runner = FakeRunner(
             {
-                ("herdr", "agent", "get", "rev"): agent,
+                ("herdr", "agent", "get", "rev"): [agent("blocked"), agent("idle")],
                 ("herdr", "agent", "read", "rev", "--source", "visible"): ok(
                     {"result": {"read": {"text": TRUST}}}
                 ),
+                ("herdr", "agent", "send-keys", "rev", "enter"): ok({}),
             }
         )
-        code, out = run_verb(["--backend", "tui", "dialog", "rev"], runner)
+        code, out = run_verb(["--backend", "tui", "dialog", "rev", "--answer", "yes"], runner)
         self.assertEqual(code, 0)
-        self.assertEqual(out["dialog"]["options"], ["Yes, I trust this folder", "No, exit"])
+        self.assertEqual(out["status"], "idle")
 
 
 if __name__ == "__main__":
