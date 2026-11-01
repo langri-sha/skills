@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import sys
 from collections import namedtuple
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -237,6 +238,44 @@ class AppBackend:
             "fallback": None,
         }
 
+    def rows(self, labels):
+        args = ["ls", "--json"]
+        for label in labels:
+            args += ["--label", label]
+        data, result = self.hc(*args)
+        if result.code != 0 or not isinstance(data, dict):
+            raise fail_from(result, "hc ls")
+        terminals = data.get("terminals") or []
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            return list(pool.map(self.row, terminals))
+
+    def row(self, listed):
+        target = listed["address"]
+        data, result = self.hc("get", target, "--json")
+        record = data if result.code == 0 and isinstance(data, dict) else {}
+        status = record.get("status") or {}
+        labels = record.get("labels") or {}
+        kind = agent_kind(status.get("app") or listed.get("agent"))
+        dialog = dialog_of(status)
+        footer = None
+        if kind in FOOTER_MODES and dialog is None and listed.get("state") == "live":
+            screen, read = self.hc("read", target, "--lines", "0", "--json")
+            if read.code == 0 and isinstance(screen, dict):
+                footer = screen.get("text") or ""
+        return roster_row(
+            address=target,
+            name=labels.get("claude.name") or listed.get("name"),
+            kind=kind or listed.get("agent"),
+            state=listed.get("state"),
+            status=status.get("state") or listed.get("status"),
+            dialog=dialog,
+            footer=footer,
+            where=listed.get("where") or labels.get("where"),
+            session=labels.get("claude.session"),
+            parent=listed.get("parent"),
+            cwd=labels.get("claude.cwd") or listed.get("cwd"),
+        )
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -385,6 +424,71 @@ class TuiBackend:
             "waited": False,
             "fallback": fallback,
         }
+
+    def listing(self, noun, key, *args):
+        data, result = self.herdr(noun, "list", *args)
+        if result.code != 0:
+            raise fail_from(result, f"herdr {noun} list")
+        return ((data or {}).get("result") or {}).get(key) or []
+
+    def rows(self, labels):
+        if labels:
+            raise Fail(
+                USAGE,
+                "usage",
+                "labels exist only in the Herdr app; the TUI has none to filter by",
+            )
+        names = {
+            agent.get("pane_id"): agent.get("name")
+            for agent in self.listing("agent", "agents")
+        }
+        workspaces = {
+            item["workspace_id"]: item.get("label")
+            for item in self.listing("workspace", "workspaces")
+        }
+        tabs = {item["tab_id"]: item.get("label") for item in self.listing("tab", "tabs")}
+        panes = self.listing("pane", "panes")
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            return list(
+                pool.map(lambda pane: self.row(pane, names, workspaces, tabs), panes)
+            )
+
+    def row(self, pane, names, workspaces, tabs):
+        target = pane["pane_id"]
+        kind = agent_kind(pane.get("agent"))
+        status = pane.get("agent_status")
+        screen = ""
+        if kind in FOOTER_MODES or status == "blocked":
+            data, result = self.herdr("pane", "read", target, "--source", "visible")
+            if result.code == 0:
+                screen = (((data or {}).get("result") or {}).get("read") or {}).get(
+                    "text"
+                ) or ""
+        dialog = None
+        if status == "blocked":
+            dialog = {"kind": None, "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:])}
+        session = pane.get("agent_session") or {}
+        return roster_row(
+            address=target,
+            name=names.get(target),
+            kind=kind,
+            state="live",
+            status=status,
+            dialog=dialog,
+            footer=screen if kind in FOOTER_MODES and dialog is None else None,
+            where=" / ".join(
+                part
+                for part in (
+                    workspaces.get(pane.get("workspace_id")),
+                    tabs.get(pane.get("tab_id")),
+                )
+                if part
+            )
+            or None,
+            session=session.get("value") if kind == agent_kind(session.get("agent")) else None,
+            parent=None,
+            cwd=pane.get("cwd"),
+        )
 
     def label_of(self, noun, identifier):
         if not identifier:
@@ -557,6 +661,37 @@ def cmd_whois(system, args):
     }
 
 
+FOOTER_MODES = {
+    "claude": [
+        ("bypass", re.compile(r"bypass permissions on")),
+        ("auto", re.compile(r"auto mode on")),
+        ("accept-edits", re.compile(r"accept edits on")),
+        ("plan", re.compile(r"plan mode on")),
+    ],
+    "codex": [],
+}
+
+
+def permission_mode(kind, footer):
+    for mode, pattern in FOOTER_MODES.get(kind, []):
+        if pattern.search(footer):
+            return mode
+    return None
+
+
+def roster_row(footer, **row):
+    mode = permission_mode(row["kind"], footer) if footer is not None else None
+    bypass = None
+    if row["kind"] == "claude" and footer is not None:
+        bypass = mode == "bypass"
+    return {**row, "bypass": bypass, "permission_mode": mode}
+
+
+def cmd_roster(system, args):
+    rows = pick_backend(system, args).rows(args.label)
+    return {"count": len(rows), "terminals": rows}
+
+
 def tmux_seat(system, tty):
     pane = system.env("TMUX_PANE")
     if not pane:
@@ -635,7 +770,12 @@ def pick_backend(system, args):
     return {"app": AppBackend, "tui": TuiBackend}[seat["backend"]](system)
 
 
-COMMANDS = {"seat": cmd_seat, "whois": cmd_whois, "read": cmd_read}
+COMMANDS = {
+    "seat": cmd_seat,
+    "whois": cmd_whois,
+    "read": cmd_read,
+    "roster": cmd_roster,
+}
 
 
 class Parser(argparse.ArgumentParser):
@@ -658,6 +798,8 @@ def build_parser():
     read.add_argument("--tail", type=int)
     read.add_argument("--footer", action="store_true")
     read.add_argument("--wait-timeout", type=int, default=30)
+    roster = sub.add_parser("roster", help="list every terminal and its state")
+    roster.add_argument("--label", action="append", default=[], metavar="K=V")
     return parser
 
 
