@@ -519,6 +519,14 @@ class AppBackend:
         record = self.record(target)
         return dialog_of(record.get("status") or {}), self.screen(target)
 
+    def status_of(self, target):
+        return (self.record(target).get("status") or {}).get("state")
+
+    def press(self, target, keys):
+        _, result = self.hc("keys", target, *keys, "--json")
+        if result.code != 0:
+            raise fail_from(result, "hc keys", target)
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -874,6 +882,11 @@ class TuiBackend:
         if result.code != 0 or not isinstance(agent, dict):
             raise fail_from(result, "herdr agent get", target)
         return agent.get("agent_status")
+
+    def press(self, target, keys):
+        _, result = self.herdr("agent", "send-keys", target, *keys)
+        if result.code != 0:
+            raise fail_from(result, "herdr agent send-keys", target)
 
     def label_of(self, noun, identifier):
         if not identifier:
@@ -1354,10 +1367,85 @@ def cmd_deliver(system, args):
     return pick_backend(system, args).deliver(args.target, text)
 
 
+FOLDER_TRUST = re.compile(
+    r"do you trust the files in this folder"
+    r"|is this a project you created or one you trust"
+    r"|trust this folder"
+    r"|trust the contents of this directory",
+    re.IGNORECASE,
+)
+TOOL_PERMISSION = re.compile(
+    r"bash command|do you want to (proceed|make this edit|create|allow)"
+    r"|allow (this|claude|codex)|run this command|wants to (run|edit|read|write)",
+    re.IGNORECASE,
+)
+ALLOWLIST = {"folder-trust": FOLDER_TRUST}
+
+
+def dialog_class(dialog, screen):
+    if dialog.get("kind") == "permission":
+        return None
+    text = "\n".join([dialog.get("msg") or "", *dialog_block(screen)])
+    if TOOL_PERMISSION.search(text):
+        return None
+    for name, pattern in ALLOWLIST.items():
+        if pattern.search(text):
+            return name
+    return None
+
+
+def keys_for(options, wanted):
+    labels = [option["label"] for option in options]
+    index = None
+    if wanted.isdigit():
+        index = next(
+            (i for i, option in enumerate(options) if option["number"] == int(wanted)),
+            None,
+        )
+    if index is None:
+        matches = [
+            i for i, label in enumerate(labels) if wanted.lower() in label.lower()
+        ]
+        index = matches[0] if len(matches) == 1 else None
+    if index is None:
+        raise Fail(
+            USAGE, "usage", f"no single option matches {wanted}", options=labels
+        )
+    current = next((i for i, option in enumerate(options) if option["selected"]), 0)
+    move = ["down"] * (index - current) + ["up"] * (current - index)
+    return labels[index], [*move, "enter"]
+
+
 def cmd_dialog(system, args):
-    dialog, screen = pick_backend(system, args).dialog_state(args.target)
-    shown = open_dialog(dialog, screen) if dialog else None
-    return {"target": args.target, "dialog": shown}
+    backend = pick_backend(system, args)
+    dialog, screen = backend.dialog_state(args.target)
+    if dialog is None:
+        if args.answer is not None:
+            raise Fail(
+                WRONG_STATE, "no_dialog", "no dialog is open", target=args.target
+            )
+        return {"target": args.target, "dialog": None, "answerable": None}
+    shown = open_dialog(dialog, screen)
+    kind = dialog_class(dialog, screen)
+    if args.answer is None:
+        return {"target": args.target, "dialog": shown, "answerable": kind}
+    if kind is None:
+        raise Fail(
+            BLOCKED,
+            "not_allowed",
+            "this dialog is not on the allowlist; ask the user",
+            target=args.target,
+            dialog=shown,
+        )
+    label, keys = keys_for(dialog_options(dialog.get("msg"), screen), args.answer)
+    backend.press(args.target, keys)
+    return {
+        "target": args.target,
+        "answered": label,
+        "dialog_class": kind,
+        "keys": keys,
+        "status": backend.status_of(args.target),
+    }
 
 
 def cmd_space(system, args):
@@ -1505,8 +1593,9 @@ def build_parser():
     deliver.add_argument("target")
     deliver.add_argument("text", nargs="?")
     deliver.add_argument("--file")
-    dialog = sub.add_parser("dialog", help="show a terminal's open dialog")
+    dialog = sub.add_parser("dialog", help="show a terminal's open dialog, or answer an allowed one")
     dialog.add_argument("target")
+    dialog.add_argument("--answer", metavar="OPTION")
     return parser
 
 

@@ -41,6 +41,8 @@ python3 <skill-dir>/scripts/herdr.py <verb> [options]
    TUI CLI still works there and acts on whichever TUI pane the user focuses.
 4. **Never guess state from screen text.** `status` and `dialog` come from the
    verbs; a `blocked` terminal needs the user, so show its dialog and ask.
+   `dialog --answer` acts only on the folder-trust dialog and exits 9 on any
+   other; never answer a permission dialog yourself.
 5. **Never sleep to wait.** Use `hc wait`, `herdr agent wait` or `hc events`.
 6. **Launch through `launch`, one agent at a time.** It types into an
    interactive shell so the user's shell functions run; `hc run claude` or the
@@ -58,17 +60,17 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 
 ## Task to verb
 
-| Task                                                                                                     | Verb                                                              |
-| -------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Where am I, and in which Herdr?                                                                          | `seat`                                                            |
-| Who runs in terminal T, and how do I resume it?                                                          | `whois T`                                                         |
-| What is on terminal T's screen?                                                                          | `read T`, with `--tail N` or `--footer`                           |
-| Who is running, blocked, or missing bypass?                                                              | `roster`, with `--label k=v` (app only)                           |
-| Make a space for a mission                                                                               | `space NAME`, with `--folder`, `--tab`, `--keep-focus`            |
-| Start an agent in an idle shell                                                                          | `launch --in T --agent claude --model M`                          |
-| Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent` | `launch --space S --tab T --name N` or `--worker-of T` (app only) |
-| Brief an agent                                                                                           | `deliver T "text"` or `deliver T --file path`                     |
-| What dialog is a blocked terminal showing?                                                               | `dialog T`                                                        |
+| Task                                                                                                     | Verb                                                                |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Where am I, and in which Herdr?                                                                          | `seat`                                                              |
+| Who runs in terminal T, and how do I resume it?                                                          | `whois T`                                                           |
+| What is on terminal T's screen?                                                                          | `read T`, with `--tail N` or `--footer`                             |
+| Who is running, blocked, or missing bypass?                                                              | `roster`, with `--label k=v` (app only)                             |
+| Make a space for a mission                                                                               | `space NAME`, with `--folder`, `--tab`, `--keep-focus`              |
+| Start an agent in an idle shell                                                                          | `launch --in T --agent claude --model M`                            |
+| Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent` | `launch --space S --tab T --name N` or `--worker-of T` (app only)   |
+| Brief an agent                                                                                           | `deliver T "text"` or `deliver T --file path`                       |
+| What dialog is a blocked terminal showing, and can the folder-trust dialog be answered?                  | `dialog T`, with `--answer OPTION` for the folder-trust dialog only |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
