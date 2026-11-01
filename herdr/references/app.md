@@ -17,12 +17,19 @@ hc label "$HC_TERMINAL_ID" \
 The hook reads `session_id` and `cwd` from the JSON on its stdin, and writes
 only the labels it knows. The verbs read these labels when present:
 
-| Label            | Read by                  |
-| ---------------- | ------------------------ |
-| `claude.session` | `seat` (`session_match`) |
+| Label            | Read by                                     |
+| ---------------- | ------------------------------------------- |
+| `claude.session` | `seat` (`session_match`), `whois`, `roster` |
+| `claude.name`    | `whois`, `roster`                           |
+| `claude.model`   | `whois`                                     |
+| `claude.effort`  | `whois`                                     |
+| `claude.cwd`     | `whois`, `roster`                           |
 
-Without them `seat` reports `session_match: null` with a `session_reason`, and
-nothing else fails.
+Without them `seat` reports `session_match: null` with a `session_reason`.
+`whois` falls back to the terminal's process tree: the agent process's flags for
+the model and effort, and the agent's own session record
+(`~/.claude/sessions/<pid>.json` for Claude Code) or its `--resume` flag for the
+session. It lists what it fell back on in `degraded`. Nothing fails.
 
 ## Placement labels
 

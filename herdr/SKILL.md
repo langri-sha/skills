@@ -49,9 +49,10 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 
 ## Task to verb
 
-| Task                            | Verb   |
-| ------------------------------- | ------ |
-| Where am I, and in which Herdr? | `seat` |
+| Task                                            | Verb      |
+| ----------------------------------------------- | --------- |
+| Where am I, and in which Herdr?                 | `seat`    |
+| Who runs in terminal T, and how do I resume it? | `whois T` |
 
 ## Exit codes
 
