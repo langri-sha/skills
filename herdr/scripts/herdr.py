@@ -669,23 +669,30 @@ def transcript_of(system, kind, session):
 
 DEFAULT_PERMISSION = {
     "claude": ["--permission-mode", "bypassPermissions"],
-    "codex": ["--dangerously-bypass-approvals-and-sandbox", "--no-daemon"],
+    "codex": ["--dangerously-bypass-approvals-and-sandbox"],
 }
 
 
-def resume_command(kind, session, model, effort, permission):
-    if not session or kind not in DEFAULT_PERMISSION:
-        return None
+def agent_argv(kind, head, permission, model, effort, backend, name=None):
     flags = shlex.split(permission) if permission else DEFAULT_PERMISSION[kind]
     if kind == "claude":
-        command = ["claude", "--resume", session, *flags]
-        command += ["--model", model] if model else []
-        command += ["--effort", effort] if effort else []
-    else:
-        command = ["codex", "resume", session, *flags]
-        command += ["--model", model] if model else []
-        command += ["-c", f'model_reasoning_effort="{effort}"'] if effort else []
-    return shlex.join(command)
+        argv = ["claude", *head, *flags]
+        argv += ["--model", model] if model else []
+        argv += ["--effort", effort] if effort else []
+        argv += ["--name", name] if name else []
+        return argv
+    argv = ["codex", *head] + (["--no-daemon"] if backend == "app" else []) + flags
+    argv += ["--model", model] if model else []
+    argv += ["-c", f'model_reasoning_effort="{effort}"'] if effort else []
+    return argv
+
+
+def resume_command(kind, session, model, effort, permission, backend):
+    if not session or kind not in DEFAULT_PERMISSION:
+        return None
+    head = ["--resume", session] if kind == "claude" else ["resume", session]
+    argv = agent_argv(kind, head, permission, model, effort, backend)
+    return shlex.join(argv)
 
 
 def cmd_whois(system, args):
@@ -726,7 +733,9 @@ def cmd_whois(system, args):
     effort = who["effort"] or (
         flag_value(tokens, "--effort") if kind == "claude" else codex_effort(tokens)
     )
-    command = resume_command(kind, session, model, effort, args.permission_flag)
+    command = resume_command(
+        kind, session, model, effort, args.permission_flag, backend.name
+    )
     return {
         "target": who["target"],
         "kind": kind,
