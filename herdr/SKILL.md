@@ -54,6 +54,7 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 | Where am I, and in which Herdr?                 | `seat`                                  |
 | Who runs in terminal T, and how do I resume it? | `whois T`                               |
 | What is on terminal T's screen?                 | `read T`, with `--tail N` or `--footer` |
+| Who is running, blocked, or missing bypass?     | `roster`, with `--label k=v` (app only) |
 
 ## Exit codes
 
