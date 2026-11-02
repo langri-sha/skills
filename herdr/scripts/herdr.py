@@ -1775,6 +1775,46 @@ def cmd_close(system, args):
     }
 
 
+EVENT_FILTER = (
+    "select(.params.type == \"status\" or .params.type == \"finished\" "
+    "or .params.type == \"lost\") "
+    "| {t: .params.terminal, type: .params.type, data: .params.data}"
+)
+
+
+def cmd_watch(system, args):
+    backend = pick_backend(system, args)
+    if backend.name != "app":
+        raise Fail(
+            USAGE,
+            "usage",
+            "events are app-only; in the TUI use herdr agent wait",
+        )
+    flags = []
+    for label in args.label:
+        if "=" not in label or label.startswith("="):
+            raise Fail(USAGE, "usage", f"--label wants key=value, not {label}")
+        flags += ["--label", label]
+    owner = args.children_of or (None if flags else backend.caller)
+    if owner:
+        flags += ["--children-of", owner]
+    if not flags:
+        raise Fail(
+            USAGE, "usage", "give --label or --children-of; the seat is unknown"
+        )
+    command = (
+        "hc events --json "
+        + shlex.join(flags)
+        + " | jq --unbuffered -c "
+        + shlex.quote(EVENT_FILTER)
+    )
+    return {
+        "command": command,
+        "emits": "one JSON line per status, finished or lost event",
+        "timeout_ms": 1800000,
+    }
+
+
 def cmd_deliver(system, args):
     if (args.text is None) == (args.file is None):
         raise Fail(USAGE, "usage", "give the text, or --file, but not both")
@@ -1969,6 +2009,7 @@ COMMANDS = {
     "dialog": cmd_dialog,
     "relaunch": cmd_relaunch,
     "close": cmd_close,
+    "watch": cmd_watch,
 }
 
 
@@ -2036,6 +2077,9 @@ def build_parser():
     close = sub.add_parser("close", help="exit and remove a terminal the caller started")
     close.add_argument("target")
     close.add_argument("--brief", metavar="PATH")
+    watch = sub.add_parser("watch", help="print the command that follows terminal events")
+    watch.add_argument("--label", action="append", default=[], metavar="K=V")
+    watch.add_argument("--children-of", metavar="TERMINAL")
     return parser
 
 
