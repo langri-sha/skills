@@ -1591,7 +1591,7 @@ def await_launch(system, backend, address, spec):
         if hit:
             raise Fail(LAUNCH_FAILED, "launcher_failed", hit, **context)
         mode_ok = spec["mode"] is None or mode == spec["mode"]
-        if obs.status in ("idle", "done") and mode_ok and not obs.shell_idle:
+        if (obs.status in ("idle", "done") or (spec.get("prompt") and obs.status == "working")) and mode_ok and not obs.shell_idle:
             return context
         returned = returned + 1 if obs.shell_idle else 0
         if returned >= 2:
@@ -1612,7 +1612,7 @@ def await_launch(system, backend, address, spec):
         backend.pace(address, spec["needle"], max(1, math.ceil(min(left, SLICE_SECONDS))))
 
 
-def plan_launch(backend, agent, head, model, effort, name, permission, patterns, timeout):
+def plan_launch(backend, agent, head, model, effort, name, permission, patterns, timeout, extra=(), prompt=None):
     argv = agent_argv(
         agent,
         head,
@@ -1622,12 +1622,16 @@ def plan_launch(backend, agent, head, model, effort, name, permission, patterns,
         backend.name,
         name if agent == "claude" else None,
     )
+    argv += list(extra)
+    if prompt is not None:
+        argv += ["--", prompt]
     mode = expected_mode(agent, permission)
     return {
         "argv": argv,
         "line": shlex.join(argv),
         "spec": {
             "kind": agent,
+            "prompt": prompt is not None,
             "model": model,
             "mode": mode,
             "needle": {"bypass": "bypass permissions on"}.get(mode),
@@ -1668,6 +1672,12 @@ def cmd_launch(system, args):
             USAGE, "usage", "give --in, --space or --worker-of to say where to launch"
         )
     backend = pick_backend(system, args)
+    prompt = None
+    if args.prompt_file:
+        try:
+            prompt = Path(args.prompt_file).read_text()
+        except (OSError, UnicodeError) as exc:
+            raise Fail(USAGE, "prompt_file", str(exc)) from exc
     plan = plan_launch(
         backend,
         args.agent,
@@ -1678,6 +1688,8 @@ def cmd_launch(system, args):
         args.permission_flag,
         args.fail_pattern,
         args.timeout,
+        args.arg,
+        prompt,
     )
     if args.target:
         ready = launch_in(system, backend, args.target, plan, args.cwd)
@@ -2201,6 +2213,8 @@ def build_parser():
     launch.add_argument("--cwd")
     launch.add_argument("--no-parent", action="store_true")
     launch.add_argument("--permission-flag")
+    launch.add_argument("--arg", action="append", default=[], metavar="VALUE")
+    launch.add_argument("--prompt-file", metavar="PATH")
     launch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
     launch.add_argument("--timeout", type=int, default=180)
     deliver = sub.add_parser("deliver", help="send text to an agent and confirm it started")

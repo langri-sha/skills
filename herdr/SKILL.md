@@ -64,6 +64,11 @@ Syntax for everything the verbs do not cover is in the CLIs' own manuals, which
 track the installed versions: `hc --skill`, `herdr-app --skill`, and
 `herdr --help` with each group's help (`herdr agent`, `herdr pane`, ...).
 
+`launch` accepts repeated `--arg=VALUE` options and `--prompt-file PATH` for
+agent options and a startup prompt. The file is read verbatim as one argument;
+when the prompt starts work immediately, a working status counts as a successful
+start. A blocked or failed launch is reported without resending the prompt.
+
 ## Task to verb
 
 | Task                                                                                                                                 | Verb                                                                        |
