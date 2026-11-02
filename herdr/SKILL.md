@@ -56,6 +56,8 @@ python3 <skill-dir>/scripts/herdr.py <verb> [options]
 9. **Exit an agent with `relaunch`**, which presses ctrl+c twice. `/exit` sent
    as text arrives tagged and may never run, and a raw `kill` of the shell skips
    the checks that keep the terminal at its address.
+10. **Clean up only terminals you started.** `close` refuses any terminal whose
+    parent is not the caller, and `launch` makes the caller the parent.
 
 Syntax for everything the verbs do not cover is in the CLIs' own manuals, which
 track the installed versions: `hc --skill`, `herdr-app --skill`, and
@@ -63,18 +65,19 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 
 ## Task to verb
 
-| Task                                                                                                                                 | Verb                                                                  |
-| ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| Where am I, and in which Herdr?                                                                                                      | `seat`                                                                |
-| Who runs in terminal T, and how do I resume it?                                                                                      | `whois T`                                                             |
-| What is on terminal T's screen?                                                                                                      | `read T`, with `--tail N` or `--footer`                               |
-| Who is running, blocked, or missing bypass?                                                                                          | `roster`, with `--label k=v` (app only)                               |
-| Make a space for a mission                                                                                                           | `space NAME`, with `--folder`, `--tab`, `--keep-focus`                |
-| Start an agent in an idle shell                                                                                                      | `launch --in T --agent claude --model M`                              |
-| Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent`                             | `launch --space S --tab T --name N` or `--worker-of T` (app only)     |
-| Brief an agent                                                                                                                       | `deliver T "text"` or `deliver T --file path`                         |
-| What dialog is a blocked terminal showing, and can the folder-trust dialog be answered?                                              | `dialog T`, with `--answer OPTION` for the folder-trust dialog only   |
-| Swap, resume or restart the agent in a terminal; every failure says whether the agent exited (`exited_agent`) and carries `previous` | `relaunch T`, with `--resume`, `--agent`, `--model`, `--handoff PATH` |
+| Task                                                                                                                                 | Verb                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| Where am I, and in which Herdr?                                                                                                      | `seat`                                                                      |
+| Who runs in terminal T, and how do I resume it?                                                                                      | `whois T`                                                                   |
+| What is on terminal T's screen?                                                                                                      | `read T`, with `--tail N` or `--footer`                                     |
+| Who is running, blocked, or missing bypass?                                                                                          | `roster`, with `--label k=v` (app only)                                     |
+| Make a space for a mission                                                                                                           | `space NAME`, with `--folder`, `--tab`, `--keep-focus`                      |
+| Start an agent in an idle shell                                                                                                      | `launch --in T --agent claude --model M`                                    |
+| Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent`                             | `launch --space S --tab T --name N` or `--worker-of T` (app only)           |
+| Brief an agent                                                                                                                       | `deliver T "text"` or `deliver T --file path`                               |
+| What dialog is a blocked terminal showing, and can the folder-trust dialog be answered?                                              | `dialog T`, with `--answer OPTION` for the folder-trust dialog only         |
+| Swap, resume or restart the agent in a terminal; every failure says whether the agent exited (`exited_agent`) and carries `previous` | `relaunch T`, with `--resume`, `--agent`, `--model`, `--handoff PATH`       |
+| Finish with a worker you started                                                                                                     | `close T`, with `--brief PATH` to file its brief under `closed/` (app only) |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
@@ -95,4 +98,5 @@ Failures, with what to tell the user:
 | 9    | `blocked`: a dialog is open; `dialog` has its `kind`, `msg` and `options`. Ask the user                                                   |
 | 10   | `unconfirmed`: sent, but the agent did not start working; it may have arrived, so read before sending again                               |
 | 11   | `finished`: the terminal ended                                                                                                            |
+| 12   | `not_owned`: the terminal's parent is not the caller, so it is not yours to close                                                         |
 | 13   | `held_focus` or `held_input`: the terminal has the user's focus, or text is typed at its prompt, so its shell is left alone. Ask the user |

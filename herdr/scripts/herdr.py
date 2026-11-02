@@ -29,6 +29,7 @@ WRONG_STATE = 8
 BLOCKED = 9
 UNCONFIRMED = 10
 FINISHED = 11
+NOT_OWNED = 12
 HELD = 13
 
 Result = namedtuple("Result", "code out err")
@@ -675,6 +676,18 @@ class AppBackend:
                 target=target,
             )
         return True
+
+    def parent_of(self, target):
+        return self.record(target).get("parent")
+
+    def discard(self, target):
+        _, killed = self.hc("kill", target, "--json")
+        if killed.code != 0:
+            raise fail_from(killed, "hc kill", target)
+        self.hc("wait", target, "--timeout", "5", "--json", timeout=15)
+        _, removed = self.hc("rm", target, "--json")
+        if removed.code != 0:
+            raise fail_from(removed, "hc rm", target)
 
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
@@ -1597,8 +1610,10 @@ def exit_agent(system, backend, target):
     pressed = False
 
     def back():
-        pid = backend.facts(target)["pid"]
-        return shell_is_idle(process_table(system), pid)[0]
+        facts = backend.facts(target)
+        return facts["state"] == "finished" or shell_is_idle(
+            process_table(system), facts["pid"]
+        )[0]
 
     for _ in range(2):
         if back():
@@ -1706,6 +1721,57 @@ def cmd_relaunch(system, args):
         "replaced_shell": replaced,
         "command": plan["line"],
         **{k: v for k, v in ready.items() if k != "target"},
+    }
+
+
+def archive_brief(path):
+    source = Path(path)
+    if not source.is_file():
+        raise Fail(NOT_FOUND, "not_found", f"no brief at {path}")
+    destination = source.parent / "closed" / source.name
+    if destination.exists():
+        raise Fail(WRONG_STATE, "brief_archived", f"{destination} already exists")
+    return source, destination
+
+
+def cmd_close(system, args):
+    backend = pick_backend(system, args)
+    if backend.name != "app":
+        raise Fail(
+            USAGE,
+            "usage",
+            "the TUI records no parent, so close cannot tell which panes the caller "
+            "started; close them in Herdr",
+        )
+    caller = backend.caller
+    if not caller:
+        raise Fail(
+            NO_SEAT,
+            "no_caller",
+            "without a seat close cannot tell which terminals are yours",
+        )
+    parent = backend.parent_of(args.target)
+    if parent != caller:
+        raise Fail(
+            NOT_OWNED,
+            "not_owned",
+            f"{args.target} was not started by {caller}, so it is not yours to close",
+            target=args.target,
+            parent=parent,
+        )
+    brief = archive_brief(args.brief) if args.brief else None
+    exited = exit_agent(system, backend, args.target)
+    backend.discard(args.target)
+    archived = None
+    if brief:
+        brief[1].parent.mkdir(exist_ok=True)
+        brief[0].rename(brief[1])
+        archived = str(brief[1])
+    return {
+        "target": args.target,
+        "exited_agent": exited,
+        "removed": True,
+        "brief": archived,
     }
 
 
@@ -1902,6 +1968,7 @@ COMMANDS = {
     "deliver": cmd_deliver,
     "dialog": cmd_dialog,
     "relaunch": cmd_relaunch,
+    "close": cmd_close,
 }
 
 
@@ -1966,6 +2033,9 @@ def build_parser():
     relaunch.add_argument("--permission-flag")
     relaunch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
     relaunch.add_argument("--timeout", type=int, default=180)
+    close = sub.add_parser("close", help="exit and remove a terminal the caller started")
+    close.add_argument("target")
+    close.add_argument("--brief", metavar="PATH")
     return parser
 
 
