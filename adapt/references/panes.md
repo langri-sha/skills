@@ -5,6 +5,32 @@ Commands below use `SOURCE`, `DESTINATION` and paths as placeholders: substitute
 verified literal values, shell-quoted with a routine such as Python's
 `shlex.join`. Shell variables do not persist between tool calls.
 
+## Shared Herdr interface
+
+Read the installed unified `herdr` skill and its current CLI help first. Use
+`python3 HERDR_SKILL_DIR/scripts/herdr.py VERB ...` for both app terminals and
+TUI panes. The skill selects the backend from the verified seat; do not invoke
+the TUI CLI from an app seat to perform a shared operation.
+
+- `seat` identifies the caller; `whois TARGET` identifies the successor.
+- `roster` inventories agents; `read TARGET` inspects other agents.
+- `launch --in TARGET` starts the successor in the verified empty split.
+- `deliver TARGET --file PATH` sends the seed and transfer message.
+- `dialog TARGET` reports a blocked launch; follow the skill's dialog contract.
+
+Inspect each JSON result and follow the unified skill's failure guidance. Never
+replace a refused or timed-out operation with raw keystrokes or a second launch.
+A permission policy the helper cannot express is the explicit native-launch
+exception below, not permission to bypass its ownership or busy-shell checks.
+
+Use native commands only for capabilities the installed wrapper lacks:
+right-adjacent splitting, source self-closure (`close` owns children only),
+recovery labels and lifetime metadata, and non-waiting self-capture while the
+source is working. Read the selected backend's manual only for those gaps. If
+the unified skill gains an equivalent operation with the required semantics,
+prefer it over the fallback below. Keep this skill responsible for the handoff
+protocol, not a second implementation of Herdr.
+
 ## Herdr app
 
 Read `hc --skill`, `herdr-app --skill` and `herdr-app commands`. Resolve
@@ -94,7 +120,7 @@ skill before mutation.
 herdr pane split --pane SOURCE --direction right --cwd CWD --no-focus
 ```
 
-Record `.result.pane.pane_id`. Launch through the herdr skill's
+Record `.result.pane.pane_id`. Continue with the shared Herdr interface:
 `launch --in DESTINATION`, preserving the same permission and shell-wrapper
 constraints as the app procedure. Send the seed through `deliver --file`. Check
 live agent/session state and acknowledgement, and account for workers and jobs
