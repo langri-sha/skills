@@ -76,30 +76,13 @@ would take the prompt as one more.
 
 ## When it stops
 
-- **Not in a pane of its own:** outside tmux, the Herdr app and the Herdr TUI,
-  ask the user to start one and retry. Inside one, a background job, a session
-  nested in another multiplexer, or a terminal opened from a pane can inherit a
-  pane or terminal ID that isn't its own: ask which pane is the conversation
-  instead of splitting a guess. A sandbox that hides parent processes or a
-  multiplexer's socket ends the same way; rerun the script outside it.
-- **`blocked` in the Herdr app, exit 3:** the agent is at a dialog, usually
-  folder trust. Read it with `hc read <name>`, show it to the user and let them
-  answer it. The agent keeps the prompt it was started with, and its composer
-  empties when it submits, so run the seed command the script printed only if
-  `hc get <name> --json` still shows `turn: 0` once the agent is idle.
-- **No status or `error` in the Herdr app, exit 1:** the agent reported nothing
-  within the wait, or an error. The screen printed after the launch line says
-  why: an `op` approval still pending, a start that failed and left a bare
-  shell, or the agent's own error, such as a model it doesn't know. Show it to
-  the user; the terminal stays, and an approved agent goes on with its prompt.
-- **`agent_not_ready` in the Herdr TUI, exit 3:** the agent is blocked at
-  startup, usually on the folder-trust dialog. Read it with
-  `herdr agent read <name> --source visible`, show it to the user and let them
-  answer it. Once `herdr agent get <name>` reports `idle`, run the seed command
-  the script printed.
-- **Anything else,** such as the agent missing from `PATH` or an option the
-  script refuses: report the error. A failed Herdr TUI start leaves a bare shell
-  in the printed pane, and so does a failed tmux start, without an error.
+The shared Herdr launcher reports a blocked dialog, failed launcher, or timeout
+with the terminal address and state. On failure the script retains the startup
+prompt file and prints a recovery command. Check the agent screen and, in the
+app, its turn count before using it; send only after confirming the prompt was
+not submitted. Only the folder-trust dialog may be answered through the Herdr
+skill's `dialog` verb. Other dialogs need the user. A failed start leaves the
+created terminal or pane available for inspection.
 
 Report the agent's pane, or in the Herdr app its terminal, and in the Herdr app
 and TUI the agent name, then stop. Do not interact with the new pane — the agent
