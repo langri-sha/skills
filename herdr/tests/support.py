@@ -30,6 +30,14 @@ def not_found(message="no terminal"):
     return failed(3, {"error": {"kind": "not_found", "message": message}})
 
 
+def screen(text):
+    return ok({"complete": True, "how": "screen", "text": text})
+
+
+def agent_status(state, **extra):
+    return {"app": "claude-code", "state": state, **extra}
+
+
 def processes(*rows):
     return ok(
         "".join(f"{pid:>7} {ppid:>7} {tty:<8} {args}\n" for pid, ppid, tty, args in rows)

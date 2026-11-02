@@ -1,6 +1,6 @@
 import unittest
 
-from support import FakeRunner, failed, ok, run_verb
+from support import FakeRunner, failed, ok, run_verb, screen
 
 BYPASS = "──\n❯\n──\n  Opus 5.5 · high\n  ⏵⏵ bypass permissions on (shift+tab to cycle)\n"
 AUTO = "──\n❯\n──\n  ⏵⏵ auto mode on (shift+tab to cycle)\n"
@@ -18,10 +18,6 @@ def listed(address, agent, status=None, state="live", **extra):
 def record(address, app=None, state="idle", labels=None, **status):
     reported = {"app": app, "state": state, **status} if app else None
     return {"address": address, "labels": labels or {}, "status": reported}
-
-
-def screen(text):
-    return ok({"complete": True, "how": "screen", "text": text})
 
 
 def app_runner(extra=None, terminals=None):
