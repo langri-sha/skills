@@ -43,13 +43,18 @@ fi
 
 ## Start the assistant
 
-`hc run` starts the assistant's terminal, and its `herdr.space` label places it
-in a new tab of that space. The wrapper runs the argv in an interactive shell,
-so the user's shell functions apply, and leaves that shell behind when the
-assistant exits. `--no-parent` makes the session independent work rather than
-the caller's child: it neither ends with the caller nor types notes into it.
-`--keep` matches the app's own terminals, which come back as a shell in place
-when their program is lost.
+Create an independent shell in a new tab; it neither ends with the caller nor
+types notes into it. Keep the shell after its program exits:
+
+```bash
+SESSION_LEFT=$(hc run --bg --no-parent --keep --json \
+  --cwd "$SESSION_CWD" --label herdr.space="$SESSION_SPACE" -- \
+  /usr/bin/bash -i | jq -r '.address // empty')
+: "${SESSION_LEFT:?}"
+```
+
+For Letta, use the direct launch instead, because the shared launcher cannot
+verify Letta readiness:
 
 ```bash
 SESSION_LEFT=$(hc run --bg --no-parent --keep --json \
@@ -109,12 +114,13 @@ SESSION_RIGHT_PANE=$(jq -r '.pane // empty' <<<"$SESSION_SPLIT")
 : "${SESSION_RIGHT:?split failed: $SESSION_SPLIT}" "${SESSION_RIGHT_PANE:?}"
 ```
 
-## Read the start
+## Start the assistant
 
-Nothing is typed into the assistant, so read its screen for a startup failure
-such as a trust dialog or an approval prompt, and show it rather than answering:
-
-```bash
-timeout 30 hc wait "$SESSION_LEFT" --timeout 10 >/dev/null
-hc read "$SESSION_LEFT" --lines 40
-```
+For Claude, invoke the `herdr` skill's launcher with `--in "$SESSION_LEFT"`,
+`--name "$SESSION_SLUG"`, and `--cwd "$SESSION_CWD"`. Add `--arg=--continue`
+when requested. For an initial prompt, write its exact bytes to a temporary file
+and pass `--prompt-file` with that path. Remove the file after the command
+returns. Inspect the launch JSON and report a blocked dialog, failure, or
+timeout; never resend the prompt blindly. The launcher waits for readiness and
+checks the permission footer. Letta already started above; read its screen for
+startup failure without claiming verified readiness.

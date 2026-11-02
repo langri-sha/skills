@@ -84,23 +84,18 @@ Capture the new right pane ID from `.result.pane.pane_id`. Use
 reached its interactive prompt, with the shell itself in the foreground, before
 sending commands.
 
-A newly opened worktree's initial shell starts at the checkout root. Prefix the
-left command with a shell-quoted `cd -- <SESSION_CWD> &&` to preserve the
-invocation's subdirectory as well. Quote the directory and assistant argv with a
-proper quoting routine. Store the complete command in `SESSION_START_COMMAND`,
-then run:
+Run `critique --watch origin/main` in the right pane. For Claude, invoke the
+`herdr` skill's
+`launch --in "$SESSION_LEFT" --name "$SESSION_SLUG" --cwd "$SESSION_CWD"`; add
+`--arg=--continue` when requested. Write an initial prompt verbatim to a
+temporary file and pass `--prompt-file`, then remove the file after the command
+returns. Inspect the launch JSON and report a blocked dialog, failure, or
+timeout; never resend the prompt blindly. The launcher waits for readiness and
+checks the permission footer.
 
-```bash
-herdr pane run "$SESSION_RIGHT" 'critique --watch origin/main'
-herdr pane run "$SESSION_LEFT" "$SESSION_START_COMMAND"
-```
-
-`pane run` sends command text and Enter together. It is intentional raw shell
-control here; Herdr can still detect the assistant running in the pane. Never
-send startup commands into the invoking agent's pane or an existing occupied
-tab. Read the new panes with
-`herdr pane read <id> --source recent-unwrapped --lines 40` to report immediate
-startup failures. Shell panes remain available when commands exit.
+For Letta, retain the direct `herdr pane run` path, shell-quoting its command
+and directory. Read its screen for startup failure without claiming verified
+readiness. Shell panes remain available when commands exit.
 
 ## Lane requests
 
