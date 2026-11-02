@@ -152,14 +152,43 @@ selects the successor with the intended cwd and permissions. A label being
 stored is not proof that restore reads it. If recovery cannot select this agent,
 retain the source and report the unsupported path rather than claiming success.
 
+Account for each active worker, monitor and job in `ownership.md`: stable
+identity, current task, output location, pending result, lifetime dependency,
+current recipient and proposed successor recipient. For a full transfer, use its
+supported routing mechanism and obtain acknowledgement that future results will
+reach the successor. Keep workers paused during this routing change; record any
+result arriving during handoff and have the successor acknowledge it. A
+surviving process with results still addressed to the old session is not
+transferred. Record "none" when the live inventory is empty.
+
+In-process subagents and source-tty jobs may be impossible to adopt. Let them
+finish and checkpoint their results, or keep the source open; never claim that
+copying their IDs transfers control. Do not kill or relaunch them simply to make
+closure possible. In rehearsal, only inventory these dependencies and report the
+proposed routing; leave actual ownership unchanged.
+
 Recheck the source seat and successor state immediately before transfer. Write
 `transfer.md` beside the handoff with both identities and the point at which the
-source stopped project work. From this point the source only completes the
-handoff. Deliver this message to the successor and verify it was received:
+source stopped project work, the acknowledged state snapshot and worker routing.
+From this point the source only completes the handoff. Deliver this message to
+the successor:
 
 > Transfer complete. You own the work described in HANDOFF/transfer.md. Continue
 > from the agreed next step within the existing authorization. The source will
-> close its own pane; do not close it or any sibling yourself.
+> close its own pane; do not close it or any sibling yourself. First write
+> HANDOFF/accepted.md with your session ID, the transfer record you accepted and
+> confirmation that you now own the task and its recorded worker results. Then
+> resume only work already authorized, or state the decision you await. Report
+> the first authorized result and its verification; do not reopen settled
+> decisions merely because the harness changed.
+
+Wait up to three minutes in intervals of at most 30 seconds for `accepted.md`
+and verify its session and transfer record against the live successor. A send
+confirmation or working status is not acceptance. If delivery or acceptance is
+uncertain, keep the source open but idle: inspect the successor before retrying,
+and never resume the task in the source while the successor may own it. If a
+routing change failed before transfer, record which workers changed recipients
+and retain the source to reconcile ownership without duplicate work.
 
 Announce the successor and exact source pane being closed. As the last tool
 call, close only that source using the pane procedure. Do not invoke
