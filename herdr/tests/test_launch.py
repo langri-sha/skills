@@ -299,6 +299,18 @@ class LaunchInputs(unittest.TestCase):
         self.assertEqual(out["error"], "prompt_file")
         self.assertEqual(runner.calls, [])
 
+    def test_permission_override_can_omit_default_flags(self):
+        command = "claude"
+        responses = scenario({
+            SEND: None,
+            ("hc", "send", "t7", command, "--json"): SENT,
+            READ: [screen(PROMPT), screen(BANNER)],
+            GET: [terminal(), terminal(agent_status("idle"))],
+        })
+        _, code, out = launch(responses, "--no-permission-flag")
+        self.assertEqual(code, 0)
+        self.assertEqual(out["command"], command)
+        self.assertIsNone(out["permission_mode"])
 
 
 class LaunchRefusals(unittest.TestCase):

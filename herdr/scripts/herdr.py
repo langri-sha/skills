@@ -1307,7 +1307,7 @@ DEFAULT_PERMISSION = {
 
 
 def agent_argv(kind, head, permission, model, effort, backend, name=None):
-    flags = shlex.split(permission) if permission else DEFAULT_PERMISSION[kind]
+    flags = shlex.split(permission) if permission is not None else DEFAULT_PERMISSION[kind]
     if kind == "claude":
         argv = ["claude", *head, *flags]
         argv += ["--model", model] if model else []
@@ -1472,7 +1472,7 @@ def shell_is_idle(procs, root):
 def expected_mode(kind, permission):
     if kind != "claude":
         return None
-    flags = shlex.split(permission) if permission else DEFAULT_PERMISSION[kind]
+    flags = shlex.split(permission) if permission is not None else DEFAULT_PERMISSION[kind]
     if "--dangerously-skip-permissions" in flags:
         return "bypass"
     return MODE_OF_FLAG.get(flag_value(flags, "--permission-mode"))
@@ -1685,7 +1685,7 @@ def cmd_launch(system, args):
         args.model,
         args.effort,
         args.name,
-        args.permission_flag,
+        "" if args.no_permission_flag else args.permission_flag,
         args.fail_pattern,
         args.timeout,
         args.arg,
@@ -2212,7 +2212,9 @@ def build_parser():
     launch.add_argument("--name")
     launch.add_argument("--cwd")
     launch.add_argument("--no-parent", action="store_true")
-    launch.add_argument("--permission-flag")
+    permission = launch.add_mutually_exclusive_group()
+    permission.add_argument("--permission-flag")
+    permission.add_argument("--no-permission-flag", action="store_true")
     launch.add_argument("--arg", action="append", default=[], metavar="VALUE")
     launch.add_argument("--prompt-file", metavar="PATH")
     launch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
