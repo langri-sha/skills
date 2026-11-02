@@ -69,6 +69,10 @@ agent options and a startup prompt. The file is read verbatim as one argument;
 when the prompt starts work immediately, a working status counts as a successful
 start. A blocked or failed launch is reported without resending the prompt.
 
+`--no-permission-flag` leaves the agent's configured permission mode in effect;
+the launcher cannot verify which mode it selected. It cannot be combined with
+`--permission-flag`.
+
 ## Task to verb
 
 | Task                                                                                                                                 | Verb                                                                        |
