@@ -432,6 +432,64 @@ class RelaunchWithResume(unittest.TestCase):
         self.assertEqual(runner.ran("hc", "keys"), [])
 
 
+class RelaunchSavedSession(unittest.TestCase):
+    def test_resumes_the_requested_session_in_an_idle_shell_with_stale_labels(self):
+        scenario = resume_scenario()
+        scenario[PS] = [OLD_SHELL, OLD_SHELL, OLD_SHELL, OLD_SHELL, NEW_SHELL, NEW_AGENT]
+        scenario[READ] = [screen("user@host:~/repo$ \n"), screen(PROMPT), screen(PROMPT), screen(OPUS_READY)]
+        command = "claude --resume saved-id --permission-mode bypassPermissions --model opus --effort high"
+        scenario.pop(("hc", "send", "t7", f"cd /tmp/repo && {RESUME_COMMAND}", "--json"))
+        scenario[("hc", "send", "t7", f"cd /tmp/repo && {command}", "--json")] = ok({})
+        _, _, code, out = relaunch(scenario, "--resume-session", "saved-id", "--agent", "claude", "--model", "opus", "--effort", "high")
+        self.assertEqual(code, 0)
+        self.assertEqual(out["session"], "saved-id")
+        self.assertEqual(out["command"], command)
+        self.assertIs(out["resumed"], True)
+
+    def test_resumes_a_snapshot_only_session_in_an_idle_tui_pane(self):
+        target = "w1:p2"
+        command = "codex resume snapshot-id --dangerously-bypass-approvals-and-sandbox --no-alt-screen"
+        info = ok({"result": {"process_info": {"shell_pid": 800}}})
+        pane = ok({"result": {"pane": {"pane_id": target, "focused": False, "agent_status": "idle"}}})
+        visible = lambda text: ok({"result": {"read": {"text": text}}})
+        runner = FakeRunner({
+            ("herdr", "agent", "get", target): failed(3),
+            ("herdr", "pane", "get", target): pane,
+            ("herdr", "pane", "process-info", "--pane", target): info,
+            ("herdr", "pane", "read", target, "--source", "visible"): [visible(PROMPT), visible(PROMPT), visible("gpt-x high\n")],
+            ("herdr", "pane", "run", target, "cd /tmp/repo && " + command): ok({}),
+            PS: [OLD_SHELL, OLD_SHELL, OLD_SHELL, OLD_SHELL, OLD_AGENT],
+        }, clock=FakeClock())
+        code, out = run_verb(["--backend", "tui", "relaunch", target, "--resume-session", "snapshot-id", "--agent", "codex", "--cwd", "/tmp/repo", "--arg=--no-alt-screen"], runner, clock=runner.clock)
+        self.assertEqual(code, 0)
+        self.assertEqual(out["session"], "snapshot-id")
+        self.assertEqual(out["command"], command)
+        self.assertEqual(runner.ran("herdr", "agent", "send-keys"), [])
+
+    def test_refuses_to_replace_a_different_live_session(self):
+        runner, _, code, out = relaunch(resume_scenario(), "--resume-session", "other", "--agent", "claude")
+        self.assertEqual(code, 8)
+        self.assertEqual(out["error"], "session_mismatch")
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_requires_agent_for_a_saved_session(self):
+        runner, _, code, out = relaunch(resume_scenario(), "--resume-session", SESSION)
+        self.assertEqual(code, 2)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
+    def test_passes_codex_resume_arguments_literally(self):
+        scenario = resume_scenario()
+        scenario[PS] = [OLD_SHELL, OLD_SHELL, OLD_SHELL, OLD_SHELL, NEW_SHELL, NEW_AGENT]
+        scenario[READ] = [screen("user@host:~/repo$ \n"), screen(PROMPT), screen(PROMPT), screen("gpt-x high\n")]
+        scenario[GET][-2] = record(pid=801, reported=False, status={"app": "codex", "state": "idle"})
+        scenario.pop(("hc", "send", "t7", f"cd /tmp/repo && {RESUME_COMMAND}", "--json"))
+        command = "codex resume saved-id --no-daemon --dangerously-bypass-approvals-and-sandbox --model gpt-x --no-alt-screen"
+        scenario[("hc", "send", "t7", f"cd /tmp/repo && {command}", "--json")] = ok({})
+        _, _, code, out = relaunch(scenario, "--resume-session", "saved-id", "--agent", "codex", "--model", "gpt-x", "--arg=--no-alt-screen")
+        self.assertEqual(code, 0)
+        self.assertEqual(out["command"], command)
+
+
 class RelaunchAsAnotherAgent(unittest.TestCase):
     def test_launches_the_new_agent_and_model_without_resuming(self):
         command = (

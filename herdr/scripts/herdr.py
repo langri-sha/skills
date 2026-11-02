@@ -1821,7 +1821,13 @@ def cmd_relaunch(system, args):
         if agent not in DEFAULT_PERMISSION:
             raise Fail(USAGE, "usage", "the terminal runs no known agent; give --agent")
         head = []
-        if args.resume:
+        if args.resume_session is not None:
+            if not args.agent or not args.resume_session.strip():
+                raise Fail(USAGE, "usage", "an explicit session requires --agent and a nonempty session ID", target=target)
+            if who["agent_pid"] is not None and (who["kind"] != agent or who["session"] != args.resume_session):
+                raise Fail(WRONG_STATE, "session_mismatch", "the running agent is not the requested session; nothing was pressed", target=target)
+            head = ["--resume", args.resume_session] if agent == "claude" else ["resume", args.resume_session]
+        elif args.resume:
             if agent != who["kind"] or not who["session"]:
                 raise Fail(
                     WRONG_STATE,
@@ -1872,6 +1878,7 @@ def cmd_relaunch(system, args):
             args.permission_flag,
             args.fail_pattern,
             args.timeout,
+            args.arg,
         )
         ready = launch_in(system, backend, target, plan, args.cwd or who["cwd"])
     except Fail as failure:
@@ -1882,7 +1889,8 @@ def cmd_relaunch(system, args):
         "address": target,
         "previous": previous,
         "agent": agent,
-        "resumed": bool(args.resume),
+        "resumed": bool(args.resume or args.resume_session),
+        "session": args.resume_session if args.resume_session is not None else (who["session"] if args.resume else None),
         "handoff": handoff,
         "exited_agent": exited,
         "replaced_shell": replaced,
@@ -2247,7 +2255,10 @@ def build_parser():
     relaunch.add_argument("--effort")
     relaunch.add_argument("--name")
     relaunch.add_argument("--cwd")
-    relaunch.add_argument("--resume", action="store_true")
+    resume = relaunch.add_mutually_exclusive_group()
+    resume.add_argument("--resume", action="store_true")
+    resume.add_argument("--resume-session", metavar="ID")
+    relaunch.add_argument("--arg", action="append", default=[], metavar="VALUE")
     relaunch.add_argument("--handoff", metavar="PATH")
     relaunch.add_argument("--handoff-timeout", type=int, default=300)
     relaunch.add_argument("--permission-flag")
