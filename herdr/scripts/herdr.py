@@ -689,6 +689,116 @@ class AppBackend:
         if removed.code != 0:
             raise fail_from(removed, "hc rm", target)
 
+    def move(self, target, space_query, tab_query, space_name, tab_name):
+        record = self.record(target)
+        if record.get("state") == "finished":
+            raise Fail(FINISHED, "finished", f"{target} has ended", target=target)
+        layout = self.layout()
+        if layout is None:
+            raise Fail(FAILED, "no_window", "the Herdr app window is not open")
+        space, tab = tab_of_terminal(layout, target)
+        before = {
+            "space": (space or {}).get("id") or (record.get("labels") or {}).get("herdr.space"),
+            "tab": (tab or {}).get("id"),
+            "keep": bool(record.get("keep")),
+            "labels": record.get("labels") or {},
+        }
+        want_space, want_tab = find_space_and_tab(layout, space_query, tab_query)
+        space_id = want_space["id"] if want_space else space_query
+        tab_id = want_tab["id"] if want_tab else tab_query
+        self.park(target, before)
+        self.relabel(target, space_id, tab_id, before)
+        if not self.adopted(target):
+            self.restore(target, before)
+            raise Fail(
+                WRONG_STATE,
+                "not_adopted",
+                "the app did not adopt the terminal into the new place; it was put back",
+                target=target,
+                rolled_back=True,
+            )
+        if not want_space and space_name:
+            self.system.json(
+                ["herdr-app", "do", "space.rename", "--id", space_id, "--name", space_name]
+            )
+        if not want_tab and tab_name:
+            self.system.json(
+                ["herdr-app", "do", "tab.rename", "--id", tab_id, "--name", tab_name]
+            )
+        now = self.record(target)
+        if not now.get("keep"):
+            self.hc("keep", target, "--json")
+            now = self.record(target)
+        labels = now.get("labels") or {}
+        if not now.get("keep"):
+            raise Fail(
+                WRONG_STATE,
+                "unverified",
+                "the terminal moved but is not kept, and hc keep did not fix it",
+                target=target,
+                where=labels.get("where"),
+            )
+        return {
+            "target": target,
+            "moved": True,
+            "space": {"id": space_id},
+            "tab": {"id": tab_id},
+            "where": labels.get("where"),
+            "keep": True,
+        }
+
+    def park(self, target, before):
+        data, result = self.system.json(
+            ["herdr-app", "do", "terminal.park", "--terminal", target]
+        )
+        if result.code != 0 or (isinstance(data, dict) and "error" in data):
+            raise Fail(
+                FAILED,
+                "park_failed",
+                (data or {}).get("error") or error_of(result).get("message"),
+                target=target,
+            )
+        dropped = until(
+            self.system,
+            lambda: tab_of_terminal(self.layout(), target)[1] is None,
+            10,
+            lambda: self.pace(target, None, 2),
+        )
+        if not dropped:
+            self.restore(target, before)
+            raise Fail(
+                WRONG_STATE,
+                "pane_kept",
+                "the app kept the pane after the park, as on 0.1.10; the "
+                "terminal was put back, and the move needs a newer app",
+                target=target,
+                rolled_back=True,
+            )
+
+    def relabel(self, target, space_id, tab_id, before):
+        _, result = self.hc(
+            "label", target, f"herdr.space={space_id}", f"herdr.tab={tab_id}", "--json"
+        )
+        if result.code != 0:
+            self.restore(target, before)
+            raise fail_from(result, "hc label", target)
+
+    def adopted(self, target):
+        return until(
+            self.system,
+            lambda: tab_of_terminal(self.layout(), target)[1],
+            10,
+            lambda: self.pace(target, None, 2),
+        )
+
+    def restore(self, target, before):
+        if before["keep"]:
+            self.hc("keep", target, "--json")
+        labels = [f"herdr.space={before['space']}"]
+        if before["tab"]:
+            labels.append(f"herdr.tab={before['tab']}")
+        self.hc("label", target, *labels, "--json")
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -1069,6 +1179,37 @@ class TuiBackend:
 
     def fresh_shell(self, target):
         return False
+
+    def move(self, target, space_query, tab_query, space_name, tab_name):
+        workspaces = self.listing("workspace", "workspaces")
+        workspace = next(
+            (
+                w
+                for w in workspaces
+                if space_query in (w.get("workspace_id"), w.get("label"))
+            ),
+            None,
+        )
+        tab = None
+        if workspace:
+            tabs = self.listing("tab", "tabs", "--workspace", workspace["workspace_id"])
+            tab = next((t for t in tabs if tab_query in (t.get("tab_id"), t.get("label"))), None)
+        if workspace is None:
+            args = ["--new-workspace", "--label", space_query, "--tab-label", tab_query]
+        elif tab is None:
+            args = ["--new-tab", "--workspace", workspace["workspace_id"], "--label", tab_query]
+        else:
+            args = ["--tab", tab["tab_id"], "--split", "down"]
+        data, result = self.herdr("pane", "move", target, *args, "--no-focus")
+        moved = (((data or {}).get("result") or {}).get("move_result") or {})
+        pane = (moved.get("pane") or {}).get("pane_id")
+        if result.code != 0 or not pane:
+            raise fail_from(result, "herdr pane move", target)
+        return {
+            "target": pane,
+            "previous": moved.get("previous_pane_id") or target,
+            "moved": True,
+        }
 
     def label_of(self, noun, identifier):
         if not identifier:
@@ -1775,6 +1916,13 @@ def cmd_close(system, args):
     }
 
 
+def cmd_move(system, args):
+    backend = pick_backend(system, args)
+    return backend.move(
+        args.target, args.space, args.tab, args.space_name, args.tab_name
+    )
+
+
 EVENT_FILTER = (
     "select(.params.type == \"status\" or .params.type == \"finished\" "
     "or .params.type == \"lost\") "
@@ -2009,6 +2157,7 @@ COMMANDS = {
     "dialog": cmd_dialog,
     "relaunch": cmd_relaunch,
     "close": cmd_close,
+    "move": cmd_move,
     "watch": cmd_watch,
 }
 
@@ -2077,6 +2226,12 @@ def build_parser():
     close = sub.add_parser("close", help="exit and remove a terminal the caller started")
     close.add_argument("target")
     close.add_argument("--brief", metavar="PATH")
+    move = sub.add_parser("move", help="move a placed terminal to another space and tab")
+    move.add_argument("target")
+    move.add_argument("--space", required=True)
+    move.add_argument("--tab", required=True)
+    move.add_argument("--space-name")
+    move.add_argument("--tab-name")
     watch = sub.add_parser("watch", help="print the command that follows terminal events")
     watch.add_argument("--label", action="append", default=[], metavar="K=V")
     watch.add_argument("--children-of", metavar="TERMINAL")
