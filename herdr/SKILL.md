@@ -95,6 +95,12 @@ the launcher cannot verify which mode it selected. It cannot be combined with
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
 
+For a saved session, `relaunch T --agent claude --resume-session ID` uses that
+exact ID, even in an idle shell with stale labels. A running agent must match
+the requested kind and session. `--arg=VALUE` adds an agent argument; pass a
+separate option for each literal argument. `--resume` and `--resume-session` are
+mutually exclusive.
+
 ## Exit codes
 
 | Code | Meaning                                                                                                                                   |
