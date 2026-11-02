@@ -46,7 +46,10 @@ model name into another's. Preserve the user's permission constraints. Do not
 use cross-harness `--resume` or `--continue`: this is a fresh conversation
 reading a handoff, not a conversion of native session history.
 
-Locate the installed `herdr` skill and read it. Its `scripts/herdr.py seat`
+Locate and read the installed unified `herdr` skill, which supports both the
+Herdr app and TUI through `scripts/herdr.py`. Use its current interface as the
+source of truth for shared operations; do not copy its backend detection,
+launcher, delivery or dialog logic into this skill. Its `scripts/herdr.py seat`
 proves the source by controlling tty, even when multiplexer variables were
 inherited. It also reports tmux seats; use that result with the tmux procedure
 below. Stop on an unknown seat or a session mismatch; never use UI focus as the
