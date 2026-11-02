@@ -165,6 +165,41 @@ def agent_kind(raw):
     return raw or None
 
 
+def find_space_and_tab(layout, space_query, tab_query):
+    space = next(
+        (
+            s
+            for s in (layout.get("spaces") or [])
+            if space_query in (s.get("id"), s.get("name"))
+        ),
+        None,
+    )
+    tab = next(
+        (
+            t
+            for t in (space or {}).get("tabs") or []
+            if tab_query and tab_query in (t.get("id"), t.get("name"))
+        ),
+        None,
+    )
+    return space, tab
+
+
+def screen_dialog(screen):
+    return {"kind": None, "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:])}
+
+
+def until(system, check, seconds, pace):
+    deadline = system.now() + seconds
+    while True:
+        found = check()
+        if found:
+            return found
+        if system.now() >= deadline:
+            return None
+        pace()
+
+
 def tab_of_terminal(layout, terminal):
     for space in (layout or {}).get("spaces", []):
         for tab in space.get("tabs", []):
@@ -389,7 +424,6 @@ class AppBackend:
         layout = self.layout()
         if layout is None:
             raise Fail(FAILED, "no_window", "the Herdr app window is not open")
-        spaces = layout.get("spaces") or []
         tab_name = args.tab
         if args.worker_of:
             labels = self.record(args.worker_of).get("labels") or {}
@@ -404,19 +438,9 @@ class AppBackend:
                 )
         else:
             query = args.space
-        space = next(
-            (s for s in spaces if query in (s.get("id"), s.get("name"))), None
-        )
+        space, tab = find_space_and_tab(layout, query, tab_name)
         if space is None:
             raise Fail(NOT_FOUND, "no_space", f"no space {query}", target=query)
-        tab = next(
-            (
-                t
-                for t in space.get("tabs") or []
-                if tab_name and tab_name in (t.get("id"), t.get("name"))
-            ),
-            None,
-        )
         labels = [f"herdr.space={space['id']}"]
         if tab:
             labels.append(f"herdr.tab={tab['id']}")
@@ -442,12 +466,13 @@ class AppBackend:
         return data["address"]
 
     def adopt(self, address, placement):
+        found = until(
+            self.system,
+            lambda: tab_of_terminal(self.layout(), address)[1],
+            10,
+            lambda: self.hc("wait", address, "--timeout", "2", "--json", timeout=12),
+        )
         tab = placement["tab"]
-        for _ in range(5):
-            _, found = tab_of_terminal(self.layout(), address)
-            if found:
-                break
-            self.hc("wait", address, "--timeout", "2", "--json", timeout=12)
         if found and placement["new_tab_name"]:
             self.system.json(
                 [
@@ -461,7 +486,10 @@ class AppBackend:
                 ]
             )
         if found:
-            tab = {"id": found["id"], "name": placement["new_tab_name"] or found.get("name")}
+            tab = {
+                "id": found["id"],
+                "name": placement["new_tab_name"] or found.get("name"),
+            }
         return {"space": placement["space"], "tab": tab}
 
     def deliver(self, target, text):
@@ -717,7 +745,7 @@ class TuiBackend:
                 ) or ""
         dialog = None
         if status == "blocked":
-            dialog = {"kind": None, "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:])}
+            dialog = screen_dialog(screen)
         session = pane.get("agent_session") or {}
         return roster_row(
             address=target,
@@ -792,8 +820,8 @@ class TuiBackend:
         if result.code != 0:
             raise fail_from(result, "herdr pane run", target)
 
-    def screen(self, target):
-        data, result = self.herdr("pane", "read", target, "--source", "visible")
+    def screen(self, target, via="pane"):
+        data, result = self.herdr(via, "read", target, "--source", "visible")
         read = ((data or {}).get("result") or {}).get("read") or {}
         return read.get("text") or "" if result.code == 0 else ""
 
@@ -810,7 +838,7 @@ class TuiBackend:
         idle, _ = shell_is_idle(process_table(self.system), process.get("shell_pid"))
         dialog = None
         if status == "blocked":
-            dialog = {"kind": None, "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:])}
+            dialog = screen_dialog(screen)
         return Observation("live", status, dialog, screen, idle)
 
     def pace(self, target, needle, seconds):
@@ -829,19 +857,13 @@ class TuiBackend:
         data, result = self.herdr("agent", "prompt", target, text)
         code = error_of(result).get("code")
         if code == "agent_blocked":
-            screen = self.visible(target)
+            screen = self.screen(target, "agent")
             raise Fail(
                 BLOCKED,
                 "blocked",
                 "the agent is waiting on a dialog; nothing was sent",
                 target=target,
-                dialog={
-                    "kind": None,
-                    "msg": "\n".join(non_blank(screen)[-FOOTER_LINES:]),
-                    "options": [
-                        option["label"] for option in dialog_options(None, screen)
-                    ],
-                },
+                dialog=open_dialog(screen_dialog(screen), screen),
             )
         if code == "agent_prompt_stalled":
             raise Fail(
@@ -850,7 +872,7 @@ class TuiBackend:
                 "herdr saw no change after the prompt; it may still have arrived, "
                 "so read the screen before sending again",
                 target=target,
-                screen=non_blank(self.visible(target))[-SCREEN_TAIL:],
+                screen=non_blank(self.screen(target, "agent"))[-SCREEN_TAIL:],
             )
         if result.code != 0:
             raise fail_from(result, "herdr agent prompt", target)
@@ -863,18 +885,13 @@ class TuiBackend:
             "confirmed": "herdr",
         }
 
-    def visible(self, target):
-        data, result = self.herdr("agent", "read", target, "--source", "visible")
-        read = ((data or {}).get("result") or {}).get("read") or {}
-        return read.get("text") or "" if result.code == 0 else ""
 
     def dialog_state(self, target):
         status = self.status_of(target)
-        screen = self.visible(target)
+        screen = self.screen(target, "agent")
         if status != "blocked":
             return None, screen
-        msg = "\n".join(non_blank(screen)[-FOOTER_LINES:])
-        return {"kind": None, "msg": msg}, screen
+        return screen_dialog(screen), screen
 
     def status_of(self, target):
         data, result = self.herdr("agent", "get", target)
@@ -1159,27 +1176,22 @@ def model_shown(model, screen):
     return model.lower() in lowered or family in lowered
 
 
+def matching_lines(pattern, screen):
+    return [
+        line for line in screen.splitlines() if re.search(pattern, line, re.IGNORECASE)
+    ]
+
+
 def failure_hit(patterns, screen, baseline):
     for pattern in patterns:
-        found = [
-            line
-            for line in screen.splitlines()
-            if re.search(pattern, line, re.IGNORECASE)
-        ]
+        found = matching_lines(pattern, screen)
         if len(found) > baseline.get(pattern, 0):
             return found[-1].strip()
     return None
 
 
 def failure_counts(patterns, screen):
-    return {
-        pattern: sum(
-            1
-            for line in screen.splitlines()
-            if re.search(pattern, line, re.IGNORECASE)
-        )
-        for pattern in patterns
-    }
+    return {pattern: len(matching_lines(pattern, screen)) for pattern in patterns}
 
 
 DIALOG_CONTEXT = 6
