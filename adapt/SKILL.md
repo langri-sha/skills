@@ -145,10 +145,12 @@ relaunching.
 
 ## Transfer ownership and close
 
-Verify that source-dependent workers/jobs will survive and that the successor's
-native session identity is recorded for recovery. The successor must not inherit
-the source's Claude or Codex session labels. Record its observed session ID;
-never guess it from the most recently modified transcript elsewhere.
+Complete [recovery registration](references/recovery.md) before transferring
+ownership. Record the verified native identity and exact resume command, link
+the successor to its predecessor, and verify that the installed recovery path
+selects the successor with the intended cwd and permissions. A label being
+stored is not proof that restore reads it. If recovery cannot select this agent,
+retain the source and report the unsupported path rather than claiming success.
 
 Recheck the source seat and successor state immediately before transfer. Write
 `transfer.md` beside the handoff with both identities and the point at which the

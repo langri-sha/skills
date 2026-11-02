@@ -38,8 +38,12 @@ The launch must run through the user's interactive shell functions, one agent at
 a time. Report a password-manager approval or launcher error and retain both
 panes. Once ready, use `deliver DESTINATION --file SEED_PATH` and inspect its
 result before retrying. Use `whois DESTINATION` and `hc get DESTINATION --json`
-to check the real agent/session and recovery labels. Keep source provenance in
-the handoff, not the successor's `claude.session` or `codex.session` label.
+to check the real agent/session and recovery labels. If `whois` has no native
+session ID, obtain it from the successor's own environment and validate it
+against the exact native transcript metadata. Do not infer it from whichever
+transcript was modified most recently. Follow
+[recovery registration](recovery.md) for full transfers; in rehearsals report
+missing registration without changing labels.
 
 Before closing, enumerate SOURCE's live descendants using `hc ls --json` and
 `hc get`; account for every descendant that dies with its parent, not merely the
