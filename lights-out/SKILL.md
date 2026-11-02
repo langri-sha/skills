@@ -34,34 +34,19 @@ focused tab or pane, and `hc kill` without an address picks a terminal itself.
 Run these checks before killing anything. If any check fails, STOP and tell the
 user — never fall back to a bare command or guess a target.
 
-tmux sets `TMUX` and `TMUX_PANE`, the Herdr app sets `HC_TERMINAL_ID`, and the
-Herdr TUI sets `HERDR_ENV` and `HERDR_PANE_ID`. When one runs inside another the
-agent inherits every set. The variables only name candidates: the agent belongs
-to the multiplexer whose terminal is its controlling terminal. A tool shell
-often has no terminal of its own, so take the nearest ancestor's. Closing the
-outer multiplexer's window or tab instead would take down every session nested
-in it.
+Run the `herdr` skill's `seat` verb to identify this session's own terminal. Use
+the path to that skill's script as `<herdr-script>`:
 
 ```bash
-tty=
-pid=$$
-while [ "${pid:-1}" -gt 1 ]; do
-  t=$(ps -o tty= -p "$pid" | tr -d ' ')
-  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
-done
-MUX=none PANE= MUX_TERMINAL=
-if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
-  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
-  MUX=tmux PANE=$TMUX_PANE
-elif [ -n "$tty" ] && [ -n "${HC_TERMINAL_ID:-}" ] &&
-  INFO=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.pid // empty' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=app MUX_TERMINAL=$HC_TERMINAL_ID
-elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
-  INFO=$(herdr pane process-info --current 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
-fi
+SEAT=$(python3 <herdr-script> seat) || { echo "$SEAT" >&2; exit 1; }
+[ "$(jq -r '.session_match' <<<"$SEAT")" != false ] || { echo "Terminal belongs to another session" >&2; exit 1; }
+MUX=$(jq -r '.backend' <<<"$SEAT")
+PANE= MUX_TERMINAL=
+case $MUX in
+  tmux) PANE=$(jq -r '.target' <<<"$SEAT") ;;
+  app) MUX_TERMINAL=$(jq -r '.target' <<<"$SEAT") ;;
+  tui) MUX=herdr; PANE=$(jq -r '.target' <<<"$SEAT") ;;
+esac
 echo "multiplexer=$MUX pane=$PANE terminal=$MUX_TERMINAL"
 ```
 
@@ -194,7 +179,7 @@ pass `--confirmed true`: it ends every terminal in the tab and the space with
 them. End this agent's own terminal instead:
 
 ```bash
-hc kill "${HC_TERMINAL_ID:?}"
+hc kill <terminal address from pre-flight>
 ```
 
 The app removes its pane at once. Other terminals in the tab stay, and the tab
