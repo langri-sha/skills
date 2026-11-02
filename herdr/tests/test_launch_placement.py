@@ -1,7 +1,17 @@
 import unittest
 
-from support import PS, SESSION_PROCESSES, FakeClock, FakeRunner, failed, ok, run_verb
-from test_launch import READY, PROMPT, SHELL_RUNNING, screen, agent_status
+from support import (
+    PS,
+    SESSION_PROCESSES,
+    FakeClock,
+    FakeRunner,
+    agent_status,
+    failed,
+    ok,
+    run_verb,
+    screen,
+)
+from test_launch import PROMPT, READY, SHELL_RUNNING
 
 LAYOUT = {
     "spaces": [

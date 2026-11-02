@@ -1,6 +1,6 @@
 import unittest
 
-from support import FakeRunner, ok, run_verb
+from support import FakeRunner, ok, run_verb, screen
 
 GET = ("hc", "get", "t7", "--json")
 READ = ("hc", "read", "t7", "--lines", "0", "--json")
@@ -31,10 +31,6 @@ def blocked(msg, kind="question"):
 
 def idle():
     return ok({"address": "t7", "state": "live", "status": {"app": "claude-code", "state": "idle"}})
-
-
-def screen(text):
-    return ok({"complete": True, "how": "screen", "text": text})
 
 
 def dialog(responses, *argv):

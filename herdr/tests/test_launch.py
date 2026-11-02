@@ -1,6 +1,8 @@
 import unittest
 
 from support import (
+    agent_status,
+    screen,
     PS,
     FakeClock,
     FakeRunner,
@@ -39,14 +41,6 @@ def terminal(status=None, state="live", reported=False, pid=800):
         "status": status,
     }
     return ok(record)
-
-
-def agent_status(state, **extra):
-    return {"app": "claude-code", "state": state, **extra}
-
-
-def screen(text):
-    return ok({"complete": True, "how": "screen", "text": text})
 
 
 TIMED_OUT = ok({"ended": False, "reason": "timeout", "terminal": "t7"})
