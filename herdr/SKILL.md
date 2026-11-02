@@ -4,10 +4,11 @@ description: >-
   Drives Herdr, the workspace for coding agents, through one script that works
   in both the Herdr app (hc and herdr-app) and the Herdr TUI (herdr): finds the
   terminal this agent runs in, identifies and reads other agents' terminals,
-  lists the roster, makes spaces, launches, briefs and relaunches agents. Use
-  when the user mentions Herdr, the Herdr app, hc, herdr-app, panes, terminals
-  or spaces, or wants to start, read, brief, restart or close an agent in Herdr.
-  Not for tmux, or for starting a new worktree session (create-session).
+  lists the roster, makes spaces, launches, briefs, relaunches and moves agents.
+  Use when the user mentions Herdr, the Herdr app, hc, herdr-app, panes,
+  terminals or spaces, or wants to start, read, brief, restart or close an agent
+  in Herdr. Not for tmux, or for starting a new worktree session
+  (create-session).
 metadata:
   author: langri-sha
   version: '1.0.0'
@@ -79,6 +80,7 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 | Swap, resume or restart the agent in a terminal; every failure says whether the agent exited (`exited_agent`) and carries `previous` | `relaunch T`, with `--resume`, `--agent`, `--model`, `--handoff PATH`       |
 | Finish with a worker you started                                                                                                     | `close T`, with `--brief PATH` to file its brief under `closed/` (app only) |
 | Follow the status of a group of terminals                                                                                            | `watch --label k=v`, then run the printed command as a monitor (app only)   |
+| Move a placed terminal to another space and tab                                                                                      | `move T --space S --tab T`                                                  |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).

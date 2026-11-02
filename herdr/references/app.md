@@ -38,3 +38,12 @@ The app places a terminal started with
 every adopted terminal `where` as `<space name> / <tab name>`; `seat` falls back
 to these labels when the window is closed, and `herdr-app ls` needs the window
 open.
+
+## Placing and moving terminals
+
+Placing a terminal under a `herdr.space` or `herdr.tab` id the app does not know
+creates the space or tab with that id, named after its folder or number, so pick
+a readable id and name it afterwards. The app places a terminal only when it
+adopts one that has no pane, so relabeling a placed terminal changes nothing: it
+has to be parked first, which takes its pane away and turns `keep` off until the
+labels bring it back. On 0.1.10 the app kept the pane after a park.
