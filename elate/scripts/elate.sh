@@ -59,31 +59,22 @@ fi
 [ -n "$MODEL" ] && set -- --model "$MODEL" "$@"
 PICKED="model=${MODEL:-default} effort=${EFFORT:-default}"
 
-# The variables only name candidates: when one multiplexer runs inside another,
-# every set is inherited, and HERDR_* goes stale when a pane moves. Herdr's own
-# record of the agent in a pane can't settle it either, since an agent started
-# in tmux inside Herdr reports to the outer pane. The caller belongs to the
-# multiplexer whose terminal is its controlling terminal, the nearest
-# ancestor's when this process has none.
-tty=
-pid=$$
-while [ "${pid:-1}" -gt 1 ]; do
-  t=$(ps -o tty= -p "$pid" | tr -d ' ')
-  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
-done
-MUX=none PANE= MUX_TERMINAL=
-if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
-  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
-  MUX=tmux PANE=$TMUX_PANE
-elif [ -n "$tty" ] && [ -n "${HC_TERMINAL_ID:-}" ] &&
-  INFO=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.pid // empty' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=app MUX_TERMINAL=$HC_TERMINAL_ID
-elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
-  INFO=$(herdr pane process-info --current 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
+HERDR_SCRIPT=$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../herdr/scripts/herdr.py
+SEAT=$(python3 "$HERDR_SCRIPT" seat) || {
+  echo "$SEAT" >&2
+  exit 1
+}
+if [ "$(jq -r '.session_match' <<<"$SEAT")" = false ]; then
+  echo "This terminal belongs to another session; ask which terminal to use." >&2
+  exit 1
 fi
+MUX=$(jq -r '.backend' <<<"$SEAT")
+PANE= MUX_TERMINAL=
+case $MUX in
+  tmux) PANE=$(jq -r '.target' <<<"$SEAT") ;;
+  app) MUX_TERMINAL=$(jq -r '.target' <<<"$SEAT") ;;
+  tui) MUX=herdr; PANE=$(jq -r '.target' <<<"$SEAT") ;;
+esac
 echo "multiplexer=$MUX pane=$PANE terminal=$MUX_TERMINAL"
 if [ "$MUX" = none ]; then
   echo "Not in a tmux, Herdr app or Herdr TUI pane of this agent's own." >&2
@@ -102,6 +93,7 @@ if [ "$MUX" = tmux ]; then
 elif [ "$MUX" = app ]; then
   # INFO is this terminal's hc record from detection. The tab comes from the
   # app, since a terminal placed by its space label alone carries no tab label.
+  INFO=$(hc get "$MUX_TERMINAL" --json) || exit 1
   SPACE=$(jq -r '.labels["herdr.space"] // empty' <<<"$INFO")
   LS=$(herdr-app ls) || {
     echo "The Herdr app window is not open." >&2
@@ -193,65 +185,35 @@ if [ "$MUX" = tmux ]; then
   exit 0
 fi
 
+PROMPT_FILE=$(mktemp "${TMPDIR:-/tmp}/elate-prompt-XXXXXX")
+printf '%s' "$ELATE_PROMPT" >"$PROMPT_FILE"
+LAUNCH=(python3 "$HERDR_SCRIPT" launch --agent "$AGENT" --no-permission-flag --cwd "$CWD" --prompt-file "$PROMPT_FILE")
+for arg in "$@"; do LAUNCH+=("--arg=$arg"); done
 if [ "$MUX" = app ]; then
-  # The labels place the terminal in this tab without moving focus; with no
-  # parent, the agent neither ends with the dispatcher nor types notes into it.
-  # --no-daemon keeps codex's commands in its own terminal; it goes before the
-  # user's flags so none can displace it.
-  [ "$AGENT" = codex ] && set -- --no-daemon "$@"
-  OUT=$(hc run --bg --no-parent --keep --json \
-    --name "$AGENT_NAME" --cwd "$CWD" \
-    --label herdr.space="$SPACE" --label herdr.tab="$TAB" -- \
-    "${WRAP[@]}" "$AGENT" "$@" "$ELATE_PROMPT") || {
-    [ -n "$OUT" ] && echo "$OUT" >&2
-    exit 1
-  }
-  AGENT_TERMINAL=$(jq -r '.address // empty' <<<"$OUT")
+  LAUNCH+=(--space "$SPACE" --tab "$TAB" --name "$AGENT_NAME" --no-parent)
+else
+  AGENT_PANE=$(herdr pane split --pane "$BRIEF_PANE" --direction right \
+    --cwd "$CWD" --no-focus | jq -r '.result.pane.pane_id // empty')
+  [ -n "$AGENT_PANE" ] || { rm -f "$PROMPT_FILE"; echo "Split failed." >&2; exit 1; }
+  herdr pane wait-output "$AGENT_PANE" --source visible --regex '\S' --timeout 10000 >/dev/null || { rm -f "$PROMPT_FILE"; exit 1; }
+  LAUNCH+=(--in "$AGENT_PANE")
+fi
+OUT=$("${LAUNCH[@]}")
+STATUS=$?
+echo "$OUT"
+if [ "$STATUS" -ne 0 ]; then
+  printf 'Launch stopped. The startup prompt is saved at %s. Inspect the terminal and confirm the prompt was not submitted before sending it; never resend blindly.\n' "$PROMPT_FILE" >&2
+  TARGET=${AGENT_PANE:-$(jq -r '.target // .address // empty' <<<"$OUT")}
+  if [ -n "$TARGET" ]; then
+    printf 'After the dialog is resolved and an unsent prompt is confirmed: python3 %q deliver %q --file %q\n' "$HERDR_SCRIPT" "$TARGET" "$PROMPT_FILE" >&2
+  fi
+  exit "$STATUS"
+fi
+rm -f "$PROMPT_FILE"
+if [ "$MUX" = herdr ]; then
+  herdr agent rename "$AGENT_PANE" "$AGENT_NAME" || exit 1
+  echo "$AGENT pane=$AGENT_PANE $PICKED agent=$AGENT_NAME brief=$BRIEF_PANE dir=$CWD"
+else
+  AGENT_TERMINAL=$(jq -r '.address' <<<"$OUT")
   echo "$AGENT terminal=$AGENT_TERMINAL $PICKED agent=$AGENT_NAME brief=$MUX_TERMINAL dir=$CWD"
-  # A status other than error proves the agent is running. None within the
-  # wait means op is still waiting for its approval, or the agent never started
-  # and the wrapper's shell sits there; the screen says which.
-  WAIT=$(timeout 30 hc wait "$AGENT_TERMINAL" --timeout 10 --json) || {
-    [ -n "$WAIT" ] && echo "$WAIT" >&2
-    exit 1
-  }
-  STATUS=$(jq -r '.status // empty' <<<"$WAIT")
-  if [ "$STATUS" = blocked ]; then
-    PROMPT_FILE=$(mktemp "${TMPDIR:-/tmp}/elate-prompt-XXXXXX")
-    printf '%s' "$ELATE_PROMPT" >"$PROMPT_FILE"
-    echo "$AGENT is blocked at startup; if \`hc get $AGENT_NAME --json\` still shows turn 0 once it is idle, seed it with:" >&2
-    echo "hc send $AGENT_NAME \"\$(cat $PROMPT_FILE)\"" >&2
-    exit 3
-  fi
-  if [ -z "$STATUS" ] || [ "$STATUS" = error ]; then
-    echo "$AGENT reported ${STATUS:-no status}; its screen:" >&2
-    hc read "$AGENT_TERMINAL" --lines 20 >&2
-    exit 1
-  fi
-  exit 0
 fi
-
-AGENT_PANE=$(herdr pane split --pane "$BRIEF_PANE" --direction right \
-  --cwd "$CWD" --no-focus | jq -r '.result.pane.pane_id // empty')
-[ -n "$AGENT_PANE" ] || {
-  echo "Split failed." >&2
-  exit 1
-}
-echo "$AGENT pane=$AGENT_PANE $PICKED agent=$AGENT_NAME brief=$BRIEF_PANE dir=$CWD"
-
-# agent start needs the shell prompt a fresh split provides.
-[ "$#" -gt 0 ] && set -- -- "$@"
-if ! OUT=$(herdr agent start "$AGENT_NAME" --kind "$AGENT" --pane "$AGENT_PANE" \
-  --timeout 60000 "$@" 2>&1); then
-  echo "$OUT" >&2
-  if [ "$(jq -r '.error.code // empty' <<<"$OUT" 2>/dev/null)" = agent_not_ready ]; then
-    PROMPT_FILE=$(mktemp "${TMPDIR:-/tmp}/elate-prompt-XXXXXX")
-    printf '%s' "$ELATE_PROMPT" >"$PROMPT_FILE"
-    echo "$AGENT is blocked at startup; seed it once it is idle with:" >&2
-    echo "herdr agent prompt $AGENT_NAME \"\$(cat $PROMPT_FILE)\"" >&2
-    exit 3
-  fi
-  exit 1
-fi
-# The prompt is one argument, so no shell re-parses it.
-herdr agent prompt "$AGENT_NAME" "$ELATE_PROMPT"
