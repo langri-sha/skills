@@ -1807,6 +1807,8 @@ def cmd_relaunch(system, args):
     }
     state = {"exited": False}
     try:
+        if who["state"] == "finished":
+            raise Fail(FINISHED, "finished", "the terminal has ended", target=target)
         if who["status"] == "blocked":
             raise Fail(
                 BLOCKED,

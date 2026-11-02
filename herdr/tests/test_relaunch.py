@@ -354,6 +354,14 @@ class RelaunchWithResume(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(len(kill.calls), 1)
 
+    def test_a_finished_terminal_reports_finished_without_keys(self):
+        runner, kill, code, out = relaunch({GET: record(state="finished"), PS: OLD_SHELL}, "--agent", "claude")
+        self.assertEqual(code, 11)
+        self.assertEqual(out["error"], "finished")
+        self.assertIs(out["exited_agent"], False)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+        self.assertEqual(kill.calls, [])
+
     def test_a_program_that_is_not_an_agent_gets_no_keys(self):
         scenario = {GET: record(labels={}, reported=False), PS: TERRAFORM}
         runner, kill, code, out = relaunch(scenario, "--agent", "claude")
