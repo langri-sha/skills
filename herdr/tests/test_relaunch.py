@@ -493,6 +493,34 @@ class RelaunchWithAHandoff(unittest.TestCase):
         self.assertEqual(out["handoff"], str(path.resolve()))
         self.assertTrue(runner.ran("hc", "send")[0][3].startswith("Write a handoff note"))
 
+    def test_a_program_replacing_the_agent_during_handoff_gets_no_exit_keys(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder, "handoff.md")
+
+            class Replacing(FakeRunner):
+                replaced = False
+
+                def __call__(self, argv, timeout):
+                    if argv[:2] == ["hc", "wait"] and "30" in argv:
+                        path.write_text("handoff")
+                        self.replaced = True
+                    if tuple(argv) == PS and self.replaced:
+                        self.calls.append(tuple(argv))
+                        return TERRAFORM
+                    return super().__call__(argv, timeout)
+
+            clock = FakeClock()
+            scenario = self.scenario(path.resolve())
+            runner = Replacing({**waits(), STATUS: focus("p0"), LS: LAYOUT, **scenario}, clock=clock)
+            code, out = run_verb(
+                ["--backend", "app", "relaunch", "t7", "--resume", "--handoff", str(path)],
+                runner, clock=clock, kill=FakeKill(),
+            )
+        self.assertEqual(code, 8)
+        self.assertEqual(out["error"], "shell_busy")
+        self.assertIs(out["exited_agent"], False)
+        self.assertEqual(runner.ran("hc", "keys"), [])
+
     def test_an_agent_that_stops_without_the_file_is_reported_and_left_running(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder, "handoff.md")
