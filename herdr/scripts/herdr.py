@@ -1759,7 +1759,7 @@ def run_handoff(system, backend, target, path, timeout):
             )
 
 
-def exit_agent(system, backend, target):
+def exit_agent(system, backend, target, expected_pid=None, kind=None, guard=False):
     pressed = False
 
     def back():
@@ -1769,8 +1769,19 @@ def exit_agent(system, backend, target):
         )[0]
 
     for _ in range(2):
-        if back():
+        facts = backend.facts(target)
+        procs = process_table(system)
+        if facts["state"] == "finished" or shell_is_idle(procs, facts["pid"])[0]:
             return pressed
+        _, current, _ = find_agent_process(procs, facts["pid"], [kind]) if guard else (None, None, None)
+        if guard and (not current or current.pid != expected_pid):
+            raise Fail(
+                WRONG_STATE, "shell_busy",
+                "the agent no longer runs in this terminal; nothing was pressed"
+                if not pressed else "the agent changed after exit keys were sent",
+                target=target,
+                exited_agent=pressed,
+            )
         backend.press(target, EXIT_KEYS)
         pressed = True
         if until(system, back, 15, lambda: backend.pace(target, None, 3)):
@@ -1838,7 +1849,7 @@ def cmd_relaunch(system, args):
                 system, backend, target, args.handoff, args.handoff_timeout
             )
             check_input_box(backend, who, target, only_when_idle=False)
-        exited = exit_agent(system, backend, target)
+        exited = exit_agent(system, backend, target, who["agent_pid"], who["kind"], guard=True)
         state["exited"] = exited
         backend.check_replaceable(target)
         if not exited and prompt_has_text(backend.screen(target)):
@@ -1862,7 +1873,8 @@ def cmd_relaunch(system, args):
         )
         ready = launch_in(system, backend, target, plan, args.cwd or who["cwd"])
     except Fail as failure:
-        failure.extra.update(exited_agent=state["exited"], previous=previous)
+        failure.extra.setdefault("exited_agent", state["exited"])
+        failure.extra["previous"] = previous
         raise
     return {
         "address": target,
