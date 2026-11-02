@@ -1,4 +1,7 @@
 import unittest
+import tempfile
+from pathlib import Path
+import shlex
 
 from support import (
     agent_status,
@@ -268,6 +271,34 @@ class LaunchIntoAShell(unittest.TestCase):
         )
         self.assertEqual(code, 0)
         self.assertEqual(out["permission_mode"], "plan")
+
+
+class LaunchInputs(unittest.TestCase):
+    def test_literal_arguments_and_prompt_are_passed_as_single_arguments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "prompt"
+            prompt = "hello $(touch /tmp/nope)\nsecond line"
+            path.write_text(prompt)
+            expected = ["claude", "--permission-mode", "bypassPermissions", "--continue", "space and 'quotes'", "--", prompt]
+            command = shlex.join(expected)
+            responses = scenario({
+                SEND: None,
+                ("hc", "send", "t7", command, "--json"): SENT,
+                GET: [terminal(), terminal(agent_status("working"))],
+                READ: [screen(PROMPT), screen(READY)],
+            })
+            runner, code, out = launch(responses, "--arg=--continue", "--arg=space and 'quotes'", "--prompt-file", str(path))
+            self.assertEqual(code, 0)
+            self.assertEqual(shlex.split(out["command"]), expected)
+            self.assertEqual(out["status"], "working")
+            self.assertEqual(len(runner.ran("hc", "send")), 1)
+
+    def test_missing_prompt_file_fails_before_sending(self):
+        runner, code, out = launch({}, "--prompt-file", "/missing/prompt")
+        self.assertEqual(code, 2)
+        self.assertEqual(out["error"], "prompt_file")
+        self.assertEqual(runner.calls, [])
+
 
 
 class LaunchRefusals(unittest.TestCase):
