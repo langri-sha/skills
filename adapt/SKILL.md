@@ -6,7 +6,7 @@ description: >-
   asked to adapt or migrate the current conversation to Claude Code or Codex.
   Not for parallel work (elate), new worktree sessions (create-session), or
   resuming an existing session in place (herdr).
-argument-hint: 'claude|codex [model] [effort] [--dry-run]'
+argument-hint: 'claude|codex [model] [effort] [--dry-run|--rehearse]'
 metadata:
   author: langri-sha
   version: '1.0.0'
@@ -20,11 +20,22 @@ explicit request to adapt authorizes that transfer and source closure; it never
 authorizes closing siblings or widening the ongoing task's permissions. Do not
 start a transfer merely because context is running low.
 
-`--dry-run` rehearses the transfer: it writes the handoff and launches the
-successor for a read-only acknowledgement, but leaves both panes open and the
-work paused. Say before launch that this rehearsal starts a real agent and may
-need a password-manager approval. A request for a plan or simulation without
-launching only produces the proposed handoff and commands.
+Modes are mutually exclusive:
+
+- `--dry-run`: inspect state read-only and show the proposed handoff, target
+  settings, launch/close commands and unresolved prerequisites. Stop before
+  checkpointing operations, committing, writing files, messaging workers,
+  changing recovery metadata or creating panes. No agent starts.
+- `--rehearse`: checkpoint and write the handoff, launch a real successor for
+  read-only acknowledgement, and leave both panes open with work paused. Say
+  before launch that this may need a password-manager approval. Stop before
+  ownership transfer, recovery registration or worker rerouting; report their
+  remaining prerequisites.
+- Without either flag: complete the acknowledged transfer and close only the
+  source pane.
+
+Examples: `/adapt codex --dry-run`, `/adapt codex --rehearse`, `/adapt codex`. A
+request for a plan or simulation without launching means `--dry-run`.
 
 ## Resolve and checkpoint
 
@@ -103,7 +114,7 @@ If it cannot read essential artifacts, hits a dialog, times out or
 misunderstands the task, leave the source open and report what remains. Never
 auto-answer a permission dialog to complete the transfer.
 
-In `--dry-run`, stop here: report the handoff path, source and destination IDs,
+In `--rehearse`, stop here: report the handoff path, source and destination IDs,
 what the successor understood, and any gaps. Neither agent continues work or
 closes a pane. On a later request to complete the transfer, reuse this
 successor, refresh changed state and obtain a fresh acknowledgement rather than
