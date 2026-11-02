@@ -8,6 +8,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import time
 import sys
@@ -28,6 +29,7 @@ WRONG_STATE = 8
 BLOCKED = 9
 UNCONFIRMED = 10
 FINISHED = 11
+HELD = 13
 
 Result = namedtuple("Result", "code out err")
 
@@ -59,8 +61,16 @@ def subprocess_runner(argv, timeout):
 
 class System:
     def __init__(
-        self, runner=None, environ=None, pid=None, home=None, clock=None, which=None
+        self,
+        runner=None,
+        environ=None,
+        pid=None,
+        home=None,
+        clock=None,
+        which=None,
+        kill=None,
     ):
+        self.kill = kill or os.kill
         self.runner = runner or subprocess_runner
         self.now = clock or time.monotonic
         self.which = which or shutil.which
@@ -198,6 +208,59 @@ def until(system, check, seconds, pace):
         if system.now() >= deadline:
             return None
         pace()
+
+
+def pane_of_terminal(layout, terminal):
+    for space in (layout or {}).get("spaces", []):
+        for tab in space.get("tabs", []):
+            for found in tab.get("terminals", []):
+                if found.get("terminal") == terminal:
+                    return found.get("pane")
+    return None
+
+
+SUGGESTION = re.compile(r'^Try\s+["“][^"“”]*["”]$')
+
+
+def agent_input_text(screen):
+    lines = screen.splitlines()
+    prompts = [i for i, line in enumerate(lines) if re.match(r"^\s*❯", line)]
+    if not prompts:
+        return False
+    at = prompts[-1]
+    typed = lines[at].split("❯", 1)[1].strip()
+    if typed and not SUGGESTION.match(typed):
+        return True
+    continued = False
+    for line in lines[at + 1 :]:
+        if re.match(r"^\s*─{3,}", line):
+            return continued
+        continued = continued or bool(line.strip())
+    return False
+
+
+def check_input_box(backend, who, target, only_when_idle):
+    idle = who["status"] in ("idle", "done")
+    if who["kind"] != "claude" or (only_when_idle and not idle):
+        return
+    if agent_input_text(backend.screen(target)):
+        raise Fail(
+            HELD,
+            "held_input",
+            "text is typed in the agent's input box, so it is left alone",
+            target=target,
+        )
+
+
+PROMPT_END = re.compile(r"[$#%>❯›](?=\s)")
+
+
+def prompt_has_text(screen):
+    lines = non_blank(screen)
+    if not lines:
+        return False
+    ends = list(PROMPT_END.finditer(lines[-1]))
+    return bool(ends) and bool(lines[-1][ends[-1].end() :].strip())
 
 
 def tab_of_terminal(layout, terminal):
@@ -555,6 +618,64 @@ class AppBackend:
         if result.code != 0:
             raise fail_from(result, "hc keys", target)
 
+    def facts(self, target):
+        record = self.record(target)
+        return {
+            "pid": record.get("pid"),
+            "keep": bool(record.get("keep")),
+            "reported": bool(record.get("reported")),
+            "state": record.get("state"),
+        }
+
+    def settle(self, target, seconds):
+        self.hc("wait", target, "--timeout", str(seconds), "--json", timeout=seconds + 10)
+
+    def focused(self, target):
+        status, result = self.system.json(["herdr-app", "status"])
+        pane = (status or {}).get("focused_pane") if result.code == 0 else None
+        found = pane_of_terminal(self.layout(), target) if pane else None
+        return bool(pane) and pane == found
+
+    def check_replaceable(self, target):
+        facts = self.facts(target)
+        if facts["reported"] and not facts["keep"]:
+            raise Fail(
+                WRONG_STATE,
+                "not_kept",
+                "the terminal is not kept, so replacing its shell would end it",
+                target=target,
+            )
+        if self.focused(target):
+            raise Fail(
+                HELD,
+                "held_focus",
+                "the terminal has the user's focus, so its shell is left alone",
+                target=target,
+            )
+
+    def fresh_shell(self, target):
+        facts = self.facts(target)
+        pid = facts["pid"]
+        if not facts["reported"]:
+            return False
+        idle, why = shell_is_idle(process_table(self.system), pid)
+        if not idle:
+            raise Fail(WRONG_STATE, "shell_busy", why, target=target)
+        self.system.kill(pid, signal.SIGKILL)
+
+        def returned():
+            now = self.facts(target)
+            return bool(now["pid"]) and now["pid"] != pid and not now["reported"]
+
+        if not until(self.system, returned, 20, lambda: self.pace(target, None, 2)):
+            raise Fail(
+                TIMEOUT,
+                "shell_did_not_return",
+                "the shell did not come back after the kill",
+                target=target,
+            )
+        return True
+
     def layout(self):
         data, result = self.system.json(["herdr-app", "ls"])
         return data if result.code == 0 and isinstance(data, dict) else None
@@ -904,6 +1025,37 @@ class TuiBackend:
         _, result = self.herdr("agent", "send-keys", target, *keys)
         if result.code != 0:
             raise fail_from(result, "herdr agent send-keys", target)
+
+    def facts(self, target):
+        data, result = self.herdr("pane", "process-info", "--pane", target)
+        info = ((data or {}).get("result") or {}).get("process_info")
+        if result.code != 0 or not isinstance(info, dict):
+            raise fail_from(result, "herdr pane process-info", target)
+        return {
+            "pid": info.get("shell_pid"),
+            "keep": True,
+            "reported": False,
+            "state": "live",
+        }
+
+    def settle(self, target, seconds):
+        self.herdr(
+            "agent", "wait", target, "--timeout", str(seconds * 1000), timeout=seconds + 10
+        )
+
+    def check_replaceable(self, target):
+        data, _ = self.herdr("pane", "get", target)
+        pane = ((data or {}).get("result") or {}).get("pane") or {}
+        if pane.get("focused"):
+            raise Fail(
+                HELD,
+                "held_focus",
+                "the pane has the user's focus, so its shell is left alone",
+                target=target,
+            )
+
+    def fresh_shell(self, target):
+        return False
 
     def label_of(self, noun, identifier):
         if not identifier:
@@ -1392,6 +1544,171 @@ def cmd_launch(system, args):
     return launch_result(address, args, plan, ready, placed)
 
 
+HANDOFF_REQUEST = (
+    "Write a handoff note for the agent that replaces you to {path}: what you "
+    "did, what is left, decisions still open, and the files, branches and pull "
+    "requests involved. Reply with one line when the file is written."
+)
+EXIT_KEYS = ["ctrl+c", "ctrl+c"]
+
+
+def run_handoff(system, backend, target, path, timeout):
+    path = Path(path).resolve()
+    if path.exists():
+        raise Fail(
+            WRONG_STATE,
+            "handoff_exists",
+            f"{path} already exists, so it cannot prove a new handoff",
+            target=target,
+        )
+    backend.deliver(target, HANDOFF_REQUEST.format(path=path))
+    deadline = system.now() + timeout
+    while True:
+        backend.settle(target, max(1, min(30, math.ceil(deadline - system.now()))))
+        if path.exists():
+            return str(path)
+        status = backend.status_of(target)
+        if status == "blocked":
+            dialog, screen = backend.dialog_state(target)
+            raise Fail(
+                BLOCKED,
+                "blocked",
+                "the agent opened a dialog while writing the handoff",
+                target=target,
+                dialog=open_dialog(dialog or {}, screen),
+            )
+        if status in ("idle", "done"):
+            raise Fail(
+                WRONG_STATE,
+                "handoff_missing",
+                f"the agent stopped without writing {path}",
+                target=target,
+            )
+        if system.now() >= deadline:
+            raise Fail(
+                TIMEOUT,
+                "handoff_timeout",
+                f"no handoff at {path} after {timeout}s",
+                target=target,
+            )
+
+
+def exit_agent(system, backend, target):
+    pressed = False
+
+    def back():
+        pid = backend.facts(target)["pid"]
+        return shell_is_idle(process_table(system), pid)[0]
+
+    for _ in range(2):
+        if back():
+            return pressed
+        backend.press(target, EXIT_KEYS)
+        pressed = True
+        if until(system, back, 15, lambda: backend.pace(target, None, 3)):
+            return pressed
+    raise Fail(
+        TIMEOUT,
+        "exit_failed",
+        "ctrl+c twice did not bring the shell back",
+        target=target,
+    )
+
+
+def cmd_relaunch(system, args):
+    backend = pick_backend(system, args)
+    who = whois_report(system, backend, args.target, None)
+    target = who["target"]
+    previous = {
+        "kind": who["kind"],
+        "session": who["session"],
+        "model": who["model"],
+        "effort": who["effort"],
+        "resume": who["resume"],
+    }
+    state = {"exited": False}
+    try:
+        if who["status"] == "blocked":
+            raise Fail(
+                BLOCKED,
+                "blocked",
+                "the agent is waiting on a dialog; answer it or ask the user first",
+                target=target,
+                dialog=open_dialog(who["dialog"], backend.screen(target)),
+            )
+        agent = args.agent or who["kind"]
+        if agent not in DEFAULT_PERMISSION:
+            raise Fail(USAGE, "usage", "the terminal runs no known agent; give --agent")
+        head = []
+        if args.resume:
+            if agent != who["kind"] or not who["session"]:
+                raise Fail(
+                    WRONG_STATE,
+                    "no_session",
+                    "there is no session of that agent to resume in this terminal",
+                    target=target,
+                )
+            head = (
+                ["--resume", who["session"]]
+                if agent == "claude"
+                else ["resume", who["session"]]
+            )
+        if who["agent_pid"] is None:
+            idle, why = shell_is_idle(process_table(system), backend.facts(target)["pid"])
+            if not idle:
+                raise Fail(
+                    WRONG_STATE,
+                    "shell_busy",
+                    f"no agent runs in this terminal, and {why}; nothing was pressed",
+                    target=target,
+                )
+        backend.check_replaceable(target)
+        check_input_box(backend, who, target, only_when_idle=True)
+        handoff = None
+        if args.handoff:
+            handoff = run_handoff(
+                system, backend, target, args.handoff, args.handoff_timeout
+            )
+            check_input_box(backend, who, target, only_when_idle=False)
+        exited = exit_agent(system, backend, target)
+        state["exited"] = exited
+        backend.check_replaceable(target)
+        if not exited and prompt_has_text(backend.screen(target)):
+            raise Fail(
+                HELD,
+                "held_input",
+                "text is typed at the shell prompt, so the shell is left alone",
+                target=target,
+            )
+        replaced = backend.fresh_shell(target)
+        plan = plan_launch(
+            backend,
+            agent,
+            head,
+            args.model or (who["model"] if args.resume else None),
+            args.effort or (who["effort"] if args.resume else None),
+            args.name,
+            args.permission_flag,
+            args.fail_pattern,
+            args.timeout,
+        )
+        ready = launch_in(system, backend, target, plan, args.cwd or who["cwd"])
+    except Fail as failure:
+        failure.extra.update(exited_agent=state["exited"], previous=previous)
+        raise
+    return {
+        "address": target,
+        "previous": previous,
+        "agent": agent,
+        "resumed": bool(args.resume),
+        "handoff": handoff,
+        "exited_agent": exited,
+        "replaced_shell": replaced,
+        "command": plan["line"],
+        **{k: v for k, v in ready.items() if k != "target"},
+    }
+
+
 def cmd_deliver(system, args):
     if (args.text is None) == (args.file is None):
         raise Fail(USAGE, "usage", "give the text, or --file, but not both")
@@ -1584,6 +1901,7 @@ COMMANDS = {
     "launch": cmd_launch,
     "deliver": cmd_deliver,
     "dialog": cmd_dialog,
+    "relaunch": cmd_relaunch,
 }
 
 
@@ -1635,6 +1953,19 @@ def build_parser():
     dialog = sub.add_parser("dialog", help="show a terminal's open dialog, or answer an allowed one")
     dialog.add_argument("target")
     dialog.add_argument("--answer", metavar="OPTION")
+    relaunch = sub.add_parser("relaunch", help="swap or resume the agent in a terminal")
+    relaunch.add_argument("target")
+    relaunch.add_argument("--agent", choices=["claude", "codex"])
+    relaunch.add_argument("--model")
+    relaunch.add_argument("--effort")
+    relaunch.add_argument("--name")
+    relaunch.add_argument("--cwd")
+    relaunch.add_argument("--resume", action="store_true")
+    relaunch.add_argument("--handoff", metavar="PATH")
+    relaunch.add_argument("--handoff-timeout", type=int, default=300)
+    relaunch.add_argument("--permission-flag")
+    relaunch.add_argument("--fail-pattern", action="append", default=[], metavar="REGEX")
+    relaunch.add_argument("--timeout", type=int, default=180)
     return parser
 
 

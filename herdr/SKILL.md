@@ -4,10 +4,10 @@ description: >-
   Drives Herdr, the workspace for coding agents, through one script that works
   in both the Herdr app (hc and herdr-app) and the Herdr TUI (herdr): finds the
   terminal this agent runs in, identifies and reads other agents' terminals,
-  lists the roster, makes spaces, launches agents and briefs them. Use when the
-  user mentions Herdr, the Herdr app, hc, herdr-app, panes, terminals or spaces,
-  or wants to start, read, brief, restart or close an agent in Herdr. Not for
-  tmux, or for starting a new worktree session (create-session).
+  lists the roster, makes spaces, launches, briefs and relaunches agents. Use
+  when the user mentions Herdr, the Herdr app, hc, herdr-app, panes, terminals
+  or spaces, or wants to start, read, brief, restart or close an agent in Herdr.
+  Not for tmux, or for starting a new worktree session (create-session).
 metadata:
   author: langri-sha
   version: '1.0.0'
@@ -53,6 +53,9 @@ python3 <skill-dir>/scripts/herdr.py <verb> [options]
    settings default is stricter. `launch` adds it and checks the footer.
 8. **A shell is idle by its process tree**, never by `status` alone, which goes
    stale. `launch` refuses a shell that runs a program.
+9. **Exit an agent with `relaunch`**, which presses ctrl+c twice. `/exit` sent
+   as text arrives tagged and may never run, and a raw `kill` of the shell skips
+   the checks that keep the terminal at its address.
 
 Syntax for everything the verbs do not cover is in the CLIs' own manuals, which
 track the installed versions: `hc --skill`, `herdr-app --skill`, and
@@ -60,34 +63,36 @@ track the installed versions: `hc --skill`, `herdr-app --skill`, and
 
 ## Task to verb
 
-| Task                                                                                                     | Verb                                                                |
-| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Where am I, and in which Herdr?                                                                          | `seat`                                                              |
-| Who runs in terminal T, and how do I resume it?                                                          | `whois T`                                                           |
-| What is on terminal T's screen?                                                                          | `read T`, with `--tail N` or `--footer`                             |
-| Who is running, blocked, or missing bypass?                                                              | `roster`, with `--label k=v` (app only)                             |
-| Make a space for a mission                                                                               | `space NAME`, with `--folder`, `--tab`, `--keep-focus`              |
-| Start an agent in an idle shell                                                                          | `launch --in T --agent claude --model M`                            |
-| Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent` | `launch --space S --tab T --name N` or `--worker-of T` (app only)   |
-| Brief an agent                                                                                           | `deliver T "text"` or `deliver T --file path`                       |
-| What dialog is a blocked terminal showing, and can the folder-trust dialog be answered?                  | `dialog T`, with `--answer OPTION` for the folder-trust dialog only |
+| Task                                                                                                                                 | Verb                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| Where am I, and in which Herdr?                                                                                                      | `seat`                                                                |
+| Who runs in terminal T, and how do I resume it?                                                                                      | `whois T`                                                             |
+| What is on terminal T's screen?                                                                                                      | `read T`, with `--tail N` or `--footer`                               |
+| Who is running, blocked, or missing bypass?                                                                                          | `roster`, with `--label k=v` (app only)                               |
+| Make a space for a mission                                                                                                           | `space NAME`, with `--folder`, `--tab`, `--keep-focus`                |
+| Start an agent in an idle shell                                                                                                      | `launch --in T --agent claude --model M`                              |
+| Start an agent in a new terminal, placed by space and tab; it is the caller's child unless `--no-parent`                             | `launch --space S --tab T --name N` or `--worker-of T` (app only)     |
+| Brief an agent                                                                                                                       | `deliver T "text"` or `deliver T --file path`                         |
+| What dialog is a blocked terminal showing, and can the folder-trust dialog be answered?                                              | `dialog T`, with `--answer OPTION` for the folder-trust dialog only   |
+| Swap, resume or restart the agent in a terminal; every failure says whether the agent exited (`exited_agent`) and carries `previous` | `relaunch T`, with `--resume`, `--agent`, `--model`, `--handoff PATH` |
 
 Failures, with what to tell the user:
 [references/failures.md](references/failures.md).
 
 ## Exit codes
 
-| Code | Meaning                                                                                                     |
-| ---- | ----------------------------------------------------------------------------------------------------------- |
-| 0    | Done                                                                                                        |
-| 1    | A Herdr command failed; `reason` carries its message                                                        |
-| 2    | Usage error                                                                                                 |
-| 3    | `not_found`: no such terminal, pane or agent                                                                |
-| 4    | `no_seat`: this process is not in a Herdr app or TUI terminal                                               |
-| 5    | `space_exists`: a space of that name is open; ask the user                                                  |
-| 6    | `launcher_failed`: the launch line failed, or the shell prompt came back                                    |
-| 7    | `timeout`: not ready in time; `status` and `footer` show where it stopped                                   |
-| 8    | The terminal is not in the state the verb needs, such as a shell running a program                          |
-| 9    | `blocked`: a dialog is open; `dialog` has its `kind`, `msg` and `options`. Ask the user                     |
-| 10   | `unconfirmed`: sent, but the agent did not start working; it may have arrived, so read before sending again |
-| 11   | `finished`: the terminal ended                                                                              |
+| Code | Meaning                                                                                                                                   |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | Done                                                                                                                                      |
+| 1    | A Herdr command failed; `reason` carries its message                                                                                      |
+| 2    | Usage error                                                                                                                               |
+| 3    | `not_found`: no such terminal, pane or agent                                                                                              |
+| 4    | `no_seat`: this process is not in a Herdr app or TUI terminal                                                                             |
+| 5    | `space_exists`: a space of that name is open; ask the user                                                                                |
+| 6    | `launcher_failed`: the launch line failed, or the shell prompt came back                                                                  |
+| 7    | `timeout`: not ready in time; `status` and `footer` show where it stopped                                                                 |
+| 8    | The terminal is not in the state the verb needs, such as a shell running a program                                                        |
+| 9    | `blocked`: a dialog is open; `dialog` has its `kind`, `msg` and `options`. Ask the user                                                   |
+| 10   | `unconfirmed`: sent, but the agent did not start working; it may have arrived, so read before sending again                               |
+| 11   | `finished`: the terminal ended                                                                                                            |
+| 13   | `held_focus` or `held_input`: the terminal has the user's focus, or text is typed at its prompt, so its shell is left alone. Ask the user |

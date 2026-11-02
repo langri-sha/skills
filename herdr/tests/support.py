@@ -85,7 +85,7 @@ class FakeRunner:
         return [call for call in self.calls if call[: len(prefix)] == prefix]
 
 
-def run_verb(argv, runner, environ=None, pid=902, home=None, clock=None):
+def run_verb(argv, runner, environ=None, pid=902, home=None, clock=None, kill=None):
     system = herdr.System(
         runner=runner,
         environ=environ or {},
@@ -93,6 +93,7 @@ def run_verb(argv, runner, environ=None, pid=902, home=None, clock=None):
         home=home or "/nonexistent",
         clock=clock,
         which=lambda name: f"/usr/bin/{name}",
+        kill=kill,
     )
     out = io.StringIO()
     with contextlib.redirect_stdout(out):
