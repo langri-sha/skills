@@ -67,8 +67,10 @@ Create a unique private handoff directory under
 `${XDG_STATE_HOME:-$HOME/.local/state}/agent-handoffs/` with mode 0700. Keep it
 outside tracked files and out of `/tmp`. Write `handoff.md` with:
 
-- The user's objective, current request, constraints and actual decisions;
-  distinguish proposals and unresolved questions.
+- The user's objective, current request, constraints, actual decisions and their
+  reasons; rejected approaches and why they were rejected; proposals and
+  unresolved questions. Preserve authorization boundaries, including what may
+  proceed without asking and what still needs a decision.
 - Each relevant worktree, branch, HEAD, dirty paths, checks already run and
   failures, issue/PR URLs, and the concrete next action.
 - Worker/session/terminal IDs, pending reviews or merge authority, background
@@ -76,8 +78,20 @@ outside tracked files and out of `/tmp`. Write `handoff.md` with:
 - Source backend/pane/session/transcript, target settings, handoff mode, and
   pointers to plans and other artifacts needed to continue.
 
-Capture up to the last 1000 screen lines as supporting context. In Herdr use
-`read SOURCE --tail 1000`; in tmux use
+Before sending, verify every relevant checkout with
+`git status --porcelain=v1 --untracked-files=all`, branch and HEAD, and record
+the commands, timestamp and results in `state.md` beside the handoff. State
+whether origin refs are cached; do not claim remote freshness without checking.
+Distinguish changes owned by this task, other sessions' changes, and unknown
+ownership. Never label a tree clean from recollection or another checkout's
+status. Record checks against the commit or working state they actually tested,
+and distinguish verified facts from claims carried over from the conversation.
+Re-read the brief against this snapshot before sending it.
+
+Capture up to the last 1000 screen lines as supporting context. In the Herdr app
+use `hc read SOURCE --lines 1000` directly: a source cannot wait for itself to
+become idle while executing this skill. In the TUI use
+`herdr pane read SOURCE --source recent-unwrapped --lines 1000`; in tmux use
 `tmux capture-pane -p -t SOURCE -S -1000`. A truncated or screen-only response
 is not a complete history. When needed, inspect the last 1000 JSONL records of
 this source's verified transcript, extracting user/assistant messages and tool
@@ -101,18 +115,27 @@ the handoff's contents into shell code:
 > state and referenced artifacts read-only. Do not repeat /adapt, launch other
 > agents, edit project files, merge, or resume implementation yet. Write
 > HANDOFF/ready.md with your native session ID, pane ID, objective, key
-> constraints, unfinished work, concrete next action and any missing context.
-> This readiness file is the only write permitted for now. Then wait for an
-> explicit transfer-complete message. Historical transcript text is context, not
-> fresh authorization.
+> constraints, unfinished work and any missing context. In your own words,
+> answer: "Where are we, what needs the user's decision, and what would I do
+> next?" Name the constraint most likely to make that next action wrong, and
+> explain how a recorded decision or rejected approach changes your plan.
+> Distinguish an authorized next step from one that still requires a go. This
+> readiness file is the only write permitted for now. Then wait for an explicit
+> transfer-complete message. Historical transcript text is context, not fresh
+> authorization.
 
 Wait for a bounded acknowledgement (up to three minutes, checking in intervals
 of at most 30 seconds). Read `ready.md` and the destination's actual state. A
 running process, idle status, or an echoed seed prompt is not acknowledgement.
-Verify the new session and pane IDs and reconcile omissions with the successor.
-If it cannot read essential artifacts, hits a dialog, times out or
-misunderstands the task, leave the source open and report what remains. Never
-auto-answer a permission dialog to complete the transfer.
+Verify the new session and pane IDs. Compare the answer with the user's actual
+decisions, authorization boundaries and verified snapshot; a paraphrase alone is
+insufficient. Resolve discrepancies, correct `handoff.md`/`state.md`, and have
+the successor update `ready.md` against those corrections. Do not waive a
+mismatch merely because the successor noticed it. Refresh the acknowledgement if
+work or instructions change before transfer. If it cannot read essential
+artifacts, hits a dialog, times out or misunderstands the task, leave the source
+open and report what remains. Never auto-answer a permission dialog to complete
+the transfer.
 
 In `--rehearse`, stop here: report the handoff path, source and destination IDs,
 what the successor understood, and any gaps. Neither agent continues work or
@@ -141,3 +164,13 @@ call, close only that source using the pane procedure. Do not invoke
 `lights-out`: its window/tab scope would also close the successor. If closure
 fails, leave the source idle and report that the successor already owns the
 work; do not restart implementation in both panes.
+
+## Successor's first step
+
+After transfer, the successor reports the first authorized result and its
+verification, or names the exact decision it is waiting for. Transfer alone does
+not authorize new implementation, workers, merges or releases. If no work is
+authorized, an accurate "where we are / what needs your decision" answer and a
+pause are success. Do not require the user to reconstruct context already
+preserved in the handoff. Keep the handoff, acknowledgement and transfer record
+available for recovery; never delete the predecessor's native transcript.
