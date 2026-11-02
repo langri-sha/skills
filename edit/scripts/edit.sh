@@ -35,29 +35,22 @@ if [ "$#" -gt 0 ]; then
   exit "$status"
 fi
 
-# The variables only name candidates: when one multiplexer runs inside another,
-# every set is inherited. The caller belongs to the multiplexer whose terminal
-# is its controlling terminal, the nearest ancestor's when this process has
-# none.
-tty=
-pid=$$
-while [ "${pid:-1}" -gt 1 ]; do
-  t=$(ps -o tty= -p "$pid" | tr -d ' ')
-  case $t in '' | '?' | '??') pid=$(ps -o ppid= -p "$pid" | tr -d ' ') ;; *) tty=/dev/$t && break ;; esac
-done
-MUX=none PANE= MUX_TERMINAL=
-if [ -n "$tty" ] && [ -n "${TMUX_PANE:-}" ] &&
-  [ "$(tmux display-message -p -t "$TMUX_PANE" '#{pane_tty}' 2>/dev/null)" = "$tty" ]; then
-  MUX=tmux PANE=$TMUX_PANE
-elif [ -n "$tty" ] && [ -n "${HC_TERMINAL_ID:-}" ] &&
-  INFO=$(hc get "$HC_TERMINAL_ID" --json 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.pid // empty' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=app MUX_TERMINAL=$HC_TERMINAL_ID
-elif [ -n "$tty" ] && [ "${HERDR_ENV:-}" = 1 ] && [ -n "${HERDR_PANE_ID:-}" ] &&
-  INFO=$(herdr pane process-info --current 2>/dev/null) &&
-  [ "/dev/$(ps -o tty= -p "$(jq -r '.result.process_info.shell_pid' <<<"$INFO")" 2>/dev/null | tr -d ' ')" = "$tty" ]; then
-  MUX=herdr PANE=$(jq -r '.result.process_info.pane_id' <<<"$INFO")
+HERDR_SCRIPT=$(dirname "$(realpath "${BASH_SOURCE[0]}")")/../../herdr/scripts/herdr.py
+SEAT=$(python3 "$HERDR_SCRIPT" seat) || {
+  echo "$SEAT" >&2
+  exit 1
+}
+if [ "$(jq -r '.session_match' <<<"$SEAT")" = false ]; then
+  echo "This terminal belongs to another session; ask which terminal to use." >&2
+  exit 1
 fi
+MUX=$(jq -r '.backend' <<<"$SEAT")
+PANE= MUX_TERMINAL=
+case $MUX in
+  tmux) PANE=$(jq -r '.target' <<<"$SEAT") ;;
+  app) MUX_TERMINAL=$(jq -r '.target' <<<"$SEAT") ;;
+  tui) MUX=herdr; PANE=$(jq -r '.target' <<<"$SEAT") ;;
+esac
 echo "multiplexer=$MUX pane=$PANE terminal=$MUX_TERMINAL"
 
 case $MUX in
@@ -66,7 +59,7 @@ tmux)
   tmux split-window -t "${TMUX_PANE:?}" -h -c "$PWD" nvim
   ;;
 app)
-  PANE=$(herdr-app ls | jq -r --arg t "${HC_TERMINAL_ID:?}" \
+  PANE=$(herdr-app ls | jq -r --arg t "${MUX_TERMINAL:?}" \
     '.spaces[].tabs[].terminals[] | select(.terminal == $t) | .pane // empty')
   : "${PANE:?no pane for this terminal, or the Herdr app window is closed}"
   # pane.split has no directory argument and would use the pane's current
@@ -79,7 +72,7 @@ app)
   echo "editor terminal=$EDITOR_TERMINAL dir=$PWD"
   ;;
 herdr)
-  EDITOR_PANE=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus |
+  EDITOR_PANE=$(herdr pane split --pane "$PANE" --direction right --cwd "$PWD" --no-focus |
     jq -r '.result.pane.pane_id // empty')
   : "${EDITOR_PANE:?split failed}"
   # Wait for the shell's prompt, so nvim isn't typed into a shell still starting.
