@@ -63,7 +63,7 @@ def scenario(overrides=None):
     base = {
         GET: [
             terminal(),
-            terminal(agent_status("working")),
+            terminal(),
             terminal(agent_status("idle")),
         ],
         PS: [SHELL_ONLY, SHELL_RUNNING],
@@ -205,7 +205,7 @@ class LaunchIntoAShell(unittest.TestCase):
         _, code, out = launch(
             scenario(
                 {
-                    GET: [terminal(), terminal(agent_status("working"))],
+                    GET: [terminal(), terminal()],
                     READ: [screen(PROMPT), screen(BANNER)],
                 }
             ),
@@ -214,8 +214,26 @@ class LaunchIntoAShell(unittest.TestCase):
             *self.ARGS,
         )
         self.assertEqual(code, 7)
-        self.assertEqual(out["status"], "working")
+        self.assertIsNone(out["status"])
         self.assertGreaterEqual(out["elapsed_s"], 12)
+
+    def test_an_agent_that_resumes_straight_into_work_is_ready(self):
+        clock = FakeClock()
+        _, code, out = launch(
+            scenario(
+                {
+                    GET: [terminal(), terminal(agent_status("working"))],
+                    READ: [screen(PROMPT), screen(BANNER + "• Working (3s)\n")],
+                }
+            ),
+            "--timeout",
+            "240",
+            *self.ARGS,
+            clock=clock,
+        )
+        self.assertEqual(code, 0)
+        self.assertEqual(out["status"], "working")
+        self.assertLess(clock.seconds, 10)
 
     def test_the_ended_terminal_exits_eleven(self):
         _, code, out = launch(

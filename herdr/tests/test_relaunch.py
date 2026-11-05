@@ -45,7 +45,7 @@ LABELS = {
 }
 
 
-def record(pid=800, reported=True, keep=True, status=None, labels=None, state="live"):
+def record(pid=800, reported=True, keep=True, status=agent_status("idle"), labels=None, state="live"):
     return ok(
         {
             "address": "t7",
@@ -54,7 +54,7 @@ def record(pid=800, reported=True, keep=True, status=None, labels=None, state="l
             "reported": reported,
             "state": state,
             "labels": LABELS if labels is None else labels,
-            "status": status or agent_status("idle"),
+            "status": status,
         }
     )
 
@@ -125,7 +125,7 @@ def resume_scenario():
             *[record()] * 6,
             record(pid=801, reported=False),
             record(pid=801, reported=False),
-            record(pid=801, reported=False, status=agent_status("working")),
+            record(pid=801, reported=False, status=None),
             record(pid=801, reported=False),
         ],
         PS: [OLD_AGENT, OLD_AGENT, OLD_SHELL, OLD_SHELL, NEW_SHELL, NEW_AGENT],
