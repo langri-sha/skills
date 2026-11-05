@@ -51,8 +51,9 @@ python3 <skill-dir>/scripts/herdr.py <verb> [options]
    launch (a password manager, say), and a burst times out: tell the user before
    each launch, and on a launcher failure stop and report it. It never retries.
 7. **Choose a permission mode on every launch.** By default `launch` passes a
-   flag and checks the footer. `--no-permission-flag` leaves the configured
-   default in effect, whose mode cannot be verified.
+   flag, so the mode is the flag's; it waits for an idle agent, not the footer,
+   which a narrow terminal cuts off. `--no-permission-flag` leaves the
+   configured default in effect.
 8. **A shell is idle by its process tree**, never by `status` alone, which goes
    stale. `launch` refuses a shell that runs a program.
 9. **Exit an agent with `relaunch`**, which presses ctrl+c twice. `/exit` sent

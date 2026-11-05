@@ -77,7 +77,7 @@ def launched(responses, *argv, layouts=None):
         ("ps", "-A", "-o", "pid=,ppid=,tty=,args="): SHELL_RUNNING,
         ("hc", "wait", "t9", "--timeout", "2", "--json"): ok({"ended": False}),
         **{
-            ("hc", "wait", "t9", "--timeout", str(n), "--json", "--output", "bypass permissions on"): ok(
+            ("hc", "wait", "t9", "--timeout", str(n), "--json", "--output", "herdr-pace-sentinel"): ok(
                 {"ended": False}
             )
             for n in range(1, 6)
@@ -174,7 +174,7 @@ class LaunchIntoANewTerminal(unittest.TestCase):
                 **{
                     (
                         "hc", "wait", "t9", "--timeout", str(n), "--json",
-                        "--output", "bypass permissions on",
+                        "--output", "herdr-pace-sentinel",
                     ): ok({"ended": False})
                     for n in range(1, 6)
                 },

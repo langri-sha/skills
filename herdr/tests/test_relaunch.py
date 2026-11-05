@@ -97,7 +97,7 @@ def waits():
         ("hc", "wait", "t7", "--timeout", str(n), "--json", "--output", "herdr-pace-sentinel"): ok({"ended": False})
         for n in range(1, 6)
     } | {
-        ("hc", "wait", "t7", "--timeout", str(n), "--json", "--output", "bypass permissions on"): ok({"ended": False})
+        ("hc", "wait", "t7", "--timeout", str(n), "--json", "--output", "herdr-pace-sentinel"): ok({"ended": False})
         for n in range(1, 6)
     }
 
