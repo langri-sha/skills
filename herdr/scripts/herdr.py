@@ -1576,7 +1576,7 @@ def await_launch(system, backend, address, spec):
         hit = failure_hit(spec["patterns"], obs.screen, spec["baseline"])
         if hit:
             raise Fail(LAUNCH_FAILED, "launcher_failed", hit, **context)
-        if (obs.status in ("idle", "done") or (spec.get("prompt") and obs.status == "working")) and not obs.shell_idle:
+        if obs.status in ("idle", "done", "working") and not obs.shell_idle:
             return context
         returned = returned + 1 if obs.shell_idle else 0
         if returned >= 2:
@@ -1615,7 +1615,6 @@ def plan_launch(backend, agent, head, model, effort, name, permission, patterns,
         "line": shlex.join(argv),
         "spec": {
             "kind": agent,
-            "prompt": prompt is not None,
             "model": model,
             "patterns": [*LAUNCH_FAILURES, *patterns],
             "timeout": timeout,
