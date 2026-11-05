@@ -70,7 +70,7 @@ def scenario(overrides=None):
         READ: [screen(PROMPT), screen(PROMPT + "claude ...\n"), screen(READY)],
         SEND: SENT,
         **{
-            ("hc", "wait", "t7", "--timeout", str(seconds), "--json", "--output", "bypass permissions on"): TIMED_OUT
+            ("hc", "wait", "t7", "--timeout", str(seconds), "--json", "--output", "herdr-pace-sentinel"): TIMED_OUT
             for seconds in range(1, 6)
         },
     }
@@ -183,21 +183,23 @@ class LaunchIntoAShell(unittest.TestCase):
         self.assertEqual(code, 6)
         self.assertEqual(out["error"], "shell_returned")
 
-    def test_a_stale_idle_status_with_no_footer_is_not_ready(self):
+    def test_an_idle_agent_is_ready_when_a_narrow_terminal_cuts_the_footer(self):
+        clock = FakeClock()
         _, code, out = launch(
             scenario(
                 {
                     GET: [terminal(), terminal(agent_status("idle"))],
-                    READ: [screen(PROMPT), screen(BANNER)],
+                    READ: [screen(PROMPT), screen("❯\n───────\n  Opus 5.5\n  ⏵⏵ bypass\n")],
                 }
             ),
             "--timeout",
-            "10",
+            "180",
             *self.ARGS,
+            clock=clock,
         )
-        self.assertEqual(code, 7)
-        self.assertEqual(out["error"], "timeout")
+        self.assertEqual(code, 0)
         self.assertIsNone(out["permission_mode"])
+        self.assertLess(clock.seconds, 10)
 
     def test_times_out_with_the_last_state_it_saw(self):
         _, code, out = launch(

@@ -479,10 +479,11 @@ class AppBackend:
             shell_idle=idle,
         )
 
-    def pace(self, target, needle, seconds):
-        args = ["wait", target, "--timeout", str(seconds), "--json"]
-        args += ["--output", needle or PACE_SENTINEL]
-        self.hc(*args, timeout=seconds + 10)
+    def pace(self, target, seconds):
+        self.hc(
+            "wait", target, "--timeout", str(seconds), "--json", "--output", PACE_SENTINEL,
+            timeout=seconds + 10,
+        )
 
     def place(self, args):
         layout = self.layout()
@@ -668,7 +669,7 @@ class AppBackend:
             now = self.facts(target)
             return bool(now["pid"]) and now["pid"] != pid and not now["reported"]
 
-        if not until(self.system, returned, 20, lambda: self.pace(target, None, 2)):
+        if not until(self.system, returned, 20, lambda: self.pace(target, 2)):
             raise Fail(
                 TIMEOUT,
                 "shell_did_not_return",
@@ -762,7 +763,7 @@ class AppBackend:
             self.system,
             lambda: tab_of_terminal(self.layout(), target)[1] is None,
             10,
-            lambda: self.pace(target, None, 2),
+            lambda: self.pace(target, 2),
         )
         if not dropped:
             self.restore(target, before)
@@ -788,7 +789,7 @@ class AppBackend:
             self.system,
             lambda: tab_of_terminal(self.layout(), target)[1],
             10,
-            lambda: self.pace(target, None, 2),
+            lambda: self.pace(target, 2),
         )
 
     def restore(self, target, before):
@@ -1085,13 +1086,13 @@ class TuiBackend:
             dialog = screen_dialog(screen)
         return Observation("live", status, dialog, screen, idle)
 
-    def pace(self, target, needle, seconds):
+    def pace(self, target, seconds):
         self.herdr(
             "pane",
             "wait-output",
             target,
             "--match",
-            needle or PACE_SENTINEL,
+            PACE_SENTINEL,
             "--timeout",
             str(seconds * 1000),
             timeout=seconds + 10,
@@ -1444,12 +1445,6 @@ LAUNCH_FAILURES = (
     r"authorization timeout",
     r"connecting to desktop app timed out",
 )
-MODE_OF_FLAG = {
-    "bypassPermissions": "bypass",
-    "acceptEdits": "accept-edits",
-    "plan": "plan",
-    "auto": "auto",
-}
 AGENT_NAME = re.compile(r"^[a-z0-9_-]{1,32}$")
 OPTION_LINE = re.compile(r"^\s*([❯>›]?)\s*(\d+)[.)]\s+(.+?)\s*$")
 
@@ -1467,15 +1462,6 @@ def shell_is_idle(procs, root):
         running = os.path.basename(command_tokens(busy[0].args)[0])
         return False, f"the shell is running {running}"
     return True, ""
-
-
-def expected_mode(kind, permission):
-    if kind != "claude":
-        return None
-    flags = shlex.split(permission) if permission is not None else DEFAULT_PERMISSION[kind]
-    if "--dangerously-skip-permissions" in flags:
-        return "bypass"
-    return MODE_OF_FLAG.get(flag_value(flags, "--permission-mode"))
 
 
 def model_shown(model, screen):
@@ -1590,8 +1576,7 @@ def await_launch(system, backend, address, spec):
         hit = failure_hit(spec["patterns"], obs.screen, spec["baseline"])
         if hit:
             raise Fail(LAUNCH_FAILED, "launcher_failed", hit, **context)
-        mode_ok = spec["mode"] is None or mode == spec["mode"]
-        if (obs.status in ("idle", "done") or (spec.get("prompt") and obs.status == "working")) and mode_ok and not obs.shell_idle:
+        if (obs.status in ("idle", "done") or (spec.get("prompt") and obs.status == "working")) and not obs.shell_idle:
             return context
         returned = returned + 1 if obs.shell_idle else 0
         if returned >= 2:
@@ -1609,7 +1594,7 @@ def await_launch(system, backend, address, spec):
                 f"the agent was not ready after {spec['timeout']}s",
                 **context,
             )
-        backend.pace(address, spec["needle"], max(1, math.ceil(min(left, SLICE_SECONDS))))
+        backend.pace(address, max(1, math.ceil(min(left, SLICE_SECONDS))))
 
 
 def plan_launch(backend, agent, head, model, effort, name, permission, patterns, timeout, extra=(), prompt=None):
@@ -1625,7 +1610,6 @@ def plan_launch(backend, agent, head, model, effort, name, permission, patterns,
     argv += list(extra)
     if prompt is not None:
         argv += ["--", prompt]
-    mode = expected_mode(agent, permission)
     return {
         "argv": argv,
         "line": shlex.join(argv),
@@ -1633,8 +1617,6 @@ def plan_launch(backend, agent, head, model, effort, name, permission, patterns,
             "kind": agent,
             "prompt": prompt is not None,
             "model": model,
-            "mode": mode,
-            "needle": {"bypass": "bypass permissions on"}.get(mode),
             "patterns": [*LAUNCH_FAILURES, *patterns],
             "timeout": timeout,
             "baseline": {},
@@ -1784,7 +1766,7 @@ def exit_agent(system, backend, target, expected_pid=None, kind=None, guard=Fals
             )
         backend.press(target, EXIT_KEYS)
         pressed = True
-        if until(system, back, 15, lambda: backend.pace(target, None, 3)):
+        if until(system, back, 15, lambda: backend.pace(target, 3)):
             return pressed
     raise Fail(
         TIMEOUT,
