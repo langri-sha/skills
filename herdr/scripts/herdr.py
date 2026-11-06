@@ -1437,7 +1437,7 @@ class Observation:
 
 
 SHELLS = {"bash", "zsh", "fish", "sh", "dash"}
-SLICE_SECONDS = 5
+SLICE_SECONDS = 1
 PACE_SENTINEL = "herdr-pace-sentinel"
 SCREEN_TAIL = 12
 LAUNCH_FAILURES = (
