@@ -271,7 +271,7 @@ class LaunchIntoAShell(unittest.TestCase):
                     SEND: None,
                     ("hc", "send", "t7", command, "--json"): SENT,
                     READ: [screen(PROMPT), screen(PROMPT), screen("──\n  ⏵⏵ plan mode on\n")],
-                                        ("hc", "wait", "t7", "--timeout", "5", "--json", "--output", "herdr-pace-sentinel"): TIMED_OUT,
+                                        ("hc", "wait", "t7", "--timeout", "1", "--json", "--output", "herdr-pace-sentinel"): TIMED_OUT,
                 }
             ),
             clock=FakeClock(),
