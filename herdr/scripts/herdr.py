@@ -1438,6 +1438,7 @@ class Observation:
 
 SHELLS = {"bash", "zsh", "fish", "sh", "dash"}
 SLICE_SECONDS = 1
+SHELL_RETURN_GRACE_SECONDS = 5
 PACE_SENTINEL = "herdr-pace-sentinel"
 SCREEN_TAIL = 12
 LAUNCH_FAILURES = (
@@ -1546,7 +1547,7 @@ def open_dialog(dialog, screen):
 def await_launch(system, backend, address, spec):
     start = system.now()
     deadline = start + spec["timeout"]
-    returned = 0
+    idle_since = None
     while True:
         obs = backend.observe(address)
         tail = non_blank(obs.screen)[-SCREEN_TAIL:]
@@ -1578,8 +1579,11 @@ def await_launch(system, backend, address, spec):
             raise Fail(LAUNCH_FAILED, "launcher_failed", hit, **context)
         if obs.status in ("idle", "done", "working") and not obs.shell_idle:
             return context
-        returned = returned + 1 if obs.shell_idle else 0
-        if returned >= 2:
+        if not obs.shell_idle:
+            idle_since = None
+        elif idle_since is None:
+            idle_since = system.now()
+        elif system.now() - idle_since >= SHELL_RETURN_GRACE_SECONDS:
             raise Fail(
                 LAUNCH_FAILED,
                 "shell_returned",

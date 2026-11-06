@@ -183,6 +183,13 @@ class LaunchIntoAShell(unittest.TestCase):
         self.assertEqual(code, 6)
         self.assertEqual(out["error"], "shell_returned")
 
+    def test_a_shell_slow_to_start_the_agent_is_not_reported_as_returned(self):
+        _, code, _ = launch(
+            scenario({PS: [SHELL_ONLY, SHELL_ONLY, SHELL_ONLY, SHELL_ONLY, SHELL_RUNNING]}),
+            *self.ARGS,
+        )
+        self.assertEqual(code, 0)
+
     def test_an_idle_agent_is_ready_when_a_narrow_terminal_cuts_the_footer(self):
         clock = FakeClock()
         _, code, out = launch(
