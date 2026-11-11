@@ -32,7 +32,6 @@
         'lint-staged',
         'prettier',
         'projen',
-        'tsx',
         'typescript',
       ],
       enabled: false,
