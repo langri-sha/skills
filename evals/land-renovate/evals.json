@@ -1,0 +1,83 @@
+{
+  "skill_name": "land-renovate",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Repo langri-sha/quillstone: not archived, no required review, no required status checks. Base branch main, tip 7f3a91c0d.\nOpen renovate[bot] PRs:\n- #41 'Update dependency zod to v4.3.7' (patch, 4.3.6 -> 4.3.7). Head a1b2c3d41, 1 commit by renovate[bot]. base.sha 7f3a91c0d. mergeable true, mergeable_state clean. Statuses on head: renovate/stability-days=success. Check runs on head: 'check / Dagger' completed/success, 'check / Lint' completed/skipped, 'check / Renovate Post-Upgrade' completed/success.\n- #43 'Update dependency vite to v7.4.2' (minor, 7.3.9 -> 7.4.2). Head b2c3d4e43, 1 commit by renovate[bot]. base.sha 7f3a91c0d. mergeable true, mergeable_state clean. Same statuses and check runs as #41, all on its head.\nPre-merge re-read of #41: head a1b2c3d41, mergeable_state clean.",
+      "expected_output": "Merges #41 only, with merge_method rebase and expectedHeadSha a1b2c3d41, after a pre-merge re-read that confirms the same head. Does not merge #43 in the same run, because only one merge per repo is allowed. Ticks #43's rebase checkbox once, since the merge moved its base. No squash, no merge commit, no extra approval. The report lists #41 as merged with its title, and #43 under rebase requested with the reason (after a merge).",
+      "files": ["fixtures/01-one-merge-per-repo.json"]
+    },
+    {
+      "id": 2,
+      "prompt": "Repo langri-sha/marrowgate: not archived, no required review. Base main, tip 3c4d5e6f7.\nOpen renovate[bot] PRs:\n- #12 'Update dependency express to v6'. The body's change table shows 5.2.1 -> 6.0.0 (major). Head 0a9b8c712, 1 commit by renovate[bot]. base.sha 3c4d5e6f7. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\n- #15 'Update dependency pino to v10.3.1' (patch, 10.3.0 -> 10.3.1). Head 1b2c3d415, 1 commit by renovate[bot]. base.sha 3c4d5e6f7. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\nPre-merge re-read of #15: head 1b2c3d415, clean.",
+      "expected_output": "Leaves #12 open and untouched: no approval, no merge, no rebase tick, because it is a third-party major. The bare 'to v6' title is enough to skip it without reading its checks. The skipped major doesn't stop the walk: #15 merges with rebase and expectedHeadSha 1b2c3d415. The report lists #15 as merged and #12 under skipped third-party majors.",
+      "files": ["fixtures/02-skipped-third-party-major.json"]
+    },
+    {
+      "id": 3,
+      "prompt": "Repo langri-sha/ferrolux: not archived. Its branch rule requires one approving review and the 'ci' check. Base main, tip 6e5d4c3b2.\nOpen renovate[bot] PRs:\n- #30 'Update dependency @langri-sha/eslint-config to v9'. The change table shows 8.4.0 -> 9.0.0 (major). Head 2f3e4d530, 1 commit by renovate[bot]. base.sha 6e5d4c3b2. mergeable true, mergeable_state blocked, reviewDecision REVIEW_REQUIRED. Statuses: renovate/stability-days=success. Check runs: 'ci' completed/success, 'checks' completed/success, 'cleanup' completed/skipped.\nAfter an approval, the re-read shows head 2f3e4d530, mergeable_state clean.",
+      "expected_output": "Treats #30 as a first-party major (@langri-sha/*), which lands normally, and does not list it as a skipped major. Since `blocked` comes only from the missing review, approves it with the standard batch-landing body. Then re-reads it, confirms head 2f3e4d530 and mergeable_state clean, and merges with rebase and expectedHeadSha 2f3e4d530. No bypass of protections. The report lists #30 as merged.",
+      "files": ["fixtures/03-first-party-major-needs-approval.json"]
+    },
+    {
+      "id": 4,
+      "prompt": "Repo langri-sha/kelpforest: not archived, base main, tip 8a7b6c5d4.\n- #50 'Lock file maintenance'. Head 4d5e6f750, 1 commit by renovate[bot]. base.sha 8a7b6c5d4. mergeable_state unstable. Statuses on head: renovate/stability-days=pending ('Updates have not met minimum release age requirement'). Check runs: 'check / Dagger' completed/success.\nRepo langri-sha/saltmarsh: not archived, base main, tip 9b8c7d6e5.\n- #8 'Lock file maintenance'. 2 commits: 5e6f7a808 by renovate[bot], then head 6f7a8b908 by upgrade-bot[bot] ('chore(deps): Apply upgrade changes'). base.sha 9b8c7d6e5. mergeable_state clean. get_status on head returns {state: pending, total_count: 0, statuses: []}. Check runs on head: 'check / Dagger' completed/success.",
+      "expected_output": "Merges neither PR and ticks neither. kelpforest#50 is release-age pending: it is counted in the report, not listed individually, and its checks are not read further. saltmarsh#8 is a lock file maintenance PR whose follow-up commit hides the release-age status. With no visible success it is not merged despite `clean`, and it is reported as 'age unverifiable', not treated as met. The report gives the release-age-pending count.",
+      "files": ["fixtures/04-lock-file-release-age.json"]
+    },
+    {
+      "id": 5,
+      "prompt": "Repo langri-sha/brightwell: not archived, no required review. Base main, tip 2b3c4d5e6.\n- #70 'Update dependency typescript-eslint to v8.80.1' (patch). Head 7a8b9c070, 1 commit by renovate[bot]. base.sha 2b3c4d5e6. mergeable_state unstable. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/failure, 'check / Renovate Post-Upgrade' completed/success.\n- #72 'Update dependency posthog-js to v1.460.0' (minor). Head 8b9c0d172, 1 commit by renovate[bot]. base.sha 2b3c4d5e6. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\nPre-merge re-read of #72: head 8b9c0d172, clean.",
+      "expected_output": "Leaves #70 untouched: no approval, no merge, no rebase tick, no retried jobs. It is reported as failing and names 'check / Dagger'. The walk continues past it, and #72 merges with rebase and expectedHeadSha 8b9c0d172. The run doesn't wait on CI.",
+      "files": ["fixtures/05-failing-check-does-not-stop-walk.json"]
+    },
+    {
+      "id": 6,
+      "prompt": "Repo langri-sha/cobblepath: not archived, no required status checks, no up-to-date rule. Base main, tip 9e8d7c6b5, from a human commit merged 20 minutes ago.\n- #19 'Update dependency vitest to v4.2.3' (patch). Head 3c4d5e619, 1 commit by renovate[bot]. base.sha 1a2b3c4d5, which is not the current tip. mergeable true, mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\n- #21 'Lock file maintenance'. Head 4d5e6f721. base.sha 1a2b3c4d5. mergeable_state unstable. Statuses: renovate/stability-days=pending. Check runs: 'check / Dagger' completed/success.",
+      "expected_output": "Detects that #19 is behind, because base.sha differs from the base tip, even though mergeable_state is `clean`. It doesn't merge #19. Instead it ticks #19's Renovate rebase checkbox once, through the PR body, never through update_pull_request_branch. It doesn't tick #21, which is release-age pending, and it makes at most one rebase tick in the repo. The report lists #19 under rebase requested (behind) and counts #21 as pending.",
+      "files": ["fixtures/06-behind-despite-clean.json"]
+    },
+    {
+      "id": 7,
+      "prompt": "Repo langri-sha/duskline: not archived, base main, tip 5f6a7b8c9.\n- #33 'Update dependency @tanstack/react-query to v5.120.1' (patch). Head 6a7b8c933, 1 commit by renovate[bot]. base.sha 0e1f2a3b4. mergeable false, mergeable_state dirty. Statuses: renovate/stability-days=success. Check runs, from before the conflict: 'check / Dagger' completed/success.",
+      "expected_output": "Classifies #33 as CONFLICTING. It doesn't approve or merge it, and ticks its rebase checkbox exactly once. It doesn't wait for Renovate to rebase within the run. The report lists #33 under rebase requested (conflicting).",
+      "files": ["fixtures/07-conflicting-gets-one-rebase-tick.json"]
+    },
+    {
+      "id": 8,
+      "prompt": "Repo langri-sha/glassfrog: not archived, base main, tip 7b8c9d0e1.\n- #90 'Update Terraform hashicorp/terraform to v1.18.0' (minor, 1.17.4 -> 1.18.0). Head 8c9d0e190, 1 commit by renovate[bot], changing only `.terraform-version`. base.sha 7b8c9d0e1. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'Plan' completed/success, 'check / Dagger' completed/success. The repo's `terraform/versions.tf` declares `required_version = \"~> 1.17.0\"`. CI installs Terraform from its own workflow pin, so the green Plan ran on 1.17.4.\n- #92 'Update dependency prettier to v3.11.2' (patch). Head 9d0e1f292, 1 commit by renovate[bot]. base.sha 7b8c9d0e1. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\nPre-merge re-read of #92: head 9d0e1f292, clean.",
+      "expected_output": "Treats #90 as a HOLD, since the bumped `.terraform-version` falls outside the `required_version` constraint in another file and the green Plan never tested 1.18.0. It doesn't approve, merge or tick #90. It surfaces #90 for a human with that reason. The walk continues, and #92 merges with rebase and expectedHeadSha 9d0e1f292.",
+      "files": ["fixtures/08-terraform-pin-hold.json"]
+    },
+    {
+      "id": 9,
+      "prompt": "Repo langri-sha/hollowpine is still attached to the session. Every PR's get result shows base.repo.archived: true.\n- #5 'Update dependency eslint to v11'. mergeable_state blocked. Statuses: renovate/artifacts=failure. No check runs.\n- #7 'Update dependency dotenv to v18.1.0' (patch). mergeable_state blocked. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\nIn an earlier run, ticking a rebase checkbox in this repo returned HTTP 403.",
+      "expected_output": "Recognises hollowpine as archived and skips the whole repo. No merge, approval or rebase-tick attempts, so no 403s. Its PRs are not listed as skipped majors, held or failing. The report names hollowpine once as archived, and ideally suggests removing it from the session's sources.",
+      "files": ["fixtures/09-archived-repo-skipped.json"]
+    },
+    {
+      "id": 10,
+      "prompt": "Repo langri-sha/ironleaf: not archived, base main, tip 1c2d3e4f5.\n- #1 'Configure Renovate', authored by renovate[bot]. It adds only `renovate.json`, and its body is Renovate's onboarding summary. Head 2d3e4f501. base.sha 1c2d3e4f5. mergeable_state clean. No statuses. Check runs: 'Build' completed/success.",
+      "expected_output": "Doesn't merge, approve or tick #1. It is Renovate's onboarding PR, not a dependency update, and adopting Renovate is a human decision even with green checks. The report lists it once under held, as an onboarding PR waiting for a human.",
+      "files": ["fixtures/10-onboarding-pr-held.json"]
+    },
+    {
+      "id": 11,
+      "prompt": "Repo langri-sha/emberly: not archived, no required review. Base main, tip 4e5f6a7b8.\n- #60 'Update dependency react-router to v7.12.0' (minor). When classified: head 5d4c3b2a1, 1 commit by renovate[bot], base.sha 4e5f6a7b8, mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\nPre-merge re-read of #60: head is now 8f7e6d5c4, a upgrade-bot[bot] 'chore(deps): Apply upgrade changes' commit pushed 30 seconds ago. mergeable_state unstable. Check runs on the new head: 'check / Dagger' in_progress.",
+      "expected_output": "Doesn't merge #60. It neither merges the old SHA 5d4c3b2a1 nor the new head with pending checks, and calls no merge without expectedHeadSha. It doesn't tick the rebase box or wait for CI within the run. The report says the head moved during the run and the next run will pick #60 up.",
+      "files": ["fixtures/11-head-moved-before-merge.json"]
+    },
+    {
+      "id": 12,
+      "prompt": "Repo langri-sha/tinderbox-ui: not archived, no required review. Base main, tip 0f1e2d3c4.\n- #44 'Update dependency @floating-ui/react to v0.28.4' (patch). 2 commits: e1f2a3b44 by renovate[bot], then head f2a3b4c44 by upgrade-bot[bot] ('chore(deps): Apply upgrade changes'). base.sha 0f1e2d3c4. mergeable_state clean. get_status on head returns {state: pending, total_count: 0, statuses: []}. Check runs on head: 'check / Dagger' completed/success, 'check / Lint' completed/skipped.\n- #46 'Update dependency nanoid to v5.1.9' (patch). Head a3b4c5d46, 1 commit by renovate[bot]. base.sha 0f1e2d3c4. mergeable_state clean. get_status on head returns {state: pending, total_count: 0, statuses: []}. Check runs on head: 'check / Dagger' completed/success.\nPre-merge re-read of #44: head f2a3b4c44, clean.",
+      "expected_output": "Looks past the combined `pending` state, which only reflects zero statuses, and recognises that the missing renovate/stability-days status on #44 comes from the follow-up commit on top of Renovate's. For a multi-commit version update, that counts as release age met, not as pending or undecided. Merges #44 with rebase and expectedHeadSha f2a3b4c44. #46 has a single commit and no status at all, so it is release-age pending: it isn't merged, and it isn't ticked after #44's merge either. The report lists #44 as merged and counts #46 among the pending.",
+      "files": ["fixtures/12-follow-up-commit-hides-age.json"]
+    },
+    {
+      "id": 13,
+      "prompt": "Repo langri-sha/lanternfish: not archived, no required status checks. Base main, tip 3a4b5c6d7.\n- #9 'Update dependency yaml to v2.9.1' (patch). Head 4b5c6d709, 1 commit by renovate[bot]. base.sha 3a4b5c6d7. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs on head: none.\n- #11 'Update Rust crate anyhow to v1.0.110' (patch). Head 5c6d7e811, 1 commit by renovate[bot]. base.sha 3a4b5c6d7. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs on head: 'Check' completed/success, 'QML' completed/success, and 'Validate' with status in_progress, conclusion success and completed_at set. The workflow runs behind them all completed with success.",
+      "expected_output": "Merges neither PR. #9 has no check data, and `clean` alone proves nothing in a repo without required checks, so it is reported as held for lack of CI evidence. #11 has a check run whose status isn't completed. It counts as pending despite the conclusion and is reported as a stuck check that a human could re-run. No ticks, no retried jobs, no waiting within the run.",
+      "files": ["fixtures/13-missing-and-stuck-checks.json"]
+    }
+  ]
+}

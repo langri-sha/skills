@@ -1,0 +1,61 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/glassfrog",
+      "tip": "7b8c9d0e1",
+      "files": {
+        ".terraform-version": "1.17.4\n",
+        "terraform/versions.tf": "terraform {\n  required_version = \"~> 1.17.0\"\n}\n",
+        "terraform/main.tf": "resource \"null_resource\" \"example\" {}\n"
+      },
+      "prs": [
+        {
+          "number": 90,
+          "title": "Update Terraform hashicorp/terraform to v1.18.0",
+          "update": {
+            "package": "hashicorp/terraform",
+            "from": "1.17.4",
+            "to": "1.18.0",
+            "type": "minor"
+          },
+          "head": "8c9d0e190",
+          "base": "7b8c9d0e1",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [
+            ["Plan", "completed", "success"],
+            ["check / Dagger", "completed", "success"]
+          ],
+          "files": [
+            {
+              "filename": ".terraform-version",
+              "patch": "@@ -1 +1 @@\n-1.17.4\n+1.18.0"
+            }
+          ]
+        },
+        {
+          "number": 92,
+          "title": "Update dependency prettier to v3.11.2",
+          "update": {
+            "package": "prettier",
+            "from": "3.11.1",
+            "to": "3.11.2",
+            "type": "patch"
+          },
+          "head": "9d0e1f292",
+          "base": "7b8c9d0e1",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": ["glassfrog#92"],
+    "ticked": [],
+    "approved": [],
+    "report": [
+      "#90 is held for a human because the bumped .terraform-version falls outside the required_version constraint.",
+      "The report says the green Plan on #90 did not test 1.18.0."
+    ]
+  }
+}

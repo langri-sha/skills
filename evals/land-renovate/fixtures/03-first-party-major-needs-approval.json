@@ -1,0 +1,42 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/ferrolux",
+      "tip": "6e5d4c3b2",
+      "requiresReview": true,
+      "prs": [
+        {
+          "number": 30,
+          "title": "Update dependency @langri-sha/eslint-config to v9",
+          "update": {
+            "package": "@langri-sha/eslint-config",
+            "from": "8.4.0",
+            "to": "9.0.0",
+            "type": "major"
+          },
+          "head": "2f3e4d530",
+          "base": "6e5d4c3b2",
+          "state": "blocked",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [
+            ["ci", "completed", "success"],
+            ["checks", "completed", "success"],
+            ["cleanup", "completed", "skipped"]
+          ],
+          "reread": {
+            "whenApproved": true,
+            "state": "clean"
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": ["ferrolux#30"],
+    "ticked": [],
+    "approved": ["ferrolux#30"],
+    "report": [
+      "#30 is listed as merged and is not listed among skipped majors."
+    ]
+  }
+}

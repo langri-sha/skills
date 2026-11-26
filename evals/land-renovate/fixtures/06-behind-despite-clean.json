@@ -1,0 +1,43 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/cobblepath",
+      "tip": "9e8d7c6b5",
+      "prs": [
+        {
+          "number": 19,
+          "title": "Update dependency vitest to v4.2.3",
+          "update": {
+            "package": "vitest",
+            "from": "4.2.2",
+            "to": "4.2.3",
+            "type": "patch"
+          },
+          "head": "3c4d5e619",
+          "base": "1a2b3c4d5",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        },
+        {
+          "number": 21,
+          "title": "Lock file maintenance",
+          "head": "4d5e6f721",
+          "base": "1a2b3c4d5",
+          "state": "unstable",
+          "statuses": [["renovate/stability-days", "pending"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": ["cobblepath#19"],
+    "approved": [],
+    "settledByStatus": ["cobblepath#21"],
+    "report": [
+      "#19 is listed under rebase requested because it is behind.",
+      "#21 is counted as release-age pending."
+    ]
+  }
+}
