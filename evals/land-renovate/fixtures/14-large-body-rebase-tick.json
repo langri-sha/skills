@@ -1,0 +1,31 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/ledgerwood",
+      "tip": "6d7e8f901",
+      "prs": [
+        {
+          "number": 201,
+          "title": "Update dependency lodash-es to v4.18.2",
+          "update": {
+            "package": "lodash-es",
+            "from": "4.18.1",
+            "to": "4.18.2",
+            "type": "patch"
+          },
+          "head": "b8c9d0e201",
+          "base": "5c6d7e8f0",
+          "bodyBytes": 120000,
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": ["ledgerwood#201"],
+    "approved": [],
+    "report": ["#201 is listed under rebase requested because it is behind."]
+  }
+}
