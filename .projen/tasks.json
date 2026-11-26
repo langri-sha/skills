@@ -55,6 +55,9 @@
         },
         {
           "exec": "python3 -B -m unittest discover -s herdr/tests"
+        },
+        {
+          "exec": "node --test evals/land-renovate/harness/*.test.js"
         }
       ]
     },
