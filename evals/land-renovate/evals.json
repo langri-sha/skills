@@ -78,6 +78,12 @@
       "prompt": "Repo langri-sha/lanternfish: not archived, no required status checks. Base main, tip 3a4b5c6d7.\n- #9 'Update dependency yaml to v2.9.1' (patch). Head 4b5c6d709, 1 commit by renovate[bot]. base.sha 3a4b5c6d7. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs on head: none.\n- #11 'Update Rust crate anyhow to v1.0.110' (patch). Head 5c6d7e811, 1 commit by renovate[bot]. base.sha 3a4b5c6d7. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs on head: 'Check' completed/success, 'QML' completed/success, and 'Validate' with status in_progress, conclusion success and completed_at set. The workflow runs behind them all completed with success.",
       "expected_output": "Merges neither PR. #9 has no check data, and `clean` alone proves nothing in a repo without required checks, so it is reported as held for lack of CI evidence. #11 has a check run whose status isn't completed. It counts as pending despite the conclusion and is reported as a stuck check that a human could re-run. No ticks, no retried jobs, no waiting within the run.",
       "files": ["fixtures/13-missing-and-stuck-checks.json"]
+    },
+    {
+      "id": 14,
+      "prompt": "Repo langri-sha/ledgerwood: not archived, base main, tip 6d7e8f901.\n- #201 'Update dependency lodash-es to v4.18.2' (patch). Head b8c9d0e201, 1 commit by renovate[bot]. base.sha 5c6d7e8f0, which is not the current tip. mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success. The PR body is about 120 KB of release notes, and the rebase checkbox sits near its end.",
+      "expected_output": "Detects that #201 is behind and ticks its Renovate rebase checkbox exactly once, resending the whole body with only the checkbox flipped. A body this large is no reason to skip the tick or to truncate the body. It does not merge #201. The report lists #201 under rebase requested (behind).",
+      "files": ["fixtures/14-large-body-rebase-tick.json"]
     }
   ]
 }
