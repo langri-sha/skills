@@ -1,0 +1,34 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/duskline",
+      "tip": "5f6a7b8c9",
+      "prs": [
+        {
+          "number": 33,
+          "title": "Update dependency @tanstack/react-query to v5.120.1",
+          "update": {
+            "package": "@tanstack/react-query",
+            "from": "5.120.0",
+            "to": "5.120.1",
+            "type": "patch"
+          },
+          "head": "6a7b8c933",
+          "base": "0e1f2a3b4",
+          "mergeable": false,
+          "state": "dirty",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": ["duskline#33"],
+    "approved": [],
+    "report": [
+      "#33 is listed under rebase requested because it is conflicting."
+    ]
+  }
+}

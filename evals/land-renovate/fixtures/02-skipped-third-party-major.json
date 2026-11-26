@@ -1,0 +1,48 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/marrowgate",
+      "tip": "3c4d5e6f7",
+      "prs": [
+        {
+          "number": 12,
+          "title": "Update dependency express to v6",
+          "update": {
+            "package": "express",
+            "from": "5.2.1",
+            "to": "6.0.0",
+            "type": "major"
+          },
+          "head": "0a9b8c712",
+          "base": "3c4d5e6f7",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        },
+        {
+          "number": 15,
+          "title": "Update dependency pino to v10.3.1",
+          "update": {
+            "package": "pino",
+            "from": "10.3.0",
+            "to": "10.3.1",
+            "type": "patch"
+          },
+          "head": "1b2c3d415",
+          "base": "3c4d5e6f7",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": ["marrowgate#15"],
+    "ticked": [],
+    "approved": [],
+    "noChecksRead": ["marrowgate#12"],
+    "report": [
+      "#15 is listed as merged.",
+      "#12 is listed under skipped third-party majors."
+    ]
+  }
+}

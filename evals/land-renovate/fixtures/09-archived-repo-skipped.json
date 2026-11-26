@@ -1,0 +1,50 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/hollowpine",
+      "archived": true,
+      "tip": "4a5b6c7d8",
+      "prs": [
+        {
+          "number": 5,
+          "title": "Update dependency eslint to v11",
+          "update": {
+            "package": "eslint",
+            "from": "10.9.0",
+            "to": "11.0.0",
+            "type": "major"
+          },
+          "head": "5a6b7c805",
+          "base": "4a5b6c7d8",
+          "state": "blocked",
+          "statuses": [["renovate/artifacts", "failure"]],
+          "checks": []
+        },
+        {
+          "number": 7,
+          "title": "Update dependency dotenv to v18.1.0",
+          "update": {
+            "package": "dotenv",
+            "from": "18.0.0",
+            "to": "18.1.0",
+            "type": "patch"
+          },
+          "head": "7a8b9c007",
+          "base": "4a5b6c7d8",
+          "state": "blocked",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": [],
+    "approved": [],
+    "report": [
+      "hollowpine is named once as archived.",
+      "Its PRs are not listed as skipped majors, held or failing."
+    ]
+  }
+}

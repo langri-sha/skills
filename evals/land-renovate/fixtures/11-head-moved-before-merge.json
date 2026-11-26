@@ -1,0 +1,49 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/emberly",
+      "tip": "4e5f6a7b8",
+      "prs": [
+        {
+          "number": 60,
+          "title": "Update dependency react-router to v7.12.0",
+          "update": {
+            "package": "react-router",
+            "from": "7.11.4",
+            "to": "7.12.0",
+            "type": "minor"
+          },
+          "head": "5d4c3b2a1",
+          "base": "4e5f6a7b8",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]],
+          "reread": {
+            "commits": [
+              {
+                "sha": "5d4c3b2a1",
+                "author": "renovate[bot]",
+                "message": "Update"
+              },
+              {
+                "sha": "8f7e6d5c4",
+                "author": "upgrade-bot[bot]",
+                "message": "chore(deps): Apply upgrade changes"
+              }
+            ],
+            "state": "unstable",
+            "statuses": [],
+            "checks": [["check / Dagger", "in_progress", null]]
+          }
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": [],
+    "approved": [],
+    "report": [
+      "The report says the head of #60 moved during the run and that the next run will pick it up."
+    ]
+  }
+}

@@ -1,0 +1,56 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/lanternfish",
+      "tip": "3a4b5c6d7",
+      "prs": [
+        {
+          "number": 9,
+          "title": "Update dependency yaml to v2.9.1",
+          "update": {
+            "package": "yaml",
+            "from": "2.9.0",
+            "to": "2.9.1",
+            "type": "patch"
+          },
+          "head": "4b5c6d709",
+          "base": "3a4b5c6d7",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": []
+        },
+        {
+          "number": 11,
+          "title": "Update Rust crate anyhow to v1.0.110",
+          "update": {
+            "package": "anyhow",
+            "from": "1.0.109",
+            "to": "1.0.110",
+            "type": "patch"
+          },
+          "head": "5c6d7e811",
+          "base": "3a4b5c6d7",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [
+            ["Check", "completed", "success"],
+            ["QML", "completed", "success"],
+            {
+              "name": "Validate",
+              "status": "in_progress",
+              "conclusion": "success",
+              "completed_at": "2026-11-26T20:40:00Z"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": [],
+    "approved": [],
+    "report": [
+      "#9 is held for lack of CI evidence.",
+      "#11 is reported as a stuck check that a human could re-run."
+    ]
+  }
+}

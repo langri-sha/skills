@@ -1,0 +1,51 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/brightwell",
+      "tip": "2b3c4d5e6",
+      "prs": [
+        {
+          "number": 70,
+          "title": "Update dependency typescript-eslint to v8.80.1",
+          "update": {
+            "package": "typescript-eslint",
+            "from": "8.80.0",
+            "to": "8.80.1",
+            "type": "patch"
+          },
+          "head": "7a8b9c070",
+          "base": "2b3c4d5e6",
+          "state": "unstable",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [
+            ["check / Dagger", "completed", "failure"],
+            ["check / Renovate Post-Upgrade", "completed", "success"]
+          ]
+        },
+        {
+          "number": 72,
+          "title": "Update dependency posthog-js to v1.460.0",
+          "update": {
+            "package": "posthog-js",
+            "from": "1.459.0",
+            "to": "1.460.0",
+            "type": "minor"
+          },
+          "head": "8b9c0d172",
+          "base": "2b3c4d5e6",
+          "statuses": [["renovate/stability-days", "success"]],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": ["brightwell#72"],
+    "ticked": [],
+    "approved": [],
+    "report": [
+      "#70 is reported as failing and names check / Dagger.",
+      "#72 is listed as merged."
+    ]
+  }
+}

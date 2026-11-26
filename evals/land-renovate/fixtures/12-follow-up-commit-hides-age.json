@@ -1,0 +1,61 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/tinderbox-ui",
+      "tip": "0f1e2d3c4",
+      "prs": [
+        {
+          "number": 44,
+          "title": "Update dependency @floating-ui/react to v0.28.4",
+          "update": {
+            "package": "@floating-ui/react",
+            "from": "0.28.3",
+            "to": "0.28.4",
+            "type": "patch"
+          },
+          "commits": [
+            {
+              "sha": "e1f2a3b44",
+              "author": "renovate[bot]",
+              "message": "Update"
+            },
+            {
+              "sha": "f2a3b4c44",
+              "author": "upgrade-bot[bot]",
+              "message": "chore(deps): Apply upgrade changes"
+            }
+          ],
+          "base": "0f1e2d3c4",
+          "statuses": [],
+          "checks": [
+            ["check / Dagger", "completed", "success"],
+            ["check / Lint", "completed", "skipped"]
+          ]
+        },
+        {
+          "number": 46,
+          "title": "Update dependency nanoid to v5.1.9",
+          "update": {
+            "package": "nanoid",
+            "from": "5.1.8",
+            "to": "5.1.9",
+            "type": "patch"
+          },
+          "head": "a3b4c5d46",
+          "base": "0f1e2d3c4",
+          "statuses": [],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": ["tinderbox-ui#44"],
+    "ticked": [],
+    "approved": [],
+    "report": [
+      "#44 is listed as merged.",
+      "#46 is counted among the release-age pending and is not listed individually."
+    ]
+  }
+}

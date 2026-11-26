@@ -1,0 +1,60 @@
+{
+  "repos": [
+    {
+      "name": "langri-sha/kelpforest",
+      "tip": "8a7b6c5d4",
+      "prs": [
+        {
+          "number": 50,
+          "title": "Lock file maintenance",
+          "head": "4d5e6f750",
+          "base": "8a7b6c5d4",
+          "state": "unstable",
+          "statuses": [
+            [
+              "renovate/stability-days",
+              "pending",
+              "Updates have not met minimum release age requirement"
+            ]
+          ],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    },
+    {
+      "name": "langri-sha/saltmarsh",
+      "tip": "9b8c7d6e5",
+      "prs": [
+        {
+          "number": 8,
+          "title": "Lock file maintenance",
+          "commits": [
+            {
+              "sha": "5e6f7a808",
+              "author": "renovate[bot]",
+              "message": "Update"
+            },
+            {
+              "sha": "6f7a8b908",
+              "author": "upgrade-bot[bot]",
+              "message": "chore(deps): Apply upgrade changes"
+            }
+          ],
+          "base": "9b8c7d6e5",
+          "statuses": [],
+          "checks": [["check / Dagger", "completed", "success"]]
+        }
+      ]
+    }
+  ],
+  "expect": {
+    "merged": [],
+    "ticked": [],
+    "approved": [],
+    "settledByStatus": ["kelpforest#50"],
+    "report": [
+      "saltmarsh#8 is reported as age unverifiable, not as release age met.",
+      "The release-age-pending count includes kelpforest#50, which is not listed individually."
+    ]
+  }
+}
