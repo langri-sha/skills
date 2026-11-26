@@ -46,6 +46,7 @@ const project = new Project({
 
 project.testTask.exec('node --test test/*.test.js')
 project.testTask.exec('python3 -B -m unittest discover -s herdr/tests')
+project.testTask.exec('node --test evals/land-renovate/harness/*.test.js')
 
 project.package?.addEngine('pnpm', '>= 11.0.0')
 project.package?.addField('packageManager', 'pnpm@12.23.0')
