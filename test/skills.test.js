@@ -5,7 +5,7 @@ import { describe, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('..', import.meta.url))
-const directoriesThatAreNotSkills = new Set(['node_modules', 'test'])
+const directoriesThatAreNotSkills = new Set(['evals', 'node_modules', 'test'])
 
 const skillDirectories = readdirSync(root, { withFileTypes: true })
   .filter(
