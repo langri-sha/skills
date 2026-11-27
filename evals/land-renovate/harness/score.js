@@ -17,6 +17,9 @@ const sameSet = (id, actual, expected) => {
   }
 }
 
+const namesServedHead = ({ commitID, servedHead }) =>
+  commitID === undefined || commitID === servedHead
+
 const each = (id, items, check, describe) => {
   if (items.length === 0) {
     return { id, kind: 'deterministic', status: 'na', detail: '' }
@@ -132,6 +135,7 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
   const refused = writes.filter(({ ok }) => !ok)
   const ticks = writes.filter((call) => call.tick)
   const approvals = writes.filter((call) => call.approve)
+  const mayApprove = expect.mayApprove ?? {}
   const stray = writes.filter(
     (call) =>
       (call.write === 'update' && !call.tick) ||
@@ -160,7 +164,22 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
     examined({ fixture, expect, calls }),
     sameSet('writes.merged', merged.map(key), expect.merged ?? []),
     sameSet('writes.ticked', ticks.map(key), expect.ticked ?? []),
-    sameSet('writes.approved', approvals.map(key), expect.approved ?? []),
+    sameSet(
+      'writes.approved',
+      approvals.map(key).filter((pr) => !(pr in mayApprove)),
+      expect.approved ?? [],
+    ),
+    ...Object.entries(mayApprove).map(([pr, verified]) =>
+      each(
+        `writes.approved_head:${pr}`,
+        approvals.filter((call) => key(call) === pr),
+        (call) => call.servedHead === verified && namesServedHead(call),
+        (call) =>
+          call.servedHead !== verified
+            ? `${pr} approved while serving ${call.servedHead}, not the verified ${verified}`
+            : `${pr} approved naming ${call.commitID} while serving ${call.servedHead}`,
+      ),
+    ),
     {
       id: 'writes.no_refused',
       kind: 'deterministic',

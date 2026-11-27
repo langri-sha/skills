@@ -19,6 +19,7 @@ const referenced = (expect) =>
     ...(expect.merged ?? []),
     ...(expect.ticked ?? []),
     ...(expect.approved ?? []),
+    ...Object.keys(expect.mayApprove ?? {}),
     ...(expect.noChecksRead ?? []),
     ...(expect.settledByStatus ?? []),
   ].flat()
