@@ -296,6 +296,70 @@ describe('merge_pull_request', () => {
   })
 })
 
+describe('pull_request_review_write', () => {
+  const approve = (world, args = {}) =>
+    world.handle('pull_request_review_write', {
+      ...repoName,
+      method: 'create',
+      pullNumber: 41,
+      event: 'APPROVE',
+      ...args,
+    })
+
+  test('records the head the PR was serving when it was approved', () => {
+    const world = createWorld(fixture())
+
+    approve(world)
+
+    assert.equal(world.calls[0].servedHead, 'head00041')
+    assert.equal(world.calls[0].commitID, undefined)
+  })
+
+  test('records a named commit apart from the head being served', () => {
+    const world = createWorld(fixture())
+
+    approve(world, { commitID: 'named0001' })
+
+    assert.equal(world.calls[0].servedHead, 'head00041')
+    assert.equal(world.calls[0].commitID, 'named0001')
+  })
+
+  test('records the moved head once a re-read has served it', () => {
+    const world = createWorld(
+      fixture({
+        prs: [
+          {
+            number: 41,
+            title: 'x',
+            head: 'old41',
+            base: 'tip000001',
+            reread: {
+              commits: [
+                { sha: 'old41', author: 'renovate[bot]', message: 'x' },
+                { sha: 'new41', author: 'upgrade-bot[bot]', message: 'y' },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+    const get = () =>
+      call(world, 'pull_request_read', { method: 'get', pullNumber: 41 })
+
+    get()
+    approve(world)
+    get()
+    approve(world)
+
+    assert.deepEqual(
+      world.calls
+        .filter(({ write }) => write === 'review')
+        .map(({ servedHead }) => servedHead),
+      ['old41', 'new41'],
+    )
+  })
+})
+
 describe('archived repositories', () => {
   test('refuse every write with a 403', () => {
     const world = createWorld(fixture({ archived: true }))

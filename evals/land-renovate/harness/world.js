@@ -367,6 +367,8 @@ export const createWorld = (fixture) => {
       record('pull_request_review_write', args, {
         write: 'review',
         approve,
+        servedHead: phase(pr).head,
+        commitID: args.commitID,
         ok: true,
       })
 
