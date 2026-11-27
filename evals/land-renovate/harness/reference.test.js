@@ -91,3 +91,86 @@ describe('case 11 when the run approves before the re-read', () => {
     assert.equal(statusOf(criteria, 'writes.approved_head:emberly#60'), 'fail')
   })
 })
+
+describe('case 3 when the run approves, re-reads and then merges', () => {
+  const { expect, ...world } = JSON.parse(
+    readFileSync(
+      join(root, 'fixtures/03-first-party-major-needs-approval.json'),
+      'utf8',
+    ),
+  )
+  const target = { owner: 'langri-sha', repo: 'ferrolux', pullNumber: 30 }
+  const run = (steps) => {
+    const live = createWorld(world)
+    const calls = {
+      list: () =>
+        live.handle('list_pull_requests', { ...target, pullNumber: undefined }),
+      tip: () =>
+        live.handle('list_commits', { ...target, sha: 'main', perPage: 1 }),
+      status: () =>
+        live.handle('pull_request_read', { ...target, method: 'get_status' }),
+      get: () => live.handle('pull_request_read', { ...target, method: 'get' }),
+      checks: () =>
+        live.handle('pull_request_read', {
+          ...target,
+          method: 'get_check_runs',
+        }),
+      approve: () =>
+        live.handle('pull_request_review_write', {
+          ...target,
+          method: 'create',
+          event: 'APPROVE',
+        }),
+      merge: () =>
+        live.handle('merge_pull_request', {
+          ...target,
+          merge_method: 'rebase',
+          expectedHeadSha: '2f3e4d530',
+        }),
+    }
+
+    for (const step of steps) {
+      calls[step]()
+    }
+
+    return scoreCalls({ expect, calls: live.calls, fixture: world })
+  }
+  const failures = (criteria) =>
+    criteria.filter(({ status }) => status === 'fail').map(({ id }) => id)
+
+  test('fails nothing when the first read comes before the approval', () => {
+    assert.deepEqual(
+      failures(
+        run([
+          'list',
+          'tip',
+          'status',
+          'get',
+          'checks',
+          'approve',
+          'get',
+          'merge',
+        ]),
+      ),
+      [],
+    )
+  })
+
+  test('fails nothing when the run reads twice before approving', () => {
+    assert.deepEqual(
+      failures(
+        run([
+          'list',
+          'tip',
+          'status',
+          'get',
+          'checks',
+          'get',
+          'approve',
+          'merge',
+        ]),
+      ),
+      [],
+    )
+  })
+})
