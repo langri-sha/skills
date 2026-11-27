@@ -16,7 +16,7 @@
     {
       "id": 3,
       "prompt": "Repo langri-sha/ferrolux: not archived. Its branch rule requires one approving review and the 'ci' check. Base main, tip 6e5d4c3b2.\nOpen renovate[bot] PRs:\n- #30 'Update dependency @langri-sha/eslint-config to v9'. The change table shows 8.4.0 -> 9.0.0 (major). Head 2f3e4d530, 1 commit by renovate[bot]. base.sha 6e5d4c3b2. mergeable true, mergeable_state blocked, reviewDecision REVIEW_REQUIRED. Statuses: renovate/stability-days=success. Check runs: 'ci' completed/success, 'checks' completed/success, 'cleanup' completed/skipped.\nAfter an approval, the re-read shows head 2f3e4d530, mergeable_state clean.",
-      "expected_output": "Treats #30 as a first-party major (@langri-sha/*), which lands normally, and does not list it as a skipped major. Since `blocked` comes only from the missing review, approves it with the standard batch-landing body. Then re-reads it, confirms head 2f3e4d530 and mergeable_state clean, and merges with rebase and expectedHeadSha 2f3e4d530. No bypass of protections. The report lists #30 as merged.",
+      "expected_output": "Treats #30 as a first-party major (@langri-sha/*), which lands normally, and does not list it as a skipped major. Approves it with the standard batch-landing body, because it is about to merge it. Then re-reads it, confirms head 2f3e4d530 and mergeable_state clean, which the approval cleared, and merges with rebase and expectedHeadSha 2f3e4d530. No bypass of protections. The report lists #30 as merged.",
       "files": ["fixtures/03-first-party-major-needs-approval.json"]
     },
     {
