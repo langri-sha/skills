@@ -46,7 +46,7 @@
   "expect": {
     "merged": ["quillstone#41"],
     "ticked": ["quillstone#43"],
-    "approved": [],
+    "approved": ["quillstone#41"],
     "report": [
       "#41 is listed as merged with its title.",
       "#43 is listed under rebase requested with the reason that it follows a merge."

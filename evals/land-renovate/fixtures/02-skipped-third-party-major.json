@@ -38,7 +38,7 @@
   "expect": {
     "merged": ["marrowgate#15"],
     "ticked": [],
-    "approved": [],
+    "approved": ["marrowgate#15"],
     "noChecksRead": ["marrowgate#12"],
     "report": [
       "#15 is listed as merged.",

@@ -42,7 +42,7 @@
   "expect": {
     "merged": ["brightwell#72"],
     "ticked": [],
-    "approved": [],
+    "approved": ["brightwell#72"],
     "report": [
       "#70 is reported as failing and names check / Dagger.",
       "#72 is listed as merged."

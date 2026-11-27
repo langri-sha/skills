@@ -52,7 +52,7 @@
   "expect": {
     "merged": ["glassfrog#92"],
     "ticked": [],
-    "approved": [],
+    "approved": ["glassfrog#92"],
     "report": [
       "#90 is held for a human because the bumped .terraform-version falls outside the required_version constraint.",
       "The report says the green Plan on #90 did not test 1.18.0."
