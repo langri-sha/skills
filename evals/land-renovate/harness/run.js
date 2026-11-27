@@ -410,7 +410,7 @@ const main = async () => {
       cases: { type: 'string' },
       model: { type: 'string', default: 'claude-sonnet-5-5' },
       'judge-model': { type: 'string', default: 'claude-haiku-5-5' },
-      prompt: { type: 'string', default: join(evalRoot, 'prompts', 'v4.txt') },
+      prompt: { type: 'string', default: join(evalRoot, 'prompts', 'v5.txt') },
       'skill-ref': { type: 'string', default: 'origin/main' },
       out: { type: 'string' },
       claude: { type: 'string', default: process.env.CLAUDE_BIN ?? 'claude' },

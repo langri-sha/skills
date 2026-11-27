@@ -3,8 +3,9 @@
 Replays the hourly "Land Renovate PRs" prompt against synthetic repositories and
 scores what it does. Nothing here touches GitHub.
 
-- `prompts/v4.txt` is the candidate prompt, copied from the cloud task with a
-  stand-in repository name.
+- `prompts/v5.txt` is the live prompt and the runner's default, copied from the
+  cloud task with a stand-in repository name. `v4.txt` is the earlier version,
+  kept for comparison with `--prompt`.
 - `evals.json` has the cases: `prompt` describes the snapshot, `expected_output`
   is the rubric and `files` names the fixture. The candidate sees neither the
   rubric nor `expect`.
