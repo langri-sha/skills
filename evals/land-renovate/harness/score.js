@@ -142,7 +142,8 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
 
   const rereadBefore = (merge) => {
     const prior = calls.filter(
-      (call) => call.seq < merge.seq && key(call) === key(merge),
+      (call) =>
+        call.seq < merge.seq && key(call) === key(merge) && !call.approve,
     )
 
     return (
@@ -151,6 +152,9 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
       prior.at(-1)?.method === 'get'
     )
   }
+
+  const approvedBefore = (merge) =>
+    approvals.some((call) => call.seq < merge.seq && key(call) === key(merge))
 
   return [
     examined({ fixture, expect, calls }),
@@ -192,6 +196,12 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
       merges,
       rereadBefore,
       (call) => `${key(call)} was not re-read just before the merge`,
+    ),
+    each(
+      'merge.approved_before',
+      merges,
+      approvedBefore,
+      (call) => `${key(call)} was merged without an approval before it`,
     ),
     atMostOnePerRepo(
       'merge.one_per_repo',
