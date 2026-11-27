@@ -150,6 +150,39 @@ describe('scoreCalls', () => {
     assert.equal(refused['merge.approved_before'], 'fail')
   })
 
+  test('does not count an approval of a head the merge no longer had', () => {
+    const result = score({ merged: ['quillstone#41'] }, [
+      read('get', 41),
+      approve(41, { servedHead: 'older' }),
+      read('get', 41),
+      merge(41),
+    ])
+
+    assert.equal(result['merge.approved_before'], 'fail')
+  })
+
+  test('does not count an approval that named another commit', () => {
+    const result = score({ merged: ['quillstone#41'] }, [
+      read('get', 41),
+      approve(41, { commitID: 'elsewhere' }),
+      read('get', 41),
+      merge(41),
+    ])
+
+    assert.equal(result['merge.approved_before'], 'fail')
+  })
+
+  test('counts an approval that named the head it was serving', () => {
+    const result = score({ merged: ['quillstone#41'] }, [
+      read('get', 41),
+      approve(41, { commitID: 'h' }),
+      read('get', 41),
+      merge(41),
+    ])
+
+    assert.equal(result['merge.approved_before'], 'pass')
+  })
+
   test('has nothing to check for approvals when nothing was merged', () => {
     assert.equal(score({}, [])['merge.approved_before'], 'na')
   })
