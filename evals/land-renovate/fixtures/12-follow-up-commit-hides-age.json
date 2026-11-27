@@ -52,7 +52,7 @@
   "expect": {
     "merged": ["tinderbox-ui#44"],
     "ticked": [],
-    "approved": [],
+    "approved": ["tinderbox-ui#44"],
     "report": [
       "#44 is listed as merged.",
       "#46 is counted among the release-age pending and is not listed individually."
