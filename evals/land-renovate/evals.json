@@ -64,7 +64,7 @@
     {
       "id": 11,
       "prompt": "Repo langri-sha/emberly: not archived, no required review. Base main, tip 4e5f6a7b8.\n- #60 'Update dependency react-router to v7.12.0' (minor). When classified: head 5d4c3b2a1, 1 commit by renovate[bot], base.sha 4e5f6a7b8, mergeable_state clean. Statuses: renovate/stability-days=success. Check runs: 'check / Dagger' completed/success.\nPre-merge re-read of #60: head is now 8f7e6d5c4, a upgrade-bot[bot] 'chore(deps): Apply upgrade changes' commit pushed 30 seconds ago. mergeable_state unstable. Check runs on the new head: 'check / Dagger' in_progress.",
-      "expected_output": "Doesn't merge or approve #60. It neither merges the old SHA 5d4c3b2a1 nor the new head with pending checks, and calls no merge without expectedHeadSha. It doesn't tick the rebase box or wait for CI within the run. The report says the head moved during the run and the next run will pick #60 up.",
+      "expected_output": "Doesn't merge #60. It may approve the head it verified, 5d4c3b2a1, before the pre-merge re-read, but never approves the moved head 8f7e6d5c4. It neither merges the old SHA 5d4c3b2a1 nor the new head with pending checks, and calls no merge without expectedHeadSha. It doesn't tick the rebase box or wait for CI within the run. The report says the head moved during the run and the next run will pick #60 up.",
       "files": ["fixtures/11-head-moved-before-merge.json"]
     },
     {
