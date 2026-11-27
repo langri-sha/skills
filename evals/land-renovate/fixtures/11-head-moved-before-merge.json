@@ -42,6 +42,7 @@
     "merged": [],
     "ticked": [],
     "approved": [],
+    "mayApprove": { "emberly#60": "5d4c3b2a1" },
     "report": [
       "The report says the head of #60 moved during the run and that the next run will pick it up."
     ]
