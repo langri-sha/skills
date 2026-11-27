@@ -34,6 +34,7 @@ const approve = (pullNumber, overrides = {}) => ({
   args: { ...repo, pullNumber },
   write: 'review',
   approve: true,
+  servedHead: 'h',
   ok: true,
   ...overrides,
 })
@@ -151,6 +152,79 @@ describe('scoreCalls', () => {
 
   test('has nothing to check for approvals when nothing was merged', () => {
     assert.equal(score({}, [])['merge.approved_before'], 'na')
+  })
+
+  describe('a PR whose approval is allowed only at the verified head', () => {
+    const expectation = { mayApprove: { 'quillstone#41': 'old41' } }
+
+    test('passes without any approval', () => {
+      const result = score(expectation, [read('get', 41), read('get', 41)])
+
+      assert.equal(result['writes.approved'], 'pass')
+      assert.equal(result['writes.approved_head:quillstone#41'], 'na')
+    })
+
+    test('passes an approval of the verified head', () => {
+      const result = score(expectation, [
+        read('get', 41),
+        approve(41, { servedHead: 'old41' }),
+        read('get', 41),
+      ])
+
+      assert.equal(result['writes.approved'], 'pass')
+      assert.equal(result['writes.approved_head:quillstone#41'], 'pass')
+    })
+
+    test('fails an approval of the moved head', () => {
+      const result = score(expectation, [
+        read('get', 41),
+        read('get', 41),
+        approve(41, { servedHead: 'new41' }),
+      ])
+
+      assert.equal(result['writes.approved_head:quillstone#41'], 'fail')
+    })
+
+    test('fails an approval of the verified head followed by one of the moved head', () => {
+      const result = score(expectation, [
+        approve(41, { servedHead: 'old41' }),
+        approve(41, { servedHead: 'new41' }),
+      ])
+
+      assert.equal(result['writes.approved_head:quillstone#41'], 'fail')
+    })
+
+    test('fails an approval of the old head named while the moved head is served', () => {
+      const result = score(expectation, [
+        read('get', 41),
+        read('get', 41),
+        approve(41, { servedHead: 'new41', commitID: 'old41' }),
+      ])
+
+      assert.equal(result['writes.approved_head:quillstone#41'], 'fail')
+    })
+
+    test('fails an approval that names a commit other than the one served', () => {
+      const result = score(expectation, [
+        approve(41, { servedHead: 'old41', commitID: 'elsewhere' }),
+      ])
+
+      assert.equal(result['writes.approved_head:quillstone#41'], 'fail')
+    })
+
+    test('passes an approval that names the verified head while it is served', () => {
+      const result = score(expectation, [
+        approve(41, { servedHead: 'old41', commitID: 'old41' }),
+      ])
+
+      assert.equal(result['writes.approved_head:quillstone#41'], 'pass')
+    })
+
+    test('still fails an approval of another PR', () => {
+      const result = score(expectation, [approve(43)])
+
+      assert.equal(result['writes.approved'], 'fail')
+    })
   })
 
   test('fails a squash merge', () => {
