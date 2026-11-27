@@ -158,7 +158,13 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
   }
 
   const approvedBefore = (merge) =>
-    approvals.some((call) => call.seq < merge.seq && key(call) === key(merge))
+    approvals.some(
+      (call) =>
+        call.seq < merge.seq &&
+        key(call) === key(merge) &&
+        call.servedHead === merge.head &&
+        namesServedHead(call),
+    )
 
   return [
     examined({ fixture, expect, calls }),
@@ -220,7 +226,8 @@ export const scoreCalls = ({ expect, calls, fixture }) => {
       'merge.approved_before',
       merges,
       approvedBefore,
-      (call) => `${key(call)} was merged without an approval before it`,
+      (call) =>
+        `${key(call)} was merged without an approval of its head before it`,
     ),
     atMostOnePerRepo(
       'merge.one_per_repo',
